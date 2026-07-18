@@ -1,0 +1,14 @@
+## Codebase Patterns
+- Greenfield repo. agora-bootstrap US-AG1 establishes the stack, tooling, gates, and layout —
+  record reusable patterns here as they emerge.
+- Contracts live in ../koine (KINP/KGP/KCB/KMI/KCS + ADR-0001). Implement against them; do not
+  re-specify.
+- ADR-0001 invariants: registry routes by lookup (returns addresses, never proxies traffic);
+  the console observes REAL direct connections; provider-router (model backends) and
+  inter-platform routing are distinct concerns.
+
+---
+## Bootstrap
+- Repo skeleton created (README, CLAUDE.md, .gitignore, tasks/chief/agora-bootstrap.json).
+- Next: Chief runs agora-bootstrap US-AG1 (repo skeleton + stack decision + tooling/gates).
+---
