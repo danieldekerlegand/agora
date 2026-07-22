@@ -17,6 +17,7 @@ The mlx-serve endpoint/model table is ported from Analyzer
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -26,6 +27,11 @@ from .config import RouterConfig
 from .ladder import MODALITIES, PLACEHOLDER
 
 Wire = Literal["openai", "native"]
+
+#: Scores a candidate backend so the cheaper of two equally-usable ones can be preferred
+#: (KCB §3, "path search prefers zero-cost routes"). Injected rather than imported so this
+#: module stays free of pricing policy — see :mod:`agora_provider_router.cost`.
+Rank = Callable[["Backend"], float]
 
 
 @dataclass(frozen=True)
@@ -146,15 +152,21 @@ def placeholder_backend(modality: str) -> Backend:
     )
 
 
-def resolve_tier(tier: str, modality: str, config: RouterConfig) -> TierResolution:
+def resolve_tier(
+    tier: str, modality: str, config: RouterConfig, rank: Rank | None = None
+) -> TierResolution:
     """Resolve one rung for one modality against the configuration.
 
     Never dials anything: availability here is a *configuration* question. Whether a
     configured backend actually answers is a dispatch-time question, and a backend that
     does not answer falls through the same way an unconfigured one does.
+
+    ``rank`` breaks the tie between several usable paid vendors; without it the declared
+    :data:`PAID_PROVIDERS` order stands. Only the paid tier has a choice to make — the
+    keyless tiers offer exactly one backend each.
     """
     if tier == "paid":
-        return _resolve_paid(modality, config)
+        return _resolve_paid(modality, config, rank)
     if tier == "mlx":
         return _resolve_keyless(tier, MLX_PROVIDER, MLX_MODELS, modality, config)
     if tier == "local":
@@ -162,9 +174,10 @@ def resolve_tier(tier: str, modality: str, config: RouterConfig) -> TierResoluti
     raise ValueError(f"unknown tier {tier!r}")
 
 
-def _resolve_paid(modality: str, config: RouterConfig) -> TierResolution:
+def _resolve_paid(modality: str, config: RouterConfig, rank: Rank | None) -> TierResolution:
     vendors = PAID_PROVIDERS.get(modality, ())
     pending: list[str] = []
+    ready: list[Backend] = []
     for name in vendors:
         settings = config.provider(name)
         if not (settings.has_key and settings.usable):
@@ -177,17 +190,20 @@ def _resolve_paid(modality: str, config: RouterConfig) -> TierResolution:
         if model is None:
             pending.append(name)
             continue
-        return TierResolution(
-            tier="paid",
-            status="ready",
-            backend=Backend(
+        ready.append(
+            Backend(
                 tier="paid",
                 provider=name,
                 modality=modality,
                 model=model,
                 base_url=settings.base_url or vendor.base_url,
                 api_key=settings.api_key,
-            ),
+            )
+        )
+    if ready:
+        # ``min`` is stable, so an unranked call — or a tie — keeps the declared order.
+        return TierResolution(
+            tier="paid", status="ready", backend=ready[0] if rank is None else min(ready, key=rank)
         )
     if pending:
         return TierResolution(

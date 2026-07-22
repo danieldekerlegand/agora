@@ -36,11 +36,60 @@ curl localhost:8000/doctor                               # the resolved ladder p
 | `GET /v1/providers` | the vendor vocabulary (preference order, wire format) |
 | `GET /doctor` | the resolved ladder per modality — dials nothing |
 | `GET /health` | liveness + identity |
+| `GET /.well-known/kcb-manifest.json` | the KCB capability manifest (KCB §2) |
 
 Every generation response is the backend's body **verbatim** plus an `agora` key — the resolved
-tier, provider, model and the rungs that were tried — mirrored into `X-Agora-Tier` /
-`X-Agora-Provider` / `X-Agora-Model`. An OpenAI client ignores the extra key; the conformance
-console (US-AG5) reads it to show which tier served a request.
+tier, provider, model, the rungs that were tried, and the projected/actual cost — mirrored into
+`X-Agora-Tier` / `X-Agora-Provider` / `X-Agora-Model` / `X-Agora-Cost-Units`. An OpenAI client
+ignores the extra key; the conformance console (US-AG5) reads it to show which tier served a
+request and what it cost.
+
+## Budget ceilings
+
+A request may carry a spend ceiling in KCB **budget units** (`capability-bus.md` §5) — as
+`budget_units` in the body, or as `X-Agora-Budget-Units` for a stock OpenAI SDK that will not let
+you add an unknown body key. The body wins; the key is stripped before dispatch so it never
+reaches an upstream provider.
+
+```sh
+curl localhost:8000/v1/chat/completions -H 'content-type: application/json' \
+  -d '{"messages":[{"role":"user","content":"hi"}],"max_tokens":1000,"budget_units":0}'
+# → served by the placeholder; the paid rung was never contacted
+```
+
+The ladder order is a **preference**; the ceiling is a **constraint**. Each rung is priced before
+it is dialed, and one projected over budget is refused *without being contacted* — so the walk
+falls through to a cheaper, ultimately zero-cost rung. A ceiling of `0` therefore cannot spend at
+all. Where the ladder expresses no preference — two usable paid vendors — the cheaper one wins
+(KCB §3, "path search prefers zero-cost routes").
+
+Rates live in `cost.py`, denominated in budget units (anchored at 1 unit = US$0.00001) because a
+grant travels between projects that share no billing account. They are **conservative estimates,
+not quotes**; override any of them with `AGORA_PRICE_<MODALITY>_<PROVIDER>` (e.g.
+`AGORA_PRICE_VIDEO_RUNWAY=4000`). Two rules the code enforces:
+
+- **An unpriceable rung never passes a ceiling.** A vendor with no published rate is flagged
+  `unpriced` and refused whenever a ceiling is set — "we don't know" must not read as "free", or
+  an unknown vendor becomes the cheapest route in the ladder.
+- **A ceiling only ever fails safe.** A negative one clamps to zero; an unreadable one is a `422`,
+  not a silently-unbudgeted request. Dropping it would turn a typo into unlimited spend authority.
+
+## Capability manifest
+
+`GET /.well-known/kcb-manifest.json` is the router's KCB manifest (§2) — the first concrete one in
+the ecosystem, and what the registry (US-AG4) indexes. It declares the KINP identity, the
+endpoints it serves, the ports it produces/consumes across planes (§2.1: text in, media out), and
+one invocable capability per modality carrying a `cost`.
+
+That cost is advertised for the tier that is **currently resolved**: a keyless router publishes
+`{"tier": "placeholder", "est_units": 0}`, the same binary with a key publishes the paid rate.
+Publishing a static price list would make the registry's zero-cost preference a lie on exactly
+the deployments where it matters most. Each figure is priced against a fixed nominal request,
+stated in `cost.basis`, so two providers' numbers are comparable.
+
+No endpoint is advertised that is not served — MCP and A2A addresses are absent until they exist,
+because a manifest address is a promise the registry hands to peers who then dial it **directly**
+(ADR-0001 decision 3), and a dead one is worse than an absent one.
 
 ## Configuration
 
@@ -58,6 +107,8 @@ explicit `export` beats the file.
 | `OLLAMA_BASE_URL` / `OLLAMA_HOST` | enables the local tier |
 | `AGORA_<MODALITY>_LADDER` | narrows/reorders that modality's tiers, e.g. `local,mlx` |
 | `AGORA_PREFER_LOCAL=1` | fronts the zero-spend tiers everywhere |
+| `AGORA_PRICE_<MODALITY>_<PROVIDER>` | overrides a rate, in budget units per unit |
+| `AGORA_PUBLIC_BASE_URL` | the address the KCB manifest publishes for itself |
 | `CUNEIFORM_ENV_FILE` | the env file to read provider settings from |
 
 Three rules the code enforces rather than documents:
@@ -97,5 +148,6 @@ uv run pytest -q
 
 ## Status
 
-The ladder, the OpenAI-compatible surface and `/doctor` are in (US-AG2). Budget ceilings and the
-KCB capability manifest land in US-AG3.
+The ladder, the OpenAI-compatible surface and `/doctor` are in (US-AG2); budget ceilings and the
+KCB capability manifest are in (US-AG3). Next: the registry indexes this manifest (US-AG4) and the
+conformance console runs a round-trip through it (US-AG5).

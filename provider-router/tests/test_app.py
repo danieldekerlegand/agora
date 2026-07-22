@@ -8,9 +8,12 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from agora_provider_router import KCB_VERSION, ROUTER_IDENTITY
 from agora_provider_router.app import app, get_router
 from agora_provider_router.backends import Backend
+from agora_provider_router.cost import BUDGET_HEADER
 from agora_provider_router.ladder import MODALITIES, PLACEHOLDER
+from agora_provider_router.manifest import MANIFEST_PATH
 from agora_provider_router.router import Router
 from conftest import config_for, recording_transport, router_for
 
@@ -89,8 +92,63 @@ def test_doctor_reports_the_resolved_ladder_per_modality() -> None:
 
 def test_no_endpoint_leaks_a_configured_key() -> None:
     client = client_for(router_for(OPENAI_API_KEY="sk-super-secret", MLX_SERVE_BASE_URL=MLX))
-    for path in ("/health", "/doctor", "/v1/models", "/v1/providers"):
+    for path in ("/health", "/doctor", "/v1/models", "/v1/providers", MANIFEST_PATH):
         assert "sk-super-secret" not in client.get(path).text, path
+
+
+def test_the_kcb_manifest_is_served_for_the_registry_to_crawl(zero_spend: TestClient) -> None:
+    manifest = zero_spend.get(MANIFEST_PATH).json()
+    assert manifest["identity"] == ROUTER_IDENTITY
+    assert manifest["kcb_version"] == KCB_VERSION
+    assert [c["name"] for c in manifest["capabilities"]] == [f"generate.{m}" for m in MODALITIES]
+
+
+def test_every_response_reports_what_it_cost(zero_spend: TestClient) -> None:
+    response = zero_spend.post("/v1/chat/completions", json={"messages": []})
+    cost = response.json()["agora"]["cost"]
+    assert cost["currency"] == "budget_units"
+    assert cost["actual_units"] == 0.0
+    assert cost["budget_units"] is None
+    assert response.headers["x-agora-cost-units"] == "0"
+
+
+def test_a_budget_ceiling_in_the_body_downshifts_the_ladder() -> None:
+    dialed: list[Backend] = []
+    router = Router(config_for(OPENAI_API_KEY="sk-live"), recording_transport(dialed))
+    client = client_for(router)
+
+    body = client.post(
+        "/v1/chat/completions", json={"messages": [], "max_tokens": 1000, "budget_units": 0}
+    ).json()
+
+    assert body["agora"]["tier"] == PLACEHOLDER
+    assert body["agora"]["cost"]["budget_units"] == 0.0
+    assert dialed == [], "a refused rung is never contacted"
+
+
+def test_the_ceiling_can_arrive_as_a_header_for_a_stock_openai_client() -> None:
+    dialed: list[Backend] = []
+    router = Router(config_for(OPENAI_API_KEY="sk-live"), recording_transport(dialed))
+    client = client_for(router)
+
+    body = client.post(
+        "/v1/chat/completions",
+        json={"messages": [], "max_tokens": 1000},
+        headers={BUDGET_HEADER: "0"},
+    ).json()
+
+    assert body["agora"]["tier"] == PLACEHOLDER
+    assert dialed == []
+
+
+def test_an_unreadable_ceiling_is_refused_rather_than_ignored(zero_spend: TestClient) -> None:
+    """Dropping it would turn a typo into unlimited spend authority."""
+    body = zero_spend.post("/v1/chat/completions", json={"messages": [], "budget_units": "lots"})
+    assert body.status_code == 422
+    header = zero_spend.post(
+        "/v1/chat/completions", json={"messages": []}, headers={BUDGET_HEADER: "lots"}
+    )
+    assert header.status_code == 422
 
 
 def test_models_lists_what_the_ladder_can_currently_resolve(zero_spend: TestClient) -> None:

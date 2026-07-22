@@ -1,10 +1,18 @@
 """The router: walk the ladder, dispatch to the first rung that answers, always complete.
 
-**The invariant.** :meth:`Router.complete` does not raise. Every rung that is unconfigured,
-unreachable, or errors is recorded as an attempt and the walk continues; the placeholder is
-terminal and offline, so the walk always terminates in a response. With no keys and no local
-servers every modality resolves to the placeholder and nothing spends — the ZERO-SPEND
-guarantee, asserted in ``tests/test_zero_spend.py``.
+**The invariant.** :meth:`Router.complete` does not raise *on runtime state*. Every rung
+that is unconfigured, unreachable, over budget, or errors is recorded as an attempt and the
+walk continues; the placeholder is terminal, offline and free, so the walk always terminates
+in a response. With no keys and no local servers every modality resolves to the placeholder
+and nothing spends — the ZERO-SPEND guarantee, asserted in ``tests/test_zero_spend.py``. The
+only ``ValueError`` it raises is for a malformed *request* (an unknown modality, an
+unreadable ``budget_units``), which is a caller bug rather than a state to fall down from.
+
+**The budget.** A request may carry a ``budget_units`` ceiling (KCB §5). Each rung is priced
+before it is dialed (:mod:`agora_provider_router.cost`); one that would exceed the ceiling is
+refused *without being contacted* and the walk falls through to a cheaper — ultimately
+zero-cost — rung. A ceiling of ``0`` therefore cannot spend at all, and no paid tier is ever
+so much as connected to.
 
 Dispatch is one code path for all four tiers because every dialable backend speaks the
 OpenAI wire format (see :mod:`agora_provider_router.backends`). Transport is injected, so
@@ -14,14 +22,15 @@ tests exercise fallthrough without a network and without patching internals.
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
 
-from .backends import Backend, TierResolution, placeholder_backend, resolve_tier
+from .backends import Backend, Rank, TierResolution, placeholder_backend, resolve_tier
 from .config import RouterConfig
+from .cost import Cost, project, refusal, settle, take_ceiling, within
 from .ladder import MODALITIES, PLACEHOLDER, safe_resolve
 from .placeholder import complete as placeholder_complete
 
@@ -38,27 +47,44 @@ DEFAULT_TIMEOUT = 30.0
 
 @dataclass(frozen=True)
 class Attempt:
-    """One rung the router tried, and what came back."""
+    """One rung the router tried, and what came back.
+
+    ``dialed`` separates the two ways a rung can fail: it was contacted and did not answer,
+    or it was refused on price and never contacted at all. A budget audit needs to tell
+    those apart — only the first could have spent anything.
+    """
 
     tier: str
     provider: str
     ok: bool
     reason: str | None = None
+    dialed: bool = True
+    projected: Cost | None = None
 
     def describe(self) -> dict[str, object]:
-        entry: dict[str, object] = {"tier": self.tier, "provider": self.provider, "ok": self.ok}
+        entry: dict[str, object] = {
+            "tier": self.tier,
+            "provider": self.provider,
+            "ok": self.ok,
+            "dialed": self.dialed,
+        }
         if self.reason:
             entry["reason"] = self.reason
+        if self.projected is not None:
+            entry["projected"] = self.projected.describe()
         return entry
 
 
 @dataclass(frozen=True)
 class Completion:
-    """A completed request: the response plus the routing story behind it."""
+    """A completed request: the response, the routing story, and what it cost."""
 
     modality: str
     backend: Backend
     response: dict[str, Any]
+    projected: Cost
+    actual: Cost
+    budget_units: float | None = None
     attempts: list[Attempt] = field(default_factory=list)
 
     @property
@@ -73,6 +99,18 @@ class Completion:
             "provider": self.backend.provider,
             "model": self.backend.model,
             "attempts": [a.describe() for a in self.attempts],
+            "cost": self.cost(),
+        }
+
+    def cost(self) -> dict[str, object]:
+        """Projected vs actual spend, in KCB budget units (KCB §3: surface it to the caller)."""
+        return {
+            "currency": "budget_units",
+            "budget_units": self.budget_units,
+            "projected_units": self.projected.units,
+            "actual_units": self.actual.units,
+            "projected": self.projected.describe(),
+            "actual": self.actual.describe(),
         }
 
 
@@ -97,14 +135,17 @@ class Router:
 
     # --- resolution -------------------------------------------------------------
 
-    def resolutions(self, modality: str) -> tuple[list[TierResolution], str | None]:
+    def resolutions(
+        self, modality: str, rank: Rank | None = None
+    ) -> tuple[list[TierResolution], str | None]:
         """Every configured rung for ``modality`` in order, plus any ladder-config error.
 
         The placeholder is appended unconditionally, so the list is never empty and its
-        last entry is always ``ready``.
+        last entry is always ``ready``. ``rank`` is the cost function used to choose among
+        equally-usable paid vendors; see :meth:`complete`.
         """
         tiers, error = safe_resolve(modality, self.config.env)
-        resolved = [resolve_tier(tier, modality, self.config) for tier in tiers]
+        resolved = [resolve_tier(tier, modality, self.config, rank) for tier in tiers]
         resolved.append(
             TierResolution(tier=PLACEHOLDER, status="ready", backend=placeholder_backend(modality))
         )
@@ -136,15 +177,34 @@ class Router:
 
     # --- dispatch ---------------------------------------------------------------
 
-    async def complete(self, modality: str, payload: dict[str, Any]) -> Completion:
-        """Dispatch ``payload`` down ``modality``'s ladder. Does not raise.
+    async def complete(
+        self, modality: str, payload: dict[str, Any], *, budget_units: float | None = None
+    ) -> Completion:
+        """Dispatch ``payload`` down ``modality``'s ladder, under an optional spend ceiling.
 
-        ``ValueError`` on an unknown modality is the one exception, and it is a caller bug
-        (a typo'd endpoint), not a runtime state — no ladder exists to fall down.
+        The ceiling comes from the body's ``budget_units`` key (which is stripped before
+        dispatch — it is an agora extension an upstream provider would reject) or, failing
+        that, from ``budget_units``, which is how the ``X-Agora-Budget-Units`` header
+        reaches here for clients that cannot add body keys.
+
+        The ladder order is a *preference* and the ceiling is a *constraint*: rungs are
+        tried in ladder order and one that is projected over budget is skipped without
+        being dialed. Because the ladder runs expensive → free, the first surviving rung is
+        the best one the caller can afford. Where the ladder expresses no preference — two
+        usable paid vendors — the cheaper is chosen (KCB §3).
+
+        Does not raise on runtime state; ``ValueError`` means the *request* was malformed.
         """
         if modality not in MODALITIES:
             raise ValueError(f"unknown modality {modality!r}")
-        resolutions, _ = self.resolutions(modality)
+        payload, body_ceiling = take_ceiling(payload)
+        ceiling = body_ceiling if body_ceiling is not None else budget_units
+        env = self.config.env
+
+        def rank(candidate: Backend) -> float:
+            return project(modality, candidate.provider, payload, env).units
+
+        resolutions, _ = self.resolutions(modality, rank if ceiling is not None else None)
         attempts: list[Attempt] = []
         for resolution in resolutions:
             backend = resolution.backend
@@ -155,16 +215,37 @@ class Router:
                         provider="-",
                         ok=False,
                         reason=resolution.reason or resolution.status,
+                        dialed=False,
+                    )
+                )
+                continue
+            projected = project(modality, backend.provider, payload, env)
+            if not within(projected, ceiling):
+                assert ceiling is not None  # noqa: S101 — `within` only refuses under one
+                reason = refusal(projected, ceiling, modality, backend.provider)
+                logger.info(
+                    "tier %s (%s) refused for %s: %s",
+                    backend.tier,
+                    backend.provider,
+                    modality,
+                    reason,
+                )
+                attempts.append(
+                    Attempt(
+                        tier=backend.tier,
+                        provider=backend.provider,
+                        ok=False,
+                        reason=reason,
+                        dialed=False,
+                        projected=projected,
                     )
                 )
                 continue
             if backend.tier == PLACEHOLDER:
+                response = placeholder_complete(modality, payload, backend.model)
                 attempts.append(Attempt(tier=backend.tier, provider=backend.provider, ok=True))
-                return Completion(
-                    modality=modality,
-                    backend=backend,
-                    response=placeholder_complete(modality, payload, backend.model),
-                    attempts=attempts,
+                return self._completed(
+                    modality, backend, response, payload, projected, ceiling, attempts
                 )
             try:
                 response = await self._transport(backend, {"model": backend.model, **payload})
@@ -180,15 +261,45 @@ class Router:
                     reason,
                 )
                 attempts.append(
-                    Attempt(tier=backend.tier, provider=backend.provider, ok=False, reason=reason)
+                    Attempt(
+                        tier=backend.tier,
+                        provider=backend.provider,
+                        ok=False,
+                        reason=reason,
+                        projected=projected,
+                    )
                 )
                 continue
-            attempts.append(Attempt(tier=backend.tier, provider=backend.provider, ok=True))
-            return Completion(
-                modality=modality, backend=backend, response=response, attempts=attempts
+            attempts.append(
+                Attempt(tier=backend.tier, provider=backend.provider, ok=True, projected=projected)
             )
-        # Unreachable: resolutions always ends with the ready placeholder.
+            return self._completed(
+                modality, backend, response, payload, projected, ceiling, attempts
+            )
+        # Unreachable: resolutions always ends with the ready placeholder, which is free and
+        # therefore survives every ceiling (a negative one having clamped to zero).
         raise AssertionError("the placeholder tier is missing from the ladder")
+
+    def _completed(
+        self,
+        modality: str,
+        backend: Backend,
+        response: dict[str, Any],
+        payload: Mapping[str, Any],
+        projected: Cost,
+        ceiling: float | None,
+        attempts: list[Attempt],
+    ) -> Completion:
+        """Settle the actual cost against the response and assemble the result."""
+        return Completion(
+            modality=modality,
+            backend=backend,
+            response=response,
+            projected=projected,
+            actual=settle(modality, backend.provider, payload, response, self.config.env),
+            budget_units=ceiling,
+            attempts=attempts,
+        )
 
 
 def _reason(exc: Exception, backend: Backend) -> str:
