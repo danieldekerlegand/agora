@@ -73,12 +73,21 @@ envelope in between (ADR-0001 decision 7).
 import { runConformance } from './commons.ts';
 import { PROVIDER_ROUTER_ROUNDTRIP } from './scenarios/provider-router-roundtrip.ts';
 
-const { report } = await runConformance(PROVIDER_ROUTER_ROUNDTRIP);
-report.green; // every step passed and every assertion held
+const { report, archive } = await runConformance(PROVIDER_ROUTER_ROUNDTRIP);
+report.green;         // every step passed and every assertion held
+archive.report_id;    // sha256-… — the same run observed again mints the same id
 ```
 
-`npm run dev -w @agora/console` renders the same run: the tier that served each call, what it
-cost, every assertion's verdict, and the log beneath it.
+Every report is **content-addressed and archivable** (KCS §4.4): the address covers the
+scenario, the participants, every step and assertion verdict and the observation log, and
+excludes wall-clock time and durations — the same split KGP §3.1 makes for a claim. So a
+re-run that saw the same fabric dedups, an id that *moved* is itself the finding, and
+`verifyArchive` catches an archive whose verdict was edited after the fact.
+
+`npm run dev -w @agora/console` is the same runtime with a UI on it: the **scenario library**
+with a run button per scenario, then that run's verdict and content address, the tier that
+served each call and what it cost, every assertion's verdict with the log entries supporting
+it, and the observation timeline beneath.
 
 **The scenarios that ship:**
 
@@ -267,6 +276,6 @@ model, runner and UI, running `kcs:provider-router-roundtrip` end to end (US-AG5
 From [`tasks/chief/30-agora-console-scenarios.json`](tasks/chief/30-agora-console-scenarios.json):
 the KCS runner and its cross-plane assertion vocabulary (US-CS1); both koine pressure tests
 encoded as runnable scenarios — `kcs:worlds-to-fabric` (US-CS2) and `kcs:media-transform`
-(US-CS3); the full KINP resolver dialing the Pinakes authority (US-CS4). Next: the archivable
-conformance report and scenario-library UI, the manual capability explorer, and the passive
-live fabric monitor.
+(US-CS3); the full KINP resolver dialing the Pinakes authority (US-CS4); the content-addressed
+conformance report and the scenario-library UI (US-CS5). Next: the manual capability explorer
+and the passive live fabric monitor.

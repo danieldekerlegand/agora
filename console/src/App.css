@@ -75,6 +75,32 @@ td {
   vertical-align: top;
 }
 
+.library {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.library .entry {
+  border-left: 3px solid transparent;
+  padding: 0.4rem 0 0.4rem 0.6rem;
+}
+
+.library .entry.selected {
+  border-left-color: currentcolor;
+}
+
+.library .summary,
+.report-id,
+.support {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.library .summary {
+  margin: 0.15rem 0 0;
+}
+
 li.fail,
 li.failed {
   color: #b02a37;

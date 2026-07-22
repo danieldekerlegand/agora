@@ -21,9 +21,11 @@ neither does anything else, because the console only ever dials on its own behal
 | `src/kcs/log.ts` | the observation log — ids, summaries and plane-typed facts, never bytes |
 | `src/kcs/bindings.ts` | `${step.path}` (delta M) |
 | `src/kcs/outcome.ts` | step outcomes and the conformance report |
+| `src/kcs/archive.ts` | the report's content address + the archive envelope (§4.4) |
 | `src/commons.ts` | bootstrap: crawl the providers into a registry, then run a scenario |
 | `src/scenarios/` | the scenario documents themselves |
-| `src/App.tsx` | the UI over one report |
+| `src/scenarios/library.ts` | the library the UI lists and runs from |
+| `src/App.tsx` | the UI: the library, the report, the observation timeline |
 
 All six §3 verbs execute: `invoke` and `resolve` on the control/identity planes, and
 `fetch` / `subscribe` / `emit` on the data planes — a CAS GET by asset id, a delta stream
@@ -39,6 +41,26 @@ The scenario *document* types live in `@agora/schemas` (`scenario.ts`), not here
 explicit that the format is a cross-cutting contract and only the runtime and UI belong to
 agora.
 
+## The report is content-addressed
+
+§4.4 asks for a report that is "itself content-addressable and archivable", so every run is
+archived under `sha256-…` over its own evidence (`kcs/archive.ts`) — the same hash discipline
+KGP §3.2 mandates for a claim, and the same *split*: the address covers what was run, what was
+concluded and what was observed, and excludes wall-clock time and durations. Three consequences,
+in order of how much they matter:
+
+- **A re-run that observed the same fabric mints the same id**, so an archive dedups and an id
+  that moved between two runs of one scenario is itself the finding.
+- **An archive can be challenged.** `verifyArchive` re-derives the address from the archived
+  report; a report whose verdict was edited afterwards no longer answers to its own name.
+- **A run is citable** as one string that fixes the scenario, the participants, every assertion
+  and the log slice under it.
+
+That determinism is only as strong as the scenario's own (§7 Q2): the log's `detail` summaries
+are inside the address, so a scenario that recorded generated text into one would mint a fresh
+id every run. Assertions read plane-typed facts rather than model output for exactly this
+reason — a report id that will not settle is a scenario asserting something non-deterministic.
+
 ## Running it
 
 ```
@@ -51,6 +73,19 @@ The gate opens no sockets. It replays `src/fixtures/provider-router.session.json
 asserts is still current. The replay refuses any request the capture does not cover, so the
 console has to build the request the router was actually asked; regenerate the capture with
 the command in that test's failure message rather than editing it.
+
+## The UI
+
+One screen, three parts: the **scenario library** (`src/scenarios/library.ts`) with a run
+button per scenario, the **report** — verdict, content address, routing, participants, each
+assertion with the log entries that support it, each step — and the **observation timeline**
+underneath, every entry stamped with its time, participant, plane and the KINP ids it touched.
+
+The library carries the scenario *documents*, not descriptions of them, so a scenario that
+stopped parsing is a red gate rather than a menu item that fails when somebody clicks it. The
+stand-in fixtures a library scenario names are the ones this package ships, so picking one in
+the browser runs exactly what the gate runs — and a participant that has adopted the bus is
+dialed for real either way, because the runner prefers a live registration over a fixture.
 
 ## What ships, and what is next
 
@@ -72,7 +107,9 @@ the command in that test's failure message rather than editing it.
   pressure test called the key one: analysis of a *generated composite* is attributed to its
   footage's world, traced through the lineage graph. Four stand-ins, all stubbed.
 
-Next, per the tasklist: the full KINP resolver, then the report + scenario-library UI.
+All three are in the library and runnable on demand from the UI.
+
+Next, per the tasklist: the manual capability explorer, then the passive live fabric monitor.
 
 ### On stand-in fixtures
 

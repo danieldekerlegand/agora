@@ -20,6 +20,7 @@ import {
 } from '@agora/registry';
 import type { ScenarioDocument } from '@agora/schemas';
 
+import { archiveReport, type ReportArchive } from './kcs/archive.ts';
 import { platformFetch, type HttpFetch } from './kcs/http.ts';
 import type { ConformanceReport } from './kcs/outcome.ts';
 import { runScenario, type RunOptions } from './kcs/runner.ts';
@@ -65,9 +66,17 @@ export interface ConformanceRunOptions extends DiscoveryOptions {
 export interface ConformanceRun {
   discovery: Discovery;
   report: ConformanceReport;
+  /** The report, addressed by its content (KCS §4.4) — archived as soon as it exists. */
+  archive: ReportArchive;
 }
 
-/** Discover, then run one scenario against what was discovered. */
+/**
+ * Discover, then run one scenario against what was discovered, then address the report.
+ *
+ * Addressing happens here rather than in the runner because the address is over a *finished*
+ * report: a run cannot contain its own content address, and a caller who had to remember to
+ * take one would eventually ship a report nobody can cite.
+ */
 export async function runConformance(
   scenario: ScenarioDocument,
   options: ConformanceRunOptions = {},
@@ -82,5 +91,5 @@ export async function runConformance(
     resolver: options.resolver,
     fixtures: options.fixtures,
   });
-  return { discovery, report };
+  return { discovery, report, archive: await archiveReport(report, { now: options.now }) };
 }

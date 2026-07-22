@@ -12,6 +12,8 @@
  * this a round-trip proof rather than a canned response — the console has to build the
  * request the router was actually asked, or the scenario goes red.
  */
+import { canonicalJson, type Json } from '@agora/schemas';
+
 import type { HttpFetch, HttpRequestInit, HttpResponse } from '../kcs/http.ts';
 
 import session from './provider-router.session.json';
@@ -41,21 +43,10 @@ function respond(status: number, body: unknown): HttpResponse {
 function sameRequest(body: string | undefined): boolean {
   if (body === undefined) return false;
   try {
-    return canonical(JSON.parse(body)) === canonical(CAPTURED_EXCHANGE.request);
+    return canonicalJson(JSON.parse(body) as Json) === canonicalJson(CAPTURED_EXCHANGE.request as Json);
   } catch {
     return false;
   }
-}
-
-function canonical(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  if (typeof value === 'object' && value !== null) {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
-      a < b ? -1 : a > b ? 1 : 0,
-    );
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
 }
 
 /**
