@@ -225,6 +225,36 @@ It fetches `predicate-mapping.json`, follows it to the vocabulary files it names
 both, and indexes them. It never writes and never mirrors — a cached copy belongs to the
 caller, and a caller that edits one has forked the registry.
 
+### The resolver
+
+`resolver/` implements KINP §8's two verbs against Pinakes, the single canonical authority for
+real-world entities (§11 decision 1):
+
+```ts
+const resolver = createPinakesResolver({ endpoint });   // the address the registry handed back
+await resolver.resolve({ id: 'insimul:world:alderforest:ent:npc-renaud' });
+await resolver.reconcile({ query: 'Renaud', of: 'analyzer:ent:e-8842', world: 'insimul:world:alderforest' });
+```
+
+`resolve` computes the merged view rather than storing it (§4.1), and **the walk never crosses
+a `based_on` edge** — that one rule is the firewall (§4.3). The fictional general is `same_as`
+the Analyzer local extracted from the footage and `based_on` the real Napoleon, so resolving him
+returns the local and stops: Wikidata's Napoleon is two `same_as` hops away and both queries
+stay clean, out of one graph.
+
+`reconcile` takes the OpenRefine/Wikidata Reconciliation query verbatim (§4.5) so Pinakes's
+Wikidata backbone answers it directly, then decides two things about the top candidate: which
+relation (§4.5 — different worlds that do not inherit identity ⇒ `based_on`; a candidate
+already reachable through `based_on` is never promoted by transitivity) and whether to apply it
+(§11 decision 2 — auto-apply above a per-world confidence threshold, queue anything
+below-threshold, ambiguous, or high-impact). Queued proposals land on `resolver.reviewQueue`
+and nothing there has been asserted.
+
+Authority is a role, not a hard dependency: ids that never round-trip (claims and assets are
+content hashes, §6) are answered without dialing anybody, an id the authority has never heard
+of resolves to itself, and a dial that fails falls back to the local cache — labelled `cache`,
+never `pinakes`, because "Pinakes says so" and "Pinakes said so once" license different writes.
+
 ## Status
 
 **Bootstrapping.** The repo is being stood up by the Chief harness from
@@ -232,6 +262,11 @@ caller, and a caller that edits one has forked the registry.
 skeleton, stack, layout and gates (US-AG1); the sacred-ladder port (US-AG2); cost/budget
 enforcement + the router's KCB manifest (US-AG3); the discovery registry, its capability-path
 search and the resolver interface stub (US-AG4); the conformance console — the KCS scenario
-model, runner and UI, running `kcs:provider-router-roundtrip` end to end (US-AG5). Next: encode
-the two pressure tests as scenarios, which is what pulls in the `fetch`/`emit`/`subscribe` steps
-and the identity/knowledge/media assertions.
+model, runner and UI, running `kcs:provider-router-roundtrip` end to end (US-AG5).
+
+From [`tasks/chief/30-agora-console-scenarios.json`](tasks/chief/30-agora-console-scenarios.json):
+the KCS runner and its cross-plane assertion vocabulary (US-CS1); both koine pressure tests
+encoded as runnable scenarios — `kcs:worlds-to-fabric` (US-CS2) and `kcs:media-transform`
+(US-CS3); the full KINP resolver dialing the Pinakes authority (US-CS4). Next: the archivable
+conformance report and scenario-library UI, the manual capability explorer, and the passive
+live fabric monitor.

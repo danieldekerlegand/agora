@@ -63,7 +63,11 @@ export interface RunOptions {
   registry: CapabilityRegistry;
   /** Defaults to the platform fetch — the live console passes nothing. */
   fetch?: HttpFetch | undefined;
-  /** Defaults to the local stub (US-AG4); the full resolver is backlogged. */
+  /**
+   * Defaults to the local resolver, which answers only what needs no authority (§6).
+   * Pass `createPinakesResolver({ endpoint })` — the address the registry hands back for
+   * `pinakes:agent:resolver` — to run a scenario against the canonical authority.
+   */
   resolver?: Resolver | undefined;
   /** How a `standin` participant's fixtures are loaded (delta N). Defaults to fetching
    * the declared path over the same transport everything else uses. */

@@ -62,11 +62,29 @@ export function isWorldId(value: unknown): boolean {
  */
 export function worldOf(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
+  return parseWorldScoped(value)?.world;
+}
+
+/**
+ * The kind an id declares, in **either** form — compact (§3.2) or world-scoped (§5).
+ *
+ * {@link parseKinpId} only reads the three-segment compact form, so it answers `undefined`
+ * for `insimul:world:alderforest:ent:npc-renaud` — which is a perfectly well-formed entity
+ * id. Anything that needs "what kind of thing is this" (the resolver deciding whether an
+ * id round-trips to the authority at all, §6) needs both, from one grammar.
+ */
+export function kindOf(value: unknown): KinpKind | undefined {
+  if (typeof value !== 'string') return undefined;
+  return parseKinpId(value)?.kind ?? parseWorldScoped(value)?.kind;
+}
+
+/** `<namespace>:world:<name>:<kind>:<local-id>` — an id named into a world (§5). */
+function parseWorldScoped(value: string): { world: string; kind: KinpKind } | undefined {
   const parts = value.split(':');
   if (parts.length !== 5) return undefined;
   const [namespace, world, name, kind, localId] = parts as [string, string, string, string, string];
   if (world !== 'world' || !SEGMENT.test(namespace) || !SEGMENT.test(localId)) return undefined;
   if (!WORLD_SEGMENT.test(name)) return undefined;
   if (!(KINP_KINDS as readonly string[]).includes(kind)) return undefined;
-  return `${namespace}:world:${name}`;
+  return { world: `${namespace}:world:${name}`, kind: kind as KinpKind };
 }

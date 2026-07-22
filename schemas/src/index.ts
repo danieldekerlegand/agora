@@ -81,6 +81,7 @@ export { isPlane, PLANES, type Plane } from './planes.ts';
 export {
   isKinpId,
   isWorldId,
+  kindOf,
   KINP_KINDS,
   parseKinpId,
   worldOf,
