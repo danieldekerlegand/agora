@@ -9,7 +9,7 @@ PY_DIR := provider-router
 # nearest pyproject.toml, so `uv --project <dir>` alone would leave them unconfigured.
 UV     := cd $(PY_DIR) && uv
 # npm workspace selectors for the TS areas.
-TS_AREAS := schemas clients/kcb-client registry resolver console
+TS_AREAS := schemas clients/kcb-client clients/relation-registry-client registry resolver console
 
 .PHONY: help install install-py install-ts check check-provider-router check-ts \
         check-schemas check-clients check-registry check-resolver check-console \
@@ -46,7 +46,7 @@ check-ts: install-ts  ## Gate: lint + typecheck + test every TypeScript area
 check-schemas:  ## Gate: the shared schemas package only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/schemas
 check-clients:  ## Gate: the client libraries only
-	@$(MAKE) --no-print-directory ts-area PKG=@agora/kcb-client
+	@$(MAKE) --no-print-directory ts-area PKG="@agora/kcb-client @agora/relation-registry-client"
 check-registry:  ## Gate: the registry only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/registry
 check-resolver:  ## Gate: the resolver only
@@ -57,8 +57,8 @@ check-console:  ## Gate: the console only
 .PHONY: ts-area
 ts-area: install-ts
 	npm run lint
-	npm run typecheck -w $(PKG)
-	npm run test -w $(PKG)
+	npm run typecheck $(addprefix -w ,$(PKG))
+	npm run test $(addprefix -w ,$(PKG))
 
 build: install  ## Produce the distributable artifacts (console bundle, router wheel)
 	npm run build

@@ -69,4 +69,10 @@ resolver/          TS — KINP resolve / reconcile
 console/           TS + React — conformance scenario runner + UI (observer, not a hub)
 schemas/           TS — @agora/schemas, shared manifest schemas / protocol types
 clients/kcb-client/  TS — @agora/kcb-client, returns ADDRESSES, never relays payloads
+clients/relation-registry-client/  TS — loads koine's relation registry; never mirrors it
 ```
+
+The relation registry is koine's data and agora's tooling: `schemas/src/registry-schema.ts`
+validates it, `clients/relation-registry-client/` fetches and indexes it. The only copy here is
+the test snapshot under `schemas/src/fixtures/` (reachable as `@agora/schemas/fixtures`, never
+from the library surface) — a second authored copy is how the registry forks.

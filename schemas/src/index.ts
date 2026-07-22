@@ -10,8 +10,72 @@
  * - `identity.ts` — KINP compact identifiers (KINP §3.2)
  * - `manifest.ts` — the KCB capability manifest (KCB §2), what the registry indexes
  * - `scenario.ts` — the KCS conformance-scenario document (KCS §2/§3), what the console runs
+ * - `relation-registry.ts` — where the shared relation registry lives (koine) and which
+ *   `registryVersion` this build speaks
+ * - `axes.ts`     — dialect (KGP §5) / egress (§7.2) / trust, and the egress enforcement
+ * - `registry-schema.ts` — the registry's own schema and validator, over both its artifacts
+ *
+ * `./fixtures` is a second entry point, carrying a snapshot of the real koine registry for
+ * tests. It is deliberately not re-exported here: it is test data, not a library surface.
  */
 export { SPEC_VERSIONS } from './versions.ts';
+export { RELATION_REGISTRY, type RegistryMirror } from './relation-registry.ts';
+export {
+  assertRelationsResolve,
+  assertSignatureStability,
+  CANONICAL_KINDS,
+  CLAIM_KINDS,
+  crossesAsClaim,
+  diffSignatures,
+  isCanonicalKind,
+  isCompatibleRegistryVersion,
+  isRegistryDocument,
+  parseRegistry,
+  parseVocabulary,
+  predicateNames,
+  RegistryError,
+  relationSignature,
+  VOCABULARY_COLUMNS,
+  type CanonicalKind,
+  type MappingEntry,
+  type ProjectMappings,
+  type RegistryDocument,
+  type RegistrySnapshot,
+  type RelationRow,
+  type SignatureChange,
+  type VocabularyFile,
+  type VocabularyIndex,
+} from './registry-schema.ts';
+export {
+  assertPackEgress,
+  DEFAULT_DIALECT,
+  DEFAULT_EGRESS,
+  DIALECT_TIERS,
+  dialectAdmits,
+  EGRESS_CLASSES,
+  EgressError,
+  egressOf,
+  filterForEgress,
+  filterPackForEgress,
+  inspectPackEgress,
+  isDialectTier,
+  isEgressClass,
+  isExportable,
+  isTrustTier,
+  PACK_SECTIONS,
+  TRUST_TIERS,
+  type DialectTier,
+  type EgressBearing,
+  type EgressClass,
+  type EgressFilter,
+  type EgressReport,
+  type EgressViolation,
+  type PackLike,
+  type PackSection,
+  type RelationEgress,
+  type TrustTier,
+  type Withheld,
+} from './axes.ts';
 export { isJsonObject, type Json, type JsonObject } from './json.ts';
 export { isPlane, PLANES, type Plane } from './planes.ts';
 export { isKinpId, KINP_KINDS, parseKinpId, type KinpId, type KinpKind } from './identity.ts';
