@@ -1,0 +1,17 @@
+{
+  "name": "@agora/resolver",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KINP resolver reference implementation — resolve / reconcile against the authoritative store.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@agora/schemas": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}

@@ -6,7 +6,7 @@ specifies, agora implements). See `README.md` and
 
 ## Your task (per iteration)
 
-1. Read the active tasklist in `tasks/chief/` (start with `agora-bootstrap.json`).
+1. Read the active tasklist in `tasks/chief/` (start with `10-agora-bootstrap.json`).
 2. Read `progress.txt` (check the `## Codebase Patterns` section first).
 3. Check out the tasklist's `branchName` from `main` (create it if missing). Keep `main` clean.
 4. Pick the **highest-priority** user story where `passes: false`, honoring `dependsOn`.
@@ -20,13 +20,38 @@ specifies, agora implements). See `README.md` and
 Work ONE story per iteration; never commit broken code (a red gate compounds across
 iterations).
 
-## This is a greenfield repo
+## Quality gates (step 6)
 
-Until `agora-bootstrap` **US-AG1** lands, there is no established stack or gate commands —
-US-AG1 *establishes* them (recommended: polyglot — provider-router ported in Python from
-`../analyzer`; console + registry/resolver + client libs in TS/React; shared over the wire so
-language is internal, per ADR-0001) and MUST update this file with the concrete
-per-area build/test/lint commands. After US-AG1, "gates pass" = run those commands, exit 0.
+Established by US-AG1. Run the gate for the area you touched; run `make check` if you touched
+more than one. Zero errors, exit 0. `make help` lists everything.
+
+| Area | Gate |
+|---|---|
+| everything | `make check` (what CI and `.chief/verify.sh` run) |
+| `provider-router/` | `make check-provider-router` |
+| `schemas/` | `make check-schemas` |
+| `clients/*` | `make check-clients` |
+| `registry/` | `make check-registry` |
+| `resolver/` | `make check-resolver` |
+| `console/` | `make check-console` |
+
+Dependencies install themselves (`make install`, or implicitly via any `check-*` target).
+
+## Stack
+
+Polyglot by decision, per ADR-0001 (language is internal — everything is shared over the wire,
+never as cross-language source). See README "Stack" for the rationale.
+
+- **`provider-router/`** — Python 3.11+, uv, FastAPI. Lint/format `ruff`, types `mypy --strict`,
+  tests `pytest`. Package `agora_provider_router` under `src/`.
+- **everything else** — TypeScript, Node 22, npm workspaces at the repo root. React 19 + Vite for
+  the console. Lint `eslint` (one flat config at the root), types `tsc -p tsconfig.json`
+  (`--noEmit`), tests `vitest`. Packages are **source-first**: `exports` points at
+  `src/index.ts`, nothing is emitted, so there is no cross-package build ordering. Tests live
+  next to their subject as `*.test.ts(x)`.
+
+The koine spec versions are pinned once in `schemas/src/versions.ts` and asserted against the
+Python constant by `provider-router/tests/`; if you bump one, bump both or that gate goes red.
 
 ## The contracts live in ../koine
 
@@ -35,5 +60,13 @@ implementing. Do not re-specify contracts here; propose contract changes as edit
 
 ## Layout (established by US-AG1)
 
-`provider-router/`, `registry/`, `resolver/`, `console/`, `schemas/` (+ `clients/`) — each a
-buildable unit with its own gate.
+Each is a buildable unit with its own gate — see README "Layout" for what each one is.
+
+```
+provider-router/   Python — the model-backend ladder
+registry/          TS — thin KCB discovery (route-by-lookup, NEVER proxy)
+resolver/          TS — KINP resolve / reconcile
+console/           TS + React — conformance scenario runner + UI (observer, not a hub)
+schemas/           TS — @agora/schemas, shared manifest schemas / protocol types
+clients/kcb-client/  TS — @agora/kcb-client, returns ADDRESSES, never relays payloads
+```
