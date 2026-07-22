@@ -10,4 +10,6 @@ export const SPEC_VERSIONS = {
   kcb: '0.2.0',
   /** Identity / naming — `koine/specs/identity.md` */
   kinp: '0.2.0',
+  /** Conformance-scenario format — `koine/specs/conformance-scenario.md` */
+  kcs: '0.2.0',
 } as const;

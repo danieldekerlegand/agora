@@ -60,6 +60,44 @@ registry.path({ from: { entityType: 'mood' }, to: { mediaType: 'audio/wav' } });
 delta K); `path` chains capabilities across planes and providers and returns the plan plus its
 projected cost, so a caller can gate spend before invoking anything.
 
+## Conformance in one minute
+
+The console runs a **KCS scenario** (`../koine/specs/conformance-scenario.md`) — a declarative
+script that discovers participants by KINP identity, opens **direct** links to them, records
+every exchange into an observation log, and evaluates the §5 cross-plane assertions against
+that log. A green scenario proves the real protocol, because there is no console-flavoured
+envelope in between (ADR-0001 decision 7).
+
+```ts
+// console/src/
+import { runConformance } from './commons.ts';
+import { PROVIDER_ROUTER_ROUNDTRIP } from './scenarios/provider-router-roundtrip.ts';
+
+const { report } = await runConformance(PROVIDER_ROUTER_ROUNDTRIP);
+report.green; // every step passed and every assertion held
+```
+
+`npm run dev -w @agora/console` renders the same run: the tier that served each call, what it
+cost, every assertion's verdict, and the log beneath it.
+
+**The scenario that ships** is `kcs:provider-router-roundtrip` — discover the provider-router
+through the registry, dial its own address, ask for a completion with a ceiling of **zero**
+budget units, and assert the zero-spend tier served it for nothing (`tier_resolved`,
+`cost_within_ceiling`, `capability_path_exists`, `always_completes`).
+
+**The next scenarios to add** are the two hand-written pressure tests, which KCS §6 names as
+the first instances to encode:
+
+| Scenario | From | What it needs next |
+|---|---|---|
+| `kcs:worlds-to-fabric` | [`../koine/scenarios/e2e-worlds-to-fabric.md`](../koine/scenarios/e2e-worlds-to-fabric.md) | `emit`/`resolve` steps against a real KGP peer, and the KINP firewall assertions (`no_sameas_across_worlds`, `firewall_holds`) |
+| `kcs:media-transform` | [`../koine/scenarios/e2e-media-transform.md`](../koine/scenarios/e2e-media-transform.md) | `fetch` steps (KMI §7 byte transport), `standin` participants for the not-yet-adopted projects (delta N), and the media assertions |
+
+The vocabulary they need is already **declared** in `console/src/kcs/assertions.ts` and reports
+as *pending*, which never counts as a pass — a scenario asserting `firewall_holds` today goes
+red rather than green-by-omission. Same for the step kinds: `fetch`/`emit`/`subscribe` fail
+loudly instead of being skipped.
+
 ## Stack
 
 **Polyglot, by decision — not by accident.** Two toolchains, one gate.
@@ -125,5 +163,7 @@ Everything here implements a koine spec. Read those first:
 [`tasks/chief/10-agora-bootstrap.json`](tasks/chief/10-agora-bootstrap.json). Landed: the
 skeleton, stack, layout and gates (US-AG1); the sacred-ladder port (US-AG2); cost/budget
 enforcement + the router's KCB manifest (US-AG3); the discovery registry, its capability-path
-search and the resolver interface stub (US-AG4). Next: the console's first end-to-end scenario
-(US-AG5).
+search and the resolver interface stub (US-AG4); the conformance console — the KCS scenario
+model, runner and UI, running `kcs:provider-router-roundtrip` end to end (US-AG5). Next: encode
+the two pressure tests as scenarios, which is what pulls in the `fetch`/`emit`/`subscribe` steps
+and the identity/knowledge/media assertions.
