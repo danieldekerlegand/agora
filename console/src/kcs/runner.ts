@@ -17,9 +17,9 @@
  * * A step whose dependency failed is **skipped**, so a broken run reports one failure
  *   instead of a cascade — except `assert` steps, which always run. An assertion that did
  *   not run cannot be red, and a red run has to be able to say *which* property broke.
- * * A step kind this build cannot execute **fails**; it is never skipped quietly. The
- *   pressure-test scenarios (§6) need `fetch`/`emit`/`subscribe`, and until those land a
- *   scenario using them must be honestly red.
+ * * A step whose peer cannot serve it **fails**; it is never skipped quietly. Every §3 verb
+ *   is executable here, so a red step means the fabric said no — not that the console
+ *   shrugged.
  */
 import type { CapabilityRegistry, Registration } from '@agora/registry';
 import type { Resolver } from '@agora/resolver';
@@ -28,19 +28,22 @@ import {
   parseScenario,
   SPEC_VERSIONS,
   type AssertStep,
+  type EmitStep,
   type Expectation,
+  type FetchStep,
   type InvokeStep,
   type Json,
   type JsonObject,
   type ResolveStep,
   type ScenarioDocument,
   type Step,
+  type SubscribeStep,
 } from '@agora/schemas';
 
 import { evaluateAssertion, type AssertionContext } from './assertions.ts';
 import { bind, type Bindings } from './bindings.ts';
 import { platformFetch, type HttpFetch } from './http.ts';
-import { openLink, RefusedError, type Link } from './link.ts';
+import { openLink, RefusedError, type Peer } from './link.ts';
 import { CONSOLE_IDENTITY, detail, ObservationLog } from './log.ts';
 import {
   isGreen,
@@ -49,6 +52,7 @@ import {
   type ParticipantOutcome,
   type StepOutcome,
 } from './outcome.ts';
+import { parseFixture, Standin, type FixtureLoader } from './standin.ts';
 import type { InvocationResult } from './wire.ts';
 
 export interface RunOptions {
@@ -58,6 +62,9 @@ export interface RunOptions {
   fetch?: HttpFetch | undefined;
   /** Defaults to the local stub (US-AG4); the full resolver is backlogged. */
   resolver?: Resolver | undefined;
+  /** How a `standin` participant's fixtures are loaded (delta N). Defaults to fetching
+   * the declared path over the same transport everything else uses. */
+  fixtures?: FixtureLoader | undefined;
   /** Injectable clock so a report is reproducible in a test. */
   now?: (() => string) | undefined;
   /** Injectable elapsed-time source, same reason. */
@@ -76,7 +83,11 @@ export async function runScenario(
   const resolver = options.resolver ?? createLocalResolver();
   const startedAt = clock();
 
-  const { links, participants } = discover(scenario, options.registry, { fetch, log });
+  const { peers, participants } = await discover(scenario, options.registry, {
+    fetch,
+    log,
+    fixtures: options.fixtures ?? fixturesOver(fetch),
+  });
 
   const steps = [...(scenario.setup ?? []), ...scenario.steps, ...(scenario.teardown ?? [])];
   const outcomes = new Map<string, StepOutcome>();
@@ -90,7 +101,7 @@ export async function runScenario(
   });
 
   const run = execute(steps, {
-    links,
+    peers,
     resolver,
     log,
     clock,
@@ -133,7 +144,7 @@ export async function runScenario(
 }
 
 interface RunState {
-  links: Map<string, Link>;
+  peers: Map<string, Peer>;
   resolver: Resolver;
   log: ObservationLog;
   clock: () => number;
@@ -144,16 +155,20 @@ interface RunState {
 }
 
 /**
- * Resolve every participant to an address through the registry — never a hard-coded one
+ * Resolve every participant to a peer through the registry — never a hard-coded address
  * (§2). A participant the index does not know is *not* fatal on its own: the steps that
  * need it fail, and the report says which participant was missing.
+ *
+ * A live registration always wins over a `standin`. A stand-in exists for a peer that has
+ * not adopted the bus (delta N), so preferring it over a real address would be the one way
+ * this console could quietly test itself instead of the fabric.
  */
-function discover(
+async function discover(
   scenario: ScenarioDocument,
   registry: CapabilityRegistry,
-  options: { fetch: HttpFetch; log: ObservationLog },
-): { links: Map<string, Link>; participants: ParticipantOutcome[] } {
-  const links = new Map<string, Link>();
+  options: { fetch: HttpFetch; log: ObservationLog; fixtures: FixtureLoader },
+): Promise<{ peers: Map<string, Peer>; participants: ParticipantOutcome[] }> {
+  const peers = new Map<string, Peer>();
   const participants: ParticipantOutcome[] = [];
   for (const participant of scenario.participants) {
     const registration: Registration | undefined = registry.get(participant.identity);
@@ -164,16 +179,28 @@ function discover(
     };
     if (registration !== undefined) {
       const link = openLink(registration, { fetch: options.fetch, log: options.log });
-      links.set(participant.identity, link);
+      peers.set(participant.identity, link);
       outcome.endpoint = Object.values(registration.address.endpoints).find(
         (endpoint) => endpoint !== undefined,
       );
-      outcome.note = `dialed directly over the ${link.wire.name} wire`;
+      outcome.note = link.note;
     } else if (participant.standin !== undefined) {
-      // Delta N: a not-yet-adopted peer may be stood in for — and the report says so, so a
-      // green run is never mistaken for a fully live one.
-      outcome.stubbed = true;
-      outcome.note = `stood in for from ${participant.standin.fixtures}`;
+      const { fixtures } = participant.standin;
+      try {
+        const document = parseFixture(await options.fixtures(fixtures), fixtures);
+        const standin = new Standin({
+          identity: participant.identity,
+          fixtures,
+          document,
+          log: options.log,
+        });
+        peers.set(participant.identity, standin);
+        outcome.stubbed = true;
+        outcome.note = standin.note;
+      } catch (error) {
+        // A fixture that will not load is a red run, not a silently live one.
+        outcome.note = `stand-in ${fixtures} could not be loaded: ${message(error)}`;
+      }
     } else {
       outcome.note = 'not in the registry — steps that need it will fail';
     }
@@ -190,7 +217,20 @@ function discover(
     });
     participants.push(outcome);
   }
-  return { links, participants };
+  return { peers, participants };
+}
+
+/**
+ * The default fixture loader: GET the declared path over the same transport the console
+ * dials with. A fixture path is relative to wherever the console is served from, so a
+ * scenario's `standin.fixtures` means the same thing in the browser and in the gate.
+ */
+function fixturesOver(fetch: HttpFetch): FixtureLoader {
+  return async (path: string): Promise<Json> => {
+    const response = await fetch(path, { method: 'GET', headers: { accept: 'application/json' } });
+    if (!response.ok) throw new Error(`GET ${path} answered ${response.status}`);
+    return (await response.json()) as Json;
+  };
 }
 
 /**
@@ -336,26 +376,32 @@ async function perform(step: Step, state: RunState): Promise<StepProduct> {
   switch (step.kind) {
     case 'invoke':
       return await invoke(step, state);
+    case 'fetch':
+      return await fetchAsset(step, state);
+    case 'subscribe':
+      return await subscribe(step, state);
+    case 'emit':
+      return await emit(step, state);
     case 'resolve':
       return await resolve(step, state);
     case 'assert':
       return assert(step, state);
-    case 'fetch':
-    case 'subscribe':
-    case 'emit':
-      // Named, not silently skipped: encoding the §6 pressure tests is what makes these
-      // land, and until they do a scenario that uses one must fail rather than pass thin.
-      throw new Error(`console: \`${step.kind}\` steps are not implemented in this build`);
   }
 }
 
-async function invoke(step: InvokeStep, state: RunState): Promise<StepProduct> {
-  const link = state.links.get(step.participant);
-  if (link === undefined) {
-    throw new Error(`${step.participant} was not discovered — no address to dial`);
+/** The peer a step names, or the failure that says why it could not be reached. */
+function peerFor(identity: string, state: RunState): Peer {
+  const peer = state.peers.get(identity);
+  if (peer === undefined) {
+    throw new Error(`${identity} was not discovered — no address to dial`);
   }
+  return peer;
+}
+
+async function invoke(step: InvokeStep, state: RunState): Promise<StepProduct> {
+  const peer = peerFor(step.participant, state);
   const bindings: Bindings = state.bindings;
-  const result = await link.invoke({
+  const result = await peer.invoke({
     step: step.id,
     capability: step.capability,
     inputs: (step.inputs ?? []).map((input) => ({
@@ -367,6 +413,57 @@ async function invoke(step: InvokeStep, state: RunState): Promise<StepProduct> {
     budgetUnits: step.budget_units,
   });
   return { binding: bindingFor(result), result };
+}
+
+/**
+ * `fetch` (KCB §4 delta G): retrieve an asset by id. The id may be one a prior step minted,
+ * so it binds like any other value (§2.1).
+ */
+async function fetchAsset(step: FetchStep, state: RunState): Promise<StepProduct> {
+  const peer = peerFor(step.participant, state);
+  const asset = String(bind(step.asset, state.bindings));
+  const observed = await peer.fetchAsset({ step: step.id, asset });
+  return {
+    binding: {
+      asset: observed.id,
+      media_type: observed.media_type ?? null,
+      bytes: observed.bytes ?? null,
+      // `null` here is the envelope's own "depicts no world" (delta H); a silent envelope
+      // binds nothing at all, so `source_world_is` fails rather than reading a default.
+      ...(observed.source_world === undefined ? {} : { source_world: observed.source_world }),
+      attaches_to: [...observed.attaches_to],
+      present: observed.present,
+    },
+  };
+}
+
+/** `subscribe` (KCB §4, KGP §6): register for a world and collect the delta stream. */
+async function subscribe(step: SubscribeStep, state: RunState): Promise<StepProduct> {
+  const peer = peerFor(step.participant, state);
+  const world = step.world === undefined ? undefined : String(bind(step.world, state.bindings));
+  const capability =
+    step.capability === undefined ? undefined : String(bind(step.capability, state.bindings));
+  const summary = await peer.subscribe({ step: step.id, world, capability });
+  return {
+    binding: {
+      subscription: summary.subscription ?? null,
+      frames: summary.frames,
+      claims: [...summary.claims],
+      assets: [...summary.assets],
+      worlds: [...summary.worlds],
+    },
+  };
+}
+
+/** `emit` (KGP §2/§6): write a pack or a claim into the fabric. */
+async function emit(step: EmitStep, state: RunState): Promise<StepProduct> {
+  const peer = peerFor(step.participant, state);
+  const receipt = await peer.emit({
+    step: step.id,
+    pack: step.pack === undefined ? undefined : bind(step.pack, state.bindings),
+    claim: step.claim === undefined ? undefined : bind(step.claim, state.bindings),
+  });
+  return { binding: { pack_id: receipt.pack_id ?? null, claims: [...receipt.claims] } };
 }
 
 async function resolve(step: ResolveStep, state: RunState): Promise<StepProduct> {

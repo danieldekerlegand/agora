@@ -90,13 +90,18 @@ the first instances to encode:
 
 | Scenario | From | What it needs next |
 |---|---|---|
-| `kcs:worlds-to-fabric` | [`../koine/scenarios/e2e-worlds-to-fabric.md`](../koine/scenarios/e2e-worlds-to-fabric.md) | `emit`/`resolve` steps against a real KGP peer, and the KINP firewall assertions (`no_sameas_across_worlds`, `firewall_holds`) |
-| `kcs:media-transform` | [`../koine/scenarios/e2e-media-transform.md`](../koine/scenarios/e2e-media-transform.md) | `fetch` steps (KMI §7 byte transport), `standin` participants for the not-yet-adopted projects (delta N), and the media assertions |
+| `kcs:worlds-to-fabric` | [`../koine/scenarios/e2e-worlds-to-fabric.md`](../koine/scenarios/e2e-worlds-to-fabric.md) | encoding the Insimul → Analyzer → Pinakes walk as a document, with `standin` fixtures for the peers that have not published a manifest |
+| `kcs:media-transform` | [`../koine/scenarios/e2e-media-transform.md`](../koine/scenarios/e2e-media-transform.md) | encoding the four-project transform chain, and a cross-plane `capability_path_exists` over more than one indexed provider |
 
-The vocabulary they need is already **declared** in `console/src/kcs/assertions.ts` and reports
-as *pending*, which never counts as a pass — a scenario asserting `firewall_holds` today goes
-red rather than green-by-omission. Same for the step kinds: `fetch`/`emit`/`subscribe` fail
-loudly instead of being skipped.
+The runtime they need is in place: every §3 step kind executes (`fetch` is a CAS GET by
+asset id, `subscribe` reads a delta stream, `emit` writes a pack), `standin` participants
+(delta N) let a scenario name a peer that has not adopted the bus, and every §5 predicate
+in `console/src/kcs/assertions.ts` has an evaluator. A predicate a future KCS revision adds
+still reports as *pending*, which never counts as a pass — a scenario asserting something
+this build cannot check goes red rather than green-by-omission.
+
+Assertions are evaluated over **plane-typed observations, never generated text** (§7 Q2):
+a claim counts when a peer stated it as a KGP assertion, not when a model described it.
 
 ## Stack
 

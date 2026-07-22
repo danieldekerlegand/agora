@@ -58,6 +58,8 @@ export interface ConformanceRunOptions extends DiscoveryOptions {
   now?: RunOptions['now'];
   clock?: RunOptions['clock'];
   resolver?: RunOptions['resolver'];
+  /** How a `standin` participant's fixtures are loaded (KCS delta N). */
+  fixtures?: RunOptions['fixtures'];
 }
 
 export interface ConformanceRun {
@@ -78,6 +80,7 @@ export async function runConformance(
     now: options.now,
     clock: options.clock,
     resolver: options.resolver,
+    fixtures: options.fixtures,
   });
   return { discovery, report };
 }

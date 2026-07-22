@@ -169,8 +169,10 @@ describe('the execution model', () => {
   });
 
   it('skips a step whose dependency failed, but never skips an assertion', async () => {
+    // The router serves completions and no CAS, so a `fetch` at it has no address to go
+    // to. That is a failure, not a skip: the console must never invent an endpoint.
     const scenario = variant([
-      { id: 'not-implemented', kind: 'fetch', participant: 'agora:agent:provider-router', asset: 'agora:asset:x' },
+      { id: 'no-cas', kind: 'fetch', participant: 'agora:agent:provider-router', asset: 'agora:asset:x' },
       {
         id: 'downstream',
         kind: 'invoke',
@@ -181,8 +183,8 @@ describe('the execution model', () => {
     ]);
     const { report } = await replay(scenario);
     expect(report.steps[0]).toMatchObject({ status: 'failed' });
-    expect(report.steps[0]?.error).toMatch(/`fetch` steps are not implemented/);
-    expect(report.steps[1]).toMatchObject({ status: 'skipped', error: 'blocked by not-implemented' });
+    expect(report.steps[0]?.error).toMatch(/publishes no `cas` address/);
+    expect(report.steps[1]).toMatchObject({ status: 'skipped', error: 'blocked by no-cas' });
     expect(report.assertions).toHaveLength(1);
     expect(report.assertions[0]?.ok).toBe(false);
   });

@@ -12,8 +12,24 @@
  */
 import type { Json, JsonObject, Plane } from '@agora/schemas';
 
+import {
+  idsIn,
+  isEmpty,
+  noFacts,
+  type Facts,
+  type ObservedAsset,
+  type ObservedClaim,
+  type ObservedLink,
+} from './facts.ts';
+
 /** Which side of a connection an entry recorded. */
 export type Direction = 'request' | 'response' | 'frame';
+
+/** A fact and the entry that saw it — a verdict's support slice comes back in this shape. */
+export interface Sighting<T> {
+  entry: Observation;
+  value: T;
+}
 
 export interface Observation {
   /** Monotonic within a run — the log's own ordering, independent of wall clock. */
@@ -30,6 +46,12 @@ export interface Observation {
   entities: string[];
   /** A summary: status, endpoint, resolved tier, cost. Never payload bytes. */
   detail: JsonObject;
+  /**
+   * The plane-typed records this entry carried (KGP claims, KMI assets, KINP links).
+   * Present only when the peer stated them in a plane shape — the §5 assertions read
+   * these, which is how a verdict is about the fabric rather than about generated text.
+   */
+  facts?: Facts | undefined;
 }
 
 /** What a caller hands {@link ObservationLog.record}; `seq` and `at` are the log's to stamp. */
@@ -45,7 +67,15 @@ export class ObservationLog {
   constructor(private readonly now: () => string = () => new Date().toISOString()) {}
 
   record(draft: ObservationDraft): Observation {
-    const entry: Observation = { ...draft, seq: ++this.seq, at: this.now() };
+    // Ids the facts touched join `entities` automatically: §4.2 wants every entry stamped
+    // with the KINP ids it touched, and a recorder that had to list them by hand would
+    // eventually forget one — silently narrowing what an assertion can find.
+    const facts = draft.facts;
+    const entities =
+      facts === undefined || isEmpty(facts)
+        ? draft.entities
+        : [...new Set([...draft.entities, ...idsIn(facts)])];
+    const entry: Observation = { ...draft, entities, seq: ++this.seq, at: this.now() };
     this.recorded.push(entry);
     return entry;
   }
@@ -64,6 +94,43 @@ export class ObservationLog {
     const seen = new Set<string>();
     for (const entry of this.recorded) for (const id of entry.entities) seen.add(id);
     return [...seen];
+  }
+
+  /** Every claim the run observed, each with the entry that saw it. */
+  claimsSeen(): Sighting<ObservedClaim>[] {
+    return this.sightings((facts) => facts.claims);
+  }
+
+  /** Every asset envelope the run observed, each with the entry that saw it. */
+  assetsSeen(): Sighting<ObservedAsset>[] {
+    return this.sightings((facts) => facts.assets);
+  }
+
+  /** Every equivalence / lineage link the run observed (KINP §4.2, KMI §3). */
+  linksSeen(): Sighting<ObservedLink>[] {
+    return this.sightings((facts) => facts.links);
+  }
+
+  /** The facts one step produced, merged — what a per-step assertion evaluates over. */
+  factsForStep(id: string): Facts {
+    const merged = noFacts();
+    for (const entry of this.forStep(id)) {
+      if (entry.facts === undefined) continue;
+      merged.claims.push(...entry.facts.claims);
+      merged.assets.push(...entry.facts.assets);
+      merged.links.push(...entry.facts.links);
+      merged.packs.push(...entry.facts.packs);
+    }
+    return merged;
+  }
+
+  private sightings<T>(pick: (facts: Facts) => T[]): Sighting<T>[] {
+    const found: Sighting<T>[] = [];
+    for (const entry of this.recorded) {
+      if (entry.facts === undefined) continue;
+      for (const value of pick(entry.facts)) found.push({ entry, value });
+    }
+    return found;
   }
 }
 

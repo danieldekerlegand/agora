@@ -13,15 +13,27 @@ neither does anything else, because the console only ever dials on its own behal
 | Module | What it is |
 |---|---|
 | `src/kcs/runner.ts` | KCS §4: discover → run (`after`, `timeout_ms`) → evaluate → report |
-| `src/kcs/link.ts` | the only module that dials; one direct link per participant |
+| `src/kcs/link.ts` | the only module that dials; the §3 verbs against one participant |
+| `src/kcs/standin.ts` | a fixture in place of a peer that has not adopted the bus (delta N) |
 | `src/kcs/wire.ts` | how a plane-typed `invoke` becomes a request on a peer's own protocol |
+| `src/kcs/facts.ts` | reading KGP claims / KMI assets / KINP links off a response |
 | `src/kcs/assertions.ts` | the §5 cross-plane vocabulary; unimplemented predicates are *pending*, never a pass |
-| `src/kcs/log.ts` | the observation log — ids and summaries, never bytes |
+| `src/kcs/log.ts` | the observation log — ids, summaries and plane-typed facts, never bytes |
 | `src/kcs/bindings.ts` | `${step.path}` (delta M) |
 | `src/kcs/outcome.ts` | step outcomes and the conformance report |
 | `src/commons.ts` | bootstrap: crawl the providers into a registry, then run a scenario |
 | `src/scenarios/` | the scenario documents themselves |
 | `src/App.tsx` | the UI over one report |
+
+All six §3 verbs execute: `invoke` and `resolve` on the control/identity planes, and
+`fetch` / `subscribe` / `emit` on the data planes — a CAS GET by asset id, a delta stream
+(NDJSON, SSE, or a `frames` array), and a pack written into the fabric. A provider that
+publishes no address for a verb gets a red step, never an invented endpoint.
+
+**Assertions read the observation log, never generated text** (§7 Q2). `facts.ts` only
+records what a peer stated in a KGP/KMI/KINP shape, so a provider that describes the right
+answer in prose fails every predicate — which is what makes a scenario repeatable instead
+of a snapshot of one sampling.
 
 The scenario *document* types live in `@agora/schemas` (`scenario.ts`), not here: KCS §1 is
 explicit that the format is a cross-cutting contract and only the runtime and UI belong to
