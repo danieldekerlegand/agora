@@ -80,17 +80,23 @@ report.green; // every step passed and every assertion held
 `npm run dev -w @agora/console` renders the same run: the tier that served each call, what it
 cost, every assertion's verdict, and the log beneath it.
 
-**The scenario that ships** is `kcs:provider-router-roundtrip` — discover the provider-router
-through the registry, dial its own address, ask for a completion with a ceiling of **zero**
-budget units, and assert the zero-spend tier served it for nothing (`tier_resolved`,
-`cost_within_ceiling`, `capability_path_exists`, `always_completes`).
+**The scenarios that ship:**
 
-**The next scenarios to add** are the two hand-written pressure tests, which KCS §6 names as
-the first instances to encode:
+| Scenario | From | What it proves |
+|---|---|---|
+| `kcs:provider-router-roundtrip` | the commons itself | discover the provider-router through the registry, dial its own address, ask for a completion with a ceiling of **zero** budget units, and assert the zero-spend tier served it for nothing (`tier_resolved`, `cost_within_ceiling`, `capability_path_exists`, `always_completes`) |
+| `kcs:worlds-to-fabric` | [`../koine/scenarios/e2e-worlds-to-fabric.md`](../koine/scenarios/e2e-worlds-to-fabric.md) | the identity firewall across the media→knowledge bridge: an Insimul fiction → Analyzer ingest → Pinakes reconcile → cross-project queries, asserting that facts-about-the-real-Napoleon return nothing from the fiction (`firewall_holds`), that every claim is world-scoped (`claim_in_world`), and that cross-world lineage stays `based_on` (`no_sameas_across_worlds`) |
+
+Insimul, Analyzer and Pinakes have published no manifest yet, so `kcs:worlds-to-fabric` runs
+them as `standin` participants (KCS delta N) and its report says `stubbed`. The runner
+prefers a live registration over a fixture, so adoption deletes fixtures rather than
+rewriting the scenario.
+
+**The next scenario to add** is the other hand-written pressure test, which KCS §6 names
+alongside it:
 
 | Scenario | From | What it needs next |
 |---|---|---|
-| `kcs:worlds-to-fabric` | [`../koine/scenarios/e2e-worlds-to-fabric.md`](../koine/scenarios/e2e-worlds-to-fabric.md) | encoding the Insimul → Analyzer → Pinakes walk as a document, with `standin` fixtures for the peers that have not published a manifest |
 | `kcs:media-transform` | [`../koine/scenarios/e2e-media-transform.md`](../koine/scenarios/e2e-media-transform.md) | encoding the four-project transform chain, and a cross-plane `capability_path_exists` over more than one indexed provider |
 
 The runtime they need is in place: every §3 step kind executes (`fetch` is a CAS GET by

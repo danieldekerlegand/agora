@@ -54,8 +54,26 @@ the command in that test's failure message rather than editing it.
 
 ## What ships, and what is next
 
-Shipped: `kcs:provider-router-roundtrip` — a completion served by the zero-spend tier under a
-ceiling of zero budget units, with the resolved tier and cost surfaced in the UI.
+- **`kcs:provider-router-roundtrip`** — a completion served by the zero-spend tier under a
+  ceiling of zero budget units, with the resolved tier and cost surfaced in the UI. Live.
+- **`kcs:worlds-to-fabric`** — the executable form of
+  `../../koine/scenarios/e2e-worlds-to-fabric.md` (KCS §6): an Insimul fiction → Analyzer
+  ingest → Pinakes reconcile → cross-project queries, asserting the identity firewall.
+  Insimul, Analyzer and Pinakes have published no manifest yet, so all three run as stand-ins
+  (delta N) and the report says `stubbed`; the runner prefers a live registration over a
+  fixture, so adoption deletes fixtures rather than rewriting the scenario.
 
-Next, per KCS §6: `kcs:worlds-to-fabric` and `kcs:media-transform`, the executable forms of
-`../../koine/scenarios/*.md`. See the root README for what each one still needs.
+Next, per KCS §6: `kcs:media-transform`. See the root README for what it still needs.
+
+### On stand-in fixtures
+
+`src/fixtures/<scenario>/<project>.json` are **fabric-shaped** — KGP delta packs, KMI
+envelopes and KINP links exactly as the specs write them — and are read through the same
+`facts.ts` extraction as live traffic. A fixture in console-flavoured JSON would make a
+green run meaningless.
+
+Each scenario's assertions are paired with the injury they are supposed to catch (see
+`worlds-to-fabric.test.ts`): damage one fixture field — drop an asset's `source_world`,
+reconcile into `same_as` instead of `based_on`, leak one fiction claim into a
+consensus-reality answer — and the run must go red on exactly the assertion that names that
+property. A conformance scenario that cannot fail is a demo.

@@ -25,6 +25,7 @@ import type { CapabilityRegistry, Registration } from '@agora/registry';
 import type { Resolver } from '@agora/resolver';
 import { createLocalResolver } from '@agora/resolver';
 import {
+  isJsonObject,
   parseScenario,
   SPEC_VERSIONS,
   type AssertStep,
@@ -34,6 +35,7 @@ import {
   type InvokeStep,
   type Json,
   type JsonObject,
+  type PortValue,
   type ResolveStep,
   type ScenarioDocument,
   type Step,
@@ -407,12 +409,28 @@ async function invoke(step: InvokeStep, state: RunState): Promise<StepProduct> {
     inputs: (step.inputs ?? []).map((input) => ({
       plane: input.port.plane,
       shape: 'shape' in input.port ? input.port.shape : undefined,
-      value: input.value === undefined ? undefined : bind(input.value, bindings),
+      value: portValue(input, bindings),
     })),
     options: (step.options === undefined ? {} : bind(step.options, bindings)) as JsonObject,
     budgetUnits: step.budget_units,
   });
   return { binding: bindingFor(result), result };
+}
+
+/**
+ * What one port actually carries (§3: "payloads reference things by KINP id … never inline
+ * blobs"). A port may state a `value` (a structural payload — messages, a descriptor), a
+ * `ref` (an id for something the fabric already holds), or both; a `ref` travels as a
+ * `ref` field so the peer receives an identifier rather than a copy of what it addresses.
+ * Both bind, because either may be a value a prior step minted (§2.1).
+ */
+function portValue(input: PortValue, bindings: Bindings): Json | undefined {
+  const value = input.value === undefined ? undefined : bind(input.value, bindings);
+  if (input.ref === undefined) return value;
+  const ref = bind(input.ref, bindings);
+  if (value === undefined) return { ref };
+  if (isJsonObject(value)) return { ...value, ref };
+  return { value, ref };
 }
 
 /**

@@ -10,19 +10,35 @@
  * A fixture that drifted from the spec would be the one way a green run could mean
  * nothing, which is why they are read through the same {@link ../kcs/facts.ts} extraction
  * the live path uses.
+ *
+ * Fixtures are grouped **per scenario**, not one per peer: a stand-in is a recording of the
+ * exchanges one scenario drives, and two scenarios ask the same peer different questions.
+ * The identity is the peer's own either way, so adoption still deletes fixtures rather than
+ * rewriting scenarios.
  */
 import type { Json } from '@agora/schemas';
 
 import insimul from './standin-insimul.json';
 import pinakes from './standin-pinakes.json';
+import worldsToFabricArgos from './worlds-to-fabric/analyzer.json';
+import worldsToFabricInsimul from './worlds-to-fabric/insimul.json';
+import worldsToFabricPinakes from './worlds-to-fabric/pinakes.json';
 
 /** Where each fixture lives, as a scenario names it. */
 export const INSIMUL_STANDIN = 'fixtures/standin-insimul.json';
 export const PINAKES_STANDIN = 'fixtures/standin-pinakes.json';
 
+/** `kcs:worlds-to-fabric` (US-CS2) — none of its three participants has adopted KCB yet. */
+export const WORLDS_TO_FABRIC_INSIMUL = 'fixtures/worlds-to-fabric/insimul.json';
+export const WORLDS_TO_FABRIC_ARGOS = 'fixtures/worlds-to-fabric/analyzer.json';
+export const WORLDS_TO_FABRIC_PINAKES = 'fixtures/worlds-to-fabric/pinakes.json';
+
 const FIXTURES: Record<string, unknown> = {
   [INSIMUL_STANDIN]: insimul,
   [PINAKES_STANDIN]: pinakes,
+  [WORLDS_TO_FABRIC_INSIMUL]: worldsToFabricInsimul,
+  [WORLDS_TO_FABRIC_ARGOS]: worldsToFabricArgos,
+  [WORLDS_TO_FABRIC_PINAKES]: worldsToFabricPinakes,
 };
 
 /**

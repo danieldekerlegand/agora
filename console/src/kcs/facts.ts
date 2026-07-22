@@ -92,6 +92,7 @@ export interface Facts {
 /** Containers a pack, a delta frame or a query result nests its records under. */
 const CONTAINERS = [
   'assertions',
+  'claim',
   'claims',
   'links',
   'assets',
