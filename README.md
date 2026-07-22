@@ -166,6 +166,11 @@ vendored copy; a copy would be the second source of truth the registry exists to
 `registryVersion` this build speaks, and the paths it speaks it at, are pinned in
 `RELATION_REGISTRY` (`schemas/src/relation-registry.ts`), the same way the spec versions are.
 
+The bridge layer covers both bridged projects — **analyzer** (as lifted) and **insimul** (added at
+registryVersion 0.4.0), each mapping its own predicates onto the canonical vocabulary that
+**pinakes** hosts. pinakes is therefore the canonical *side*, not a bridged project, which is
+why `RELATION_REGISTRY.bridgedProjects` excludes it.
+
 A registry entry classifies a relation on **three orthogonal axes**, modelled in
 `schemas/src/axes.ts`: its **dialect** tier (KGP §5 — what logic a consumer may evaluate:
 `grounding-only` ⊂ `horn-safe` ⊂ `full-prolog`), its **egress** class (§7.2 — whether it may

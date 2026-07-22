@@ -13,8 +13,9 @@
  *   deterministic across producers (KGP §3.2 rule 1);
  * - the **bridge mappings** (`predicate-mapping.json`) — how each bridged project's own
  *   predicates cross into the canonical node/edge vocabulary. Lifted verbatim out of pinakes
- *   (merged `17f0713`) per the ADR-0002 amendment. It coins no relation names: a mapping that
- *   crosses as a claim names the vocabulary relation it normalizes to.
+ *   (merged `17f0713`) per the ADR-0002 amendment, then extended with the insimul vocabulary.
+ *   It coins no relation names: a mapping that crosses as a claim names the vocabulary relation
+ *   it normalizes to.
  *
  * A relation's signature is immutable once published — changing arity, argument order or
  * symmetry silently changes every dependent claim id (KGP §3), so a change means a new
@@ -42,11 +43,25 @@ export const RELATION_REGISTRY = {
   /**
    * `registryVersion` of the canonical registry (koine). 0.3.0 split the old
    * `portabilityClasses` key into the two axes `axes.ts` models — a registry at 0.2.0 still
-   * says `portability: [...]` and cannot be read by this build.
+   * says `portability: [...]` and cannot be read by this build. 0.4.0 added the insimul
+   * bridge mappings (additive: no analyzer entry changed, no signature moved).
    */
-  version: '0.3.0',
+  version: '0.4.0',
   /** The repo that holds the authoritative copy. There is exactly one. */
   repo: 'koine',
+  /**
+   * The project hosting the canonical node/edge schema every mapping targets. It is the
+   * canonical *side* of the bridge, so it is not itself a bridged project: its coverage is the
+   * relation vocabulary, not a `projects` entry.
+   */
+  canonicalProject: 'pinakes',
+  /**
+   * The bridged projects the registry's `projects` block covers at `version` — the ones whose
+   * own predicates cross into the canonical vocabulary. A loader that finds a project here with
+   * no mappings, or mappings for a project not listed here, is reading a registry this build
+   * does not speak.
+   */
+  bridgedProjects: ['analyzer', 'insimul'],
   /** The relation vocabulary: the shared core plus namespaced domain extensions. */
   vocabulary: {
     core: 'registry/relations.tsv',
