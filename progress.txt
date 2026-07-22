@@ -21,7 +21,15 @@
 - FastAPI routes take their dependencies as `Annotated[T, Depends(fn)]` module-level aliases
   (a call in an argument default trips ruff B008), and `app.dependency_overrides` keys on the
   `fn` identity — which is how a test swaps the whole router for one it configured.
-
+- **Every router knob goes under `AGORA_*`.** `RouterConfig.env` retains only that prefix (so no
+  repr can leak a secret), which means a new variable named that way arrives at the ladder, the
+  cost table and the manifest with no plumbing — `AGORA_PRICE_*`, `AGORA_PUBLIC_BASE_URL`.
+- **Safety invariants are asserted on what was CONTACTED, not on what won.** `recording_transport`
+  records every backend the transport was handed; zero-spend and budget tests assert that list is
+  empty. "It lost the race" is not the same guarantee as "it was never dialed".
+- **Under `mypy --strict`, a helper taking `**env: str` plus another parameter needs that
+  parameter positional-only** (`def f(calls, ceiling, /, **env: str)`) — the splat could otherwise
+  supply it. Splitting into two helpers (conftest's `router_for`) is the other way out.
 ---
 ## Bootstrap
 - Repo skeleton created (README, CLAUDE.md, .gitignore, tasks/chief/10-agora-bootstrap.json).
@@ -74,4 +82,53 @@
 - The `agora` key on every generation response (tier/provider/model/attempts, mirrored into
   `X-Agora-*`) is the seam the console (US-AG5) reads. Body over header on purpose: a header
   needs CORS expose-headers to survive a browser fetch.
+---
+## US-AG3 — Cost/budget enforcement + the router's KCB capability manifest
+- New `provider-router/src/agora_provider_router/cost.py` — pure pricing: `measure` (size a
+  request per modality), `rate_for` (per-(modality, provider) table + `AGORA_PRICE_*` override),
+  `project` (before dispatch) / `settle` (against the response), `take_ceiling`/`parse_ceiling`,
+  `within`/`refusal`. New `manifest.py` — the KCB §2 manifest, at `/.well-known/kcb-manifest.json`.
+- `router.py`: the walk is budget-gated; `Attempt` gained `dialed`, `Completion` gained
+  `projected`/`actual`/`budget_units` and a `cost()` block on `routing()`. `backends.py`:
+  `resolve_tier(..., rank)` — `_resolve_paid` collects ALL usable vendors and picks
+  `min(ready, key=rank)` when ranking, first-declared otherwise. `app.py`: the
+  `X-Agora-Budget-Units` request header, an `X-Agora-Cost-Units` response header, the manifest
+  route, and a 422 on an unreadable ceiling.
+- Tests: `test_cost.py`, `test_budget.py`, `test_manifest.py` + HTTP coverage in `test_app.py`
+  (109 passing). `make check` exit 0.
+- **Ladder = preference, ceiling = constraint.** The AC says "prefers the lowest-cost satisfying
+  tier", but sorting the whole ladder by cost would send EVERY budgeted request straight to the
+  free placeholder and delete the sacred ladder. So rungs are walked in ladder order and one
+  projected over budget is pruned; because the ladder runs expensive→free, the first survivor IS
+  the best affordable rung. Cheapest-wins applies only where the ladder expresses no preference —
+  between two usable paid vendors (`rank`).
+- **Costs are KCB budget units, not USD** (anchored 1 unit = US$0.00001): a grant crosses projects
+  that share no billing account, so the bus needs one comparable scalar. Rates ported from Analyzer's
+  USD table, which is at `~/Development/analyzer/src/filmstudio/cost.py` — NOT `core/`, as US-AG2's
+  note said. `unpriced` is deliberately not `free`: an unknown vendor prices 0.0 but is flagged,
+  and `within()` refuses it under any ceiling, or it would become the ladder's cheapest route.
+- **The manifest advertises the CURRENTLY RESOLVED tier's cost**, so a keyless router publishes
+  `tier=placeholder, est_units=0`. A static price list would make the registry's zero-cost
+  preference (KCB §3) wrong precisely on zero-spend deployments. Priced against a fixed nominal
+  request per modality (`NOMINAL`), published as `cost.basis`, so figures are comparable.
+- **No endpoint is advertised that is not served** — no `mcp`/`a2a` keys until they exist, because
+  a manifest address is a promise the registry hands to peers who dial it DIRECTLY (ADR-0001
+  decision 3). `test_manifest.py` pins the endpoint key set, so a future story must add the server
+  and the advertisement together.
+- Next: US-AG4 — the registry indexes this manifest. It is served at
+  `/.well-known/kcb-manifest.json` and `manifest.capability_manifest()` builds it; the TS side has
+  no manifest type yet, so US-AG4 will want one in `schemas/`.
+
+### Learnings for future iterations
+- **Assert on "was it dialed", not "did it win".** Spend happens at the connection, so
+  `recording_transport`'s `calls` list is the real budget assertion; `completion.tier` alone would
+  pass even if the paid rung had been contacted and merely lost.
+- The `**env` + named-option mypy trap (US-AG2's note) bites again in test helpers. The fix that
+  keeps call sites readable is a **positional-only** parameter:
+  `def complete_with(calls, ceiling, /, **env: str)`.
+- Derive test constants from the code under test (`PAID_UNITS = project(...).units`), not
+  arithmetic on the rate table — `round(rate*qty, 6)` != `rate*qty` in float, and `measure("text")`
+  adds prompt chars/3.5 on top of `max_tokens`.
+- Editing `tasks/chief/*.json` with `json.dump` reformats the whole file (escapes em-dashes,
+  re-wraps arrays). Flip `"passes"` with a surgical string edit instead.
 ---
