@@ -73,30 +73,70 @@ envelope in between (ADR-0001 decision 7).
 import { runConformance } from './commons.ts';
 import { PROVIDER_ROUTER_ROUNDTRIP } from './scenarios/provider-router-roundtrip.ts';
 
-const { report } = await runConformance(PROVIDER_ROUTER_ROUNDTRIP);
-report.green; // every step passed and every assertion held
+const { report, archive } = await runConformance(PROVIDER_ROUTER_ROUNDTRIP);
+report.green;         // every step passed and every assertion held
+archive.report_id;    // sha256-… — the same run observed again mints the same id
 ```
 
-`npm run dev -w @agora/console` renders the same run: the tier that served each call, what it
-cost, every assertion's verdict, and the log beneath it.
+Every report is **content-addressed and archivable** (KCS §4.4): the address covers the
+scenario, the participants, every step and assertion verdict and the observation log, and
+excludes wall-clock time and durations — the same split KGP §3.1 makes for a claim. So a
+re-run that saw the same fabric dedups, an id that *moved* is itself the finding, and
+`verifyArchive` catches an archive whose verdict was edited after the fact.
 
-**The scenario that ships** is `kcs:provider-router-roundtrip` — discover the provider-router
-through the registry, dial its own address, ask for a completion with a ceiling of **zero**
-budget units, and assert the zero-spend tier served it for nothing (`tier_resolved`,
-`cost_within_ceiling`, `capability_path_exists`, `always_completes`).
+`npm run dev -w @agora/console` is the same runtime with a UI on it: the **scenario library**
+with a run button per scenario, then that run's verdict and content address, the tier that
+served each call and what it cost, every assertion's verdict with the log entries supporting
+it, and the observation timeline beneath.
 
-**The next scenarios to add** are the two hand-written pressure tests, which KCS §6 names as
-the first instances to encode:
+Its second panel is the **capability explorer** — browse what the registry advertises (per
+provider, plane-typed ports, address, projected cost), compose a request from a form the port
+schema generated, and send it. There is no second client behind it: a manual request compiles
+into a one-step scenario and goes through the same `runConformance`, so it is discovered,
+dialed and logged exactly as an authored scenario is.
 
-| Scenario | From | What it needs next |
+**The scenarios that ship:**
+
+| Scenario | From | What it proves |
 |---|---|---|
-| `kcs:worlds-to-fabric` | [`../koine/scenarios/e2e-worlds-to-fabric.md`](../koine/scenarios/e2e-worlds-to-fabric.md) | `emit`/`resolve` steps against a real KGP peer, and the KINP firewall assertions (`no_sameas_across_worlds`, `firewall_holds`) |
-| `kcs:media-transform` | [`../koine/scenarios/e2e-media-transform.md`](../koine/scenarios/e2e-media-transform.md) | `fetch` steps (KMI §7 byte transport), `standin` participants for the not-yet-adopted projects (delta N), and the media assertions |
+| `kcs:provider-router-roundtrip` | the commons itself | discover the provider-router through the registry, dial its own address, ask for a completion with a ceiling of **zero** budget units, and assert the zero-spend tier served it for nothing (`tier_resolved`, `cost_within_ceiling`, `capability_path_exists`, `always_completes`) |
+| `kcs:worlds-to-fabric` | [`../koine/scenarios/e2e-worlds-to-fabric.md`](../koine/scenarios/e2e-worlds-to-fabric.md) | the identity firewall across the media→knowledge bridge: an Insimul fiction → Analyzer ingest → Pinakes reconcile → cross-project queries, asserting that facts-about-the-real-Napoleon return nothing from the fiction (`firewall_holds`), that every claim is world-scoped (`claim_in_world`), and that cross-world lineage stays `based_on` (`no_sameas_across_worlds`) |
+| `kcs:media-transform` | [`../koine/scenarios/e2e-media-transform.md`](../koine/scenarios/e2e-media-transform.md) | the four-project transform chain: an Insimul playthrough → Analyzer cut + narration → a Composer score → EDL → a DaVinci projection, asserting that a route across planes is plannable before anything is dialed (`capability_path_exists`), that generated assets declare no world while ingested ones do (`source_world_is`), that the one paid hop stayed inside its grant (`cost_within_ceiling`), and that analysis of a *generated composite* is still attributed to its footage's world (`analysis_attributed_to_constituent`) |
 
-The vocabulary they need is already **declared** in `console/src/kcs/assertions.ts` and reports
-as *pending*, which never counts as a pass — a scenario asserting `firewall_holds` today goes
-red rather than green-by-omission. Same for the step kinds: `fetch`/`emit`/`subscribe` fail
-loudly instead of being skipped.
+None of Insimul, Analyzer, Composer or Pinakes has published a manifest yet, so both scenarios
+run them as `standin` participants (KCS delta N) and their reports say `stubbed`. A stand-in
+fixture may also carry the **`manifest`** its peer has not published: a provider off the bus
+is missing from the *control* plane too, and `capability_path_exists` would otherwise have
+nothing to plan over. The runner indexes those manifests into a **scenario-local** index
+that is thrown away with the run — writing them into the registry peers query would hand out
+an address nobody serves. A live registration still wins over a fixture, so adoption deletes
+fixtures rather than rewriting a scenario.
+
+The runtime under them: every §3 step kind executes (`fetch` is a CAS GET by asset id,
+`subscribe` reads a delta stream, `emit` writes a pack), `standin` participants (delta N)
+let a scenario name a peer that has not adopted the bus, and every §5 predicate in
+`console/src/kcs/assertions.ts` has an evaluator. A predicate a future KCS revision adds
+still reports as *pending*, which never counts as a pass — a scenario asserting something
+this build cannot check goes red rather than green-by-omission.
+
+**One gap is KCS's, not this console's.** KMI delta I gives every NLE projection an
+asset-id ↔ path media map, and §5 has no predicate that can read one — so
+`kcs:media-transform` carries the map into its observation log and nothing checks it. A
+`media_map_complete(projection)` predicate is the koine follow-up.
+
+Assertions are evaluated over **plane-typed observations, never generated text** (§7 Q2):
+a claim counts when a peer stated it as a KGP assertion, not when a model described it.
+
+**The third panel drives nothing.** The console's *fabric monitor* is a passive watch: it
+subscribes (KCB §4) to the streams providers publish and renders a filterable live feed of what
+crosses the commons, whether or not this console caused it. Decision 7 is what bounds it — a
+passive observer may register as a consumer, but may not read the wire between two other peers,
+which is the payload-aware proxy the topology exists to avoid. So the **data plane is covered
+today** (every delta and media event a producer publishes reaches the feed) while the **control
+plane is visible only where a provider *emits* exchange telemetry**; a provider that emits none
+is absent at the invoke level, and the monitor says so per source. Closing that is a koine
+follow-up — an emitted-telemetry contract (a KCB observability extension) fixing the span shape.
+`console/src/kcs/spans.ts` is agora's provisional reader for it.
 
 ## Stack
 
@@ -211,6 +251,36 @@ It fetches `predicate-mapping.json`, follows it to the vocabulary files it names
 both, and indexes them. It never writes and never mirrors — a cached copy belongs to the
 caller, and a caller that edits one has forked the registry.
 
+### The resolver
+
+`resolver/` implements KINP §8's two verbs against Pinakes, the single canonical authority for
+real-world entities (§11 decision 1):
+
+```ts
+const resolver = createPinakesResolver({ endpoint });   // the address the registry handed back
+await resolver.resolve({ id: 'insimul:world:alderforest:ent:npc-renaud' });
+await resolver.reconcile({ query: 'Renaud', of: 'analyzer:ent:e-8842', world: 'insimul:world:alderforest' });
+```
+
+`resolve` computes the merged view rather than storing it (§4.1), and **the walk never crosses
+a `based_on` edge** — that one rule is the firewall (§4.3). The fictional general is `same_as`
+the Analyzer local extracted from the footage and `based_on` the real Napoleon, so resolving him
+returns the local and stops: Wikidata's Napoleon is two `same_as` hops away and both queries
+stay clean, out of one graph.
+
+`reconcile` takes the OpenRefine/Wikidata Reconciliation query verbatim (§4.5) so Pinakes's
+Wikidata backbone answers it directly, then decides two things about the top candidate: which
+relation (§4.5 — different worlds that do not inherit identity ⇒ `based_on`; a candidate
+already reachable through `based_on` is never promoted by transitivity) and whether to apply it
+(§11 decision 2 — auto-apply above a per-world confidence threshold, queue anything
+below-threshold, ambiguous, or high-impact). Queued proposals land on `resolver.reviewQueue`
+and nothing there has been asserted.
+
+Authority is a role, not a hard dependency: ids that never round-trip (claims and assets are
+content hashes, §6) are answered without dialing anybody, an id the authority has never heard
+of resolves to itself, and a dial that fails falls back to the local cache — labelled `cache`,
+never `pinakes`, because "Pinakes says so" and "Pinakes said so once" license different writes.
+
 ## Status
 
 **Bootstrapping.** The repo is being stood up by the Chief harness from
@@ -218,6 +288,11 @@ caller, and a caller that edits one has forked the registry.
 skeleton, stack, layout and gates (US-AG1); the sacred-ladder port (US-AG2); cost/budget
 enforcement + the router's KCB manifest (US-AG3); the discovery registry, its capability-path
 search and the resolver interface stub (US-AG4); the conformance console — the KCS scenario
-model, runner and UI, running `kcs:provider-router-roundtrip` end to end (US-AG5). Next: encode
-the two pressure tests as scenarios, which is what pulls in the `fetch`/`emit`/`subscribe` steps
-and the identity/knowledge/media assertions.
+model, runner and UI, running `kcs:provider-router-roundtrip` end to end (US-AG5).
+
+From [`tasks/chief/30-agora-console-scenarios.json`](tasks/chief/30-agora-console-scenarios.json):
+the KCS runner and its cross-plane assertion vocabulary (US-CS1); both koine pressure tests
+encoded as runnable scenarios — `kcs:worlds-to-fabric` (US-CS2) and `kcs:media-transform`
+(US-CS3); the full KINP resolver dialing the Pinakes authority (US-CS4); the content-addressed
+conformance report and the scenario-library UI (US-CS5); the manual capability explorer
+(US-CS6). Next: the passive live fabric monitor.

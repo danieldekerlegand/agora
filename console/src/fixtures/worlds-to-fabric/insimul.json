@@ -1,0 +1,67 @@
+{
+  "identity": "insimul:agent:world-server",
+  "subscribe": {
+    "insimul:world:alderforest": {
+      "frames": [
+        {
+          "kgp_version": "0.4.0",
+          "pack_id": "sha256-de17a0",
+          "kind": "delta",
+          "basis": null,
+          "dialect": "grounding-only",
+          "worlds": ["insimul:world:alderforest"],
+          "assertions": [
+            {
+              "id": "insimul:claim:sha256-9f3c1a",
+              "world": "insimul:world:alderforest",
+              "subject": "insimul:world:alderforest:ent:npc-renaud",
+              "relation": "commands",
+              "object": "insimul:world:alderforest:ent:army-of-ash",
+              "confidence": 0.9,
+              "prov": {
+                "agent": "insimul:agent:world-server",
+                "activity": "insimul:src:canon-export",
+                "asserted": "2026-07-17T09:00:00Z"
+              }
+            }
+          ],
+          "links": [
+            {
+              "world": "insimul:world:alderforest",
+              "subject": "insimul:world:alderforest:ent:npc-renaud",
+              "relation": "based_on",
+              "object": "pinakes:ent:napoleon-i",
+              "confidence": 0.8,
+              "prov": {
+                "agent": "insimul:agent:world-server",
+                "activity": "insimul:src:canon-export",
+                "asserted": "2026-07-17T09:00:00Z"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "invoke": {
+    "query.facts": {
+      "body": {
+        "world": "insimul:world:alderforest#save-7f",
+        "assertions": [
+          {
+            "id": "insimul:claim:sha256-5a7e0f",
+            "world": "insimul:world:alderforest#save-7f",
+            "subject": "pinakes:ent:paris",
+            "relation": "destroyed",
+            "confidence": 1,
+            "prov": {
+              "agent": "insimul:agent:world-server",
+              "activity": "insimul:src:playthrough-7f",
+              "asserted": "2026-07-19T21:14:00Z"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

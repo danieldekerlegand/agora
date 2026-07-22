@@ -11,6 +11,13 @@ export interface HttpResponse {
   status: number;
   headers: { get(name: string): string | null };
   json(): Promise<unknown>;
+  /**
+   * Optional because only one caller needs it: a `subscribe` stream arrives as NDJSON or
+   * SSE, which is a sequence of JSON documents rather than one, so `json()` cannot read
+   * it. The platform `Response` has it; a test double supplies it only when it is
+   * standing in for a stream.
+   */
+  text?(): Promise<string>;
 }
 
 export interface HttpRequestInit {

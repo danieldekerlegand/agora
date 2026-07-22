@@ -12,26 +12,32 @@ describe('@agora/resolver', () => {
     expect(describeResolver()).toEqual({
       identity: RESOLVER_IDENTITY,
       kinpVersion: '0.2.0',
-      implemented: false,
+      implemented: true,
       verbs: ['resolve', 'reconcile'],
     });
   });
-
-  it('says out loud that it is a stub, so the console does not trust it', () => {
-    expect(describeResolver().implemented).toBe(false);
-  });
 });
 
-describe('the local resolver stub', () => {
-  it('resolves an id that already is a KINP id, to itself', async () => {
+describe('the local resolver', () => {
+  it('resolves an id that already is a KINP id, to itself and nothing more', async () => {
     await expect(createLocalResolver().resolve({ id: 'agora:agent:provider-router' })).resolves.toEqual(
       {
         id: 'agora:agent:provider-router',
         kind: 'agent',
         authority: 'local',
         confidence: 1,
+        sameAs: [],
+        basedOn: [],
+        provenance: [],
+        attachedAssets: [],
       },
     );
+  });
+
+  it('reads the world out of a world-scoped id (§5)', async () => {
+    await expect(
+      createLocalResolver().resolve({ id: 'insimul:world:alderforest:ent:npc-renaud' }),
+    ).resolves.toMatchObject({ kind: 'ent', world: 'insimul:world:alderforest' });
   });
 
   it('refuses to invent an identity for a name', async () => {
@@ -46,8 +52,8 @@ describe('the local resolver stub', () => {
   });
 
   it('refuses to reconcile — equivalence is the authority’s to assert', async () => {
-    await expect(
-      createLocalResolver().reconcile([{ id: 'pinakes:ent:napoleon-i' }, { name: 'Napoleon' }]),
-    ).rejects.toThrow(ResolverUnavailableError);
+    await expect(createLocalResolver().reconcile({ query: 'Napoleon' })).rejects.toThrow(
+      ResolverUnavailableError,
+    );
   });
 });

@@ -194,3 +194,55 @@
 - Frozen objects: assigning to one throws only in strict mode — which ESM always is, so
   `expect(() => { frozen.x = 1 }).toThrow()` is a valid assertion in vitest.
 ---
+## US-CS7 — Live fabric monitor: passive, cross-platform event feed
+- New `console/src/monitor/`: `monitor.ts` (the passive watch — sources, `sweep()`, `events()`,
+  `describeMonitor()`), `feed.ts` (the log projected into filterable `FabricEvent` rows),
+  `Monitor.tsx` (the panel). New `console/src/kcs/spans.ts` — the control-plane counterpart to
+  `facts.ts`. `Observation.span` + `planeOfFrame` in `kcs/log.ts` / `kcs/link.ts` /
+  `kcs/standin.ts`; `observeCommons` in `commons.ts`; a third `monitor` mode in `App.tsx`;
+  fixtures `console/src/fixtures/monitor/{analyzer,insimul}.json`.
+- Tests: `spans.test.ts` (8), `feed.test.ts` (11), `monitor.test.ts` (15), +5 in `App.test.tsx`.
+  `make check` exit 0 (191 console tests).
+- **What ADR-0001 lets a passive observer do is the whole design.** Decision 7 permits
+  subscribing; it forbids reading the wire between two other peers, because that IS the
+  payload-aware proxy. So the data plane is complete today (every delta/media event a producer
+  publishes reaches the feed, whoever triggered the work) and the control plane is visible only
+  where a provider EMITS a record of its own exchanges. A provider that emits none is absent at
+  the invoke level — stated per source on screen, in `describeMonitor().limitation`, and in both
+  READMEs. A monitor that quietly showed an empty invoke view would read as "no invocations
+  happened" when it means "nobody emitted telemetry".
+- **`kcs/spans.ts` is deliberately provisional and narrow.** koine has no emitted-telemetry
+  contract (KCB §4 fixes five verbs and nothing about observability), so the recognition rule is
+  "a frame is telemetry only when it SAYS it is" (`kind: exchange`, or a `span`/`exchange`
+  envelope) and it must name a `verb` or a `capability`. Inferring spans from delta shapes would
+  have the monitor reporting exchanges nobody made. This is the one module that expects to be
+  rewritten against a spec rather than to define one — the koine follow-up is a KCB observability
+  extension fixing the span shape.
+- **A span is `control`, not `knowledge`.** `Plane` is the KCB §2.1 *data*-plane vocabulary, so
+  `planeOfFrame` returns `undefined` for a telemetry-only frame and the feed types the row
+  `control`. Defaulting to `knowledge` (which the old inline expression did) would have filed
+  every span under the knowledge plane and made the plane filter lie.
+- **The monitor is configured with what to watch, not handed every fixture.** `monitorStandins()`
+  is its own small map; subscribing to every bundled fixture with a `subscribe` section would
+  watch the same peer three times over, once per scenario that recorded it. `monitor/analyzer.json`
+  emits telemetry and `monitor/insimul.json` does not, so the documented limitation is
+  demonstrated on screen rather than only asserted in prose.
+- **The App keeps the monitor instance, not its snapshot.** The monitor owns the observation log,
+  so sweeping again appends and the feed accumulates; storing a snapshot would have "sweep again"
+  replace the feed with the last few seconds of it, and `since` would filter against the last
+  button press rather than real elapsed observation.
+
+### Learnings for future iterations
+- **Encode a topological invariant as an assertion on the code's own surface.** `monitor.test.ts`
+  reads `Object.getOwnPropertyNames(FabricMonitor.prototype)` and fails if an `invoke`/`emit`/
+  `relay` ever appears — the same shape as `describeRegistry().verbs` (US-AG4). Prose saying
+  "passive" is what every proxy's README said first.
+- **`worlds_pattern` is not a world.** KCB delta J patterns (`insimul:world:*`) cannot be expanded
+  into a subscription target; `worldsIn()` collects concrete `worlds` off knowledge ports only,
+  and a peer declaring none is subscribed to without a world filter (KCB §4's other form).
+- Fixture map insertion order is the sweep order, and therefore the feed's. A test asserting the
+  event sequence is asserting on `MONITORED`'s key order — assert on a `Set` of participants when
+  order is not the point.
+- `eventsFrom` reads only `direction: 'frame'` entries. That single line is what separates "the
+  console's own traffic" (the timeline) from "what crossed the fabric" (the feed); widening it to
+  responses would put every manual invoke into the passive feed.

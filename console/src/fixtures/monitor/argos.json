@@ -1,0 +1,61 @@
+{
+  "identity": "analyzer:agent:ingest",
+  "subscribe": {
+    "insimul:world:alderforest": {
+      "frames": [
+        {
+          "kgp_version": "0.4.0",
+          "pack_id": "sha256-4b21c7",
+          "kind": "delta",
+          "basis": null,
+          "dialect": "grounding-only",
+          "worlds": ["insimul:world:alderforest"],
+          "assertions": [
+            {
+              "id": "analyzer:claim:sha256-1d90ee",
+              "world": "insimul:world:alderforest",
+              "subject": "analyzer:asset:blake3-7c19ab",
+              "relation": "depicts",
+              "object": "insimul:world:alderforest:ent:npc-renaud",
+              "confidence": 0.86,
+              "prov": {
+                "agent": "analyzer:agent:ingest",
+                "activity": "analyzer:src:playthrough-ingest",
+                "asserted": "2026-07-22T11:04:29Z"
+              }
+            }
+          ]
+        },
+        {
+          "kmi_version": "0.2.0",
+          "kind": "media-event",
+          "assets": [
+            {
+              "id": "analyzer:asset:blake3-7c19ab",
+              "media_type": "video/mp4",
+              "bytes": 48210,
+              "source_world": "insimul:world:alderforest",
+              "attaches_to": ["insimul:world:alderforest:ent:npc-renaud"]
+            }
+          ]
+        },
+        {
+          "kind": "exchange",
+          "id": "analyzer:span:sha256-3f77c1",
+          "provider": "analyzer:agent:ingest",
+          "caller": "composer:agent:composer",
+          "verb": "invoke",
+          "capability": "media.analyse",
+          "world": "insimul:world:alderforest",
+          "tier": "local-model",
+          "status": "ok",
+          "budget_units": 120,
+          "actual_units": 18,
+          "started_at": "2026-07-22T11:04:31.018Z",
+          "duration_ms": 2140,
+          "entities": ["analyzer:asset:blake3-7c19ab"]
+        }
+      ]
+    }
+  }
+}

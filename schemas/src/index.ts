@@ -76,9 +76,18 @@ export {
   type TrustTier,
   type Withheld,
 } from './axes.ts';
-export { isJsonObject, type Json, type JsonObject } from './json.ts';
+export { canonicalJson, isJsonObject, type Json, type JsonObject } from './json.ts';
 export { isPlane, PLANES, type Plane } from './planes.ts';
-export { isKinpId, KINP_KINDS, parseKinpId, type KinpId, type KinpKind } from './identity.ts';
+export {
+  isKinpId,
+  isWorldId,
+  kindOf,
+  KINP_KINDS,
+  parseKinpId,
+  worldOf,
+  type KinpId,
+  type KinpKind,
+} from './identity.ts';
 export {
   isCapabilityManifest,
   isCompatibleKcbVersion,

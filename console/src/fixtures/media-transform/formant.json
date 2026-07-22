@@ -1,0 +1,56 @@
+{
+  "identity": "composer:agent:composer",
+  "manifest": {
+    "kcb_version": "0.2.0",
+    "identity": "composer:agent:composer",
+    "endpoints": {},
+    "capabilities": [
+      {
+        "name": "compose",
+        "inputs": [
+          { "plane": "knowledge", "shape": "mood-descriptor", "dialect": "grounding-only" }
+        ],
+        "outputs": [{ "plane": "media", "media_types": ["audio/wav"] }],
+        "cost": {
+          "est_units": 24,
+          "tier": "paid-model",
+          "unit": "budget_units",
+          "basis": "one 30-second orchestral cue"
+        }
+      }
+    ]
+  },
+  "invoke": {
+    "compose": {
+      "body": {
+        "agora": {
+          "tier": "paid-model",
+          "provider": "composer",
+          "model": "orchestral-v3",
+          "cost": {
+            "currency": "budget_units",
+            "budget_units": 40,
+            "projected_units": 24,
+            "actual_units": 24
+          }
+        },
+        "assets": [
+          {
+            "kmi_version": "0.2.0",
+            "id": "composer:asset:blake3-5c0e33",
+            "media_type": "audio/wav",
+            "bytes": 5292000,
+            "source_world": null,
+            "attaches_to": [],
+            "produced_by": "composer:src:compose-4b71",
+            "prov": {
+              "agent": "composer:agent:composer",
+              "activity": "composer:src:compose-4b71",
+              "asserted": "2026-07-20T09:11:00Z"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "identity": "pinakes:agent:resolver",
+  "invoke": {
+    "resolve.reconcile": {
+      "body": {
+        "candidates": 2,
+        "links": [
+          {
+            "world": "insimul:world:alderforest",
+            "subject": "analyzer:ent:e-8842",
+            "relation": "based_on",
+            "object": "pinakes:ent:napoleon-i",
+            "confidence": 0.83,
+            "prov": {
+              "agent": "pinakes:agent:resolver",
+              "activity": "analyzer:src:run-1a2b",
+              "asserted": "2026-07-18T06:20:00Z"
+            }
+          },
+          {
+            "world": "insimul:world:alderforest",
+            "subject": "analyzer:ent:e-8842",
+            "relation": "same_as",
+            "object": "insimul:world:alderforest:ent:npc-renaud",
+            "confidence": 0.9,
+            "prov": {
+              "agent": "pinakes:agent:resolver",
+              "activity": "analyzer:src:run-1a2b",
+              "asserted": "2026-07-18T06:20:00Z"
+            }
+          }
+        ]
+      }
+    },
+    "query.lineage": {
+      "body": {
+        "assertions": [
+          {
+            "id": "pinakes:claim:sha256-77e0b4",
+            "world": "pinakes:world:consensus-reality",
+            "subject": "pinakes:ent:napoleon-i",
+            "relation": "same_as",
+            "object": "wikidata:ent:q517",
+            "confidence": 1,
+            "prov": {
+              "agent": "pinakes:agent:resolver",
+              "activity": "pinakes:src:wikidata-anchor",
+              "asserted": "2026-07-01T00:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    "query.facts": {
+      "body": {
+        "world": "pinakes:world:consensus-reality",
+        "assertions": [
+          {
+            "id": "pinakes:claim:sha256-11aa22",
+            "world": "pinakes:world:consensus-reality",
+            "subject": "pinakes:ent:napoleon-i",
+            "relation": "commands",
+            "object": "pinakes:ent:grande-armee",
+            "confidence": 0.99,
+            "prov": {
+              "agent": "pinakes:agent:resolver",
+              "activity": "pinakes:src:wikidata-anchor",
+              "asserted": "2026-07-01T00:00:00Z"
+            }
+          },
+          {
+            "id": "pinakes:claim:sha256-33bb44",
+            "world": "pinakes:world:consensus-reality",
+            "subject": "pinakes:ent:paris",
+            "relation": "capital_of",
+            "object": "pinakes:ent:france",
+            "confidence": 0.99,
+            "prov": {
+              "agent": "pinakes:agent:resolver",
+              "activity": "pinakes:src:wikidata-anchor",
+              "asserted": "2026-07-01T00:00:00Z"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "emit": {
+    "body": {
+      "pack_id": "sha256-7b1e44",
+      "accepted": 0,
+      "deduplicated": 1,
+      "assertions": [
+        {
+          "id": "insimul:claim:sha256-9f3c1a",
+          "world": "insimul:world:alderforest",
+          "subject": "insimul:world:alderforest:ent:npc-renaud",
+          "relation": "commands",
+          "object": "insimul:world:alderforest:ent:army-of-ash",
+          "confidence": 0.9,
+          "prov": {
+            "agent": "pinakes:agent:resolver",
+            "activity": "pinakes:src:merge-review",
+            "asserted": "2026-07-18T06:22:00Z"
+          }
+        }
+      ]
+    }
+  }
+}
