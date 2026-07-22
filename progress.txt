@@ -1,14 +1,32 @@
 ## Codebase Patterns
-- Greenfield repo. agora-bootstrap US-AG1 establishes the stack, tooling, gates, and layout —
-  record reusable patterns here as they emerge.
 - Contracts live in ../koine (KINP/KGP/KCB/KMI/KCS + ADR-0001). Implement against them; do not
   re-specify.
 - ADR-0001 invariants: registry routes by lookup (returns addresses, never proxies traffic);
   the console observes REAL direct connections; provider-router (model backends) and
-  inter-platform routing are distinct concerns.
+  inter-platform routing are distinct concerns. These are encoded as assertions
+  (`describeRegistry().proxiesTraffic === false`), not just prose — don't relax them to make a
+  test pass.
+- Two toolchains, one gate: `make check` runs everything; `make check-<area>` runs one.
+  Deps install themselves. See CLAUDE.md "Quality gates".
+- TS is a **source-first** npm workspace: root package.json holds the shared devDeps, each
+  package's `exports` points at `src/index.ts`, `tsc` emits nothing — so no cross-package build
+  ordering. Relative imports carry the real `.ts`/`.tsx` extension.
+- The Python tools read config from `provider-router/pyproject.toml`, so the Makefile runs them
+  as `cd provider-router && uv run …`; `uv --project … run mypy` silently loses the config.
+- The koine spec versions are pinned in BOTH `schemas/src/index.ts` and
+  `agora_provider_router.KCB_VERSION`, and a pytest cross-asserts them. Bump both together.
 
 ---
 ## Bootstrap
-- Repo skeleton created (README, CLAUDE.md, .gitignore, tasks/chief/agora-bootstrap.json).
-- Next: Chief runs agora-bootstrap US-AG1 (repo skeleton + stack decision + tooling/gates).
+- Repo skeleton created (README, CLAUDE.md, .gitignore, tasks/chief/10-agora-bootstrap.json).
+---
+## US-AG1 — Repo skeleton, stack decision, tooling/gates, README
+- Six buildable areas: provider-router/ (Python/uv/FastAPI) + schemas/, clients/kcb-client/,
+  registry/, resolver/, console/ (TypeScript; React 19 + Vite for the console).
+- Root tooling: package.json workspaces, tsconfig.base.json, eslint.config.js, Makefile,
+  .github/workflows/ci.yml. `.chief/verify.sh` now runs `make check`.
+- Stack rationale recorded in README "Stack"; per-area gate commands in README, CLAUDE.md and
+  .chief/agent-context.md. `make check` and `make build` both green on the skeleton.
+- Next: US-AG2 — port the sacred ladder from ~/Development/analyzer
+  (`src/filmstudio/core/ladders.py`, `mlx_serve.py`; cost lives in `cost.py`/`cost_gate.py`).
 ---
