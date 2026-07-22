@@ -27,6 +27,67 @@ for the decision that created this repo.
   over their **real** direct connections and asserts cross-plane invariants (the executable
   form of `../koine/scenarios/*.md`, per the KCS format). An observer, not a hub.
 
+## Layout
+
+Each directory is a **buildable unit with its own gate**:
+
+| Area | Language | What it is |
+|---|---|---|
+| `provider-router/` | Python (uv) | the model-backend gateway — the sacred ladder |
+| `registry/` | TypeScript | the thin KCB discovery registry |
+| `resolver/` | TypeScript | the KINP resolver reference implementation |
+| `console/` | TypeScript + React | the conformance console (scenario runner + UI) |
+| `schemas/` | TypeScript | shared koine manifest schemas / protocol types |
+| `clients/*` | TypeScript | shared protocol client libraries (`@agora/kcb-client`) |
+
+## Stack
+
+**Polyglot, by decision — not by accident.** Two toolchains, one gate.
+
+- **`provider-router` is Python** (3.11+, uv, FastAPI, pytest/ruff/mypy). It is a *port* of
+  Analyzer's sacred ladder (`~/Development/analyzer`, `src/filmstudio/core/ladders.py`), and Analyzer —
+  along with most of the model-backend ecosystem it talks to (mlx-serve, Ollama clients) — is
+  Python. Porting it into TypeScript would mean re-deriving tier-resolution behaviour that
+  already exists and is trusted, in a language with worse coverage of the backends it dials.
+- **Everything else is TypeScript** (Node 22, npm workspaces, React 19 + Vite for the console,
+  vitest, ESLint, `tsc --noEmit`). The registry, resolver, client libs and console are web-stack
+  surfaces the rest of the ecosystem consumes from TS/React, so TS keeps them one language away
+  from their callers and lets the console import the registry's types directly.
+- **The split is safe because ADR-0001 makes language internal.** The provider-router is a
+  *service over the wire* (OpenAI-compatible HTTP + a KCB manifest), never an imported library —
+  so Analyzer (Python) and Orchestrator (TS) both just call it. Nothing in the commons is shared as
+  source across the language boundary. The one thing that *must* agree — the koine spec versions
+  — is pinned in `schemas/src/index.ts` and asserted against the Python constant by the router's
+  own test suite, so drift fails a gate instead of failing in production.
+
+The TypeScript areas are a **source-first workspace**: each package's `exports` points at
+`src/index.ts` and `tsc` emits nothing, so there is no cross-package build ordering. The
+console's Vite bundle and the router's wheel are the only build artifacts (`make build`).
+
+## Quality gates
+
+Run everything (this is what CI runs, and what `.chief/verify.sh` runs):
+
+```sh
+make install    # uv sync + npm install
+make check      # every area's gate
+```
+
+Per area, when a change touches only one:
+
+| Area | Gate |
+|---|---|
+| `provider-router/` | `make check-provider-router` — `ruff check` + `ruff format --check` + `mypy` + `pytest` |
+| `schemas/` | `make check-schemas` |
+| `clients/*` | `make check-clients` |
+| `registry/` | `make check-registry` |
+| `resolver/` | `make check-resolver` |
+| `console/` | `make check-console` |
+
+Each TypeScript gate is `eslint` + `tsc -p tsconfig.json` (typecheck) + `vitest run`. `make help`
+lists every target; `make build` produces the console bundle and the router wheel; `make fmt`
+auto-formats the Python area.
+
 ## The contracts
 
 Everything here implements a koine spec. Read those first:
@@ -41,6 +102,7 @@ Everything here implements a koine spec. Read those first:
 ## Status
 
 **Bootstrapping.** The repo is being stood up by the Chief harness from
-[`tasks/chief/agora-bootstrap.json`](tasks/chief/agora-bootstrap.json). Its first story
-(US-AG1) establishes the stack, tooling, quality gates, and layout — this README and
-`CLAUDE.md` will be filled in with concrete commands as that lands.
+[`tasks/chief/10-agora-bootstrap.json`](tasks/chief/10-agora-bootstrap.json). US-AG1 (the
+skeleton, stack, layout and gates above) has landed; every area is a green but empty unit. Next:
+the sacred-ladder port (US-AG2), cost/budget + the KCB manifest (US-AG3), the registry (US-AG4),
+and the console's first end-to-end scenario (US-AG5).

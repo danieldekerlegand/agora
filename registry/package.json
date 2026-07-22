@@ -1,0 +1,18 @@
+{
+  "name": "@agora/registry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Thin KCB discovery registry — indexes manifests, answers with addresses, never proxies.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@agora/kcb-client": "*",
+    "@agora/schemas": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}
