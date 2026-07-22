@@ -166,6 +166,19 @@ vendored copy; a copy would be the second source of truth the registry exists to
 `registryVersion` this build speaks, and the paths it speaks it at, are pinned in
 `RELATION_REGISTRY` (`schemas/src/relation-registry.ts`), the same way the spec versions are.
 
+A registry entry classifies a relation on **three orthogonal axes**, modelled in
+`schemas/src/axes.ts`: its **dialect** tier (KGP §5 — what logic a consumer may evaluate:
+`grounding-only` ⊂ `horn-safe` ⊂ `full-prolog`), its **egress** class (§7.2 — whether it may
+leave its tier at all: `exportable` or `local-only`) and, on provenance records rather than the
+registry, its **trust** tier (curated / synthetic / personal — descriptive, never enforcing).
+`local-only` is an egress class, *not* a fourth dialect tier; registryVersion 0.3.0 split the
+one key that used to bundle them.
+
+Egress is the axis with teeth, and agora enforces it in both directions (§7.2):
+`filterPackForEgress` drops `local-only` records at pack construction — the **producer's**
+obligation, never delegated — and `assertPackEgress` lets a **consumer** reject a pack that
+still carries some, reporting every violation instead of silently dropping the records.
+
 ## Status
 
 **Bootstrapping.** The repo is being stood up by the Chief harness from

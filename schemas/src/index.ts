@@ -12,9 +12,40 @@
  * - `scenario.ts` — the KCS conformance-scenario document (KCS §2/§3), what the console runs
  * - `relation-registry.ts` — where the shared relation registry lives (koine) and which
  *   `registryVersion` this build speaks
+ * - `axes.ts`     — dialect (KGP §5) / egress (§7.2) / trust, and the egress enforcement
  */
 export { SPEC_VERSIONS } from './versions.ts';
 export { RELATION_REGISTRY, type RegistryMirror } from './relation-registry.ts';
+export {
+  assertPackEgress,
+  DEFAULT_DIALECT,
+  DEFAULT_EGRESS,
+  DIALECT_TIERS,
+  dialectAdmits,
+  EGRESS_CLASSES,
+  EgressError,
+  egressOf,
+  filterForEgress,
+  filterPackForEgress,
+  inspectPackEgress,
+  isDialectTier,
+  isEgressClass,
+  isExportable,
+  isTrustTier,
+  PACK_SECTIONS,
+  TRUST_TIERS,
+  type DialectTier,
+  type EgressBearing,
+  type EgressClass,
+  type EgressFilter,
+  type EgressReport,
+  type EgressViolation,
+  type PackLike,
+  type PackSection,
+  type RelationEgress,
+  type TrustTier,
+  type Withheld,
+} from './axes.ts';
 export { isJsonObject, type Json, type JsonObject } from './json.ts';
 export { isPlane, PLANES, type Plane } from './planes.ts';
 export { isKinpId, KINP_KINDS, parseKinpId, type KinpId, type KinpKind } from './identity.ts';

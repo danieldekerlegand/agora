@@ -4,7 +4,8 @@ import { RELATION_REGISTRY } from './relation-registry.ts';
 
 describe('RELATION_REGISTRY', () => {
   it('pins the registryVersion of the koine registry this build speaks', () => {
-    expect(RELATION_REGISTRY.version).toBe('0.2.0');
+    // 0.3.0 = the split of `portabilityClasses` into `dialect` + `egress` (KGP §5 / §7.2).
+    expect(RELATION_REGISTRY.version).toBe('0.3.0');
   });
 
   it('points at koine for the data — agora holds tooling, not a copy (ADR-0001)', () => {

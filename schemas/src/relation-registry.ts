@@ -19,6 +19,9 @@
  * A relation's signature is immutable once published — changing arity, argument order or
  * symmetry silently changes every dependent claim id (KGP §3), so a change means a new
  * relation name. The validator enforces that across `version`s.
+ *
+ * What a registry entry's classifications *mean* — the dialect / egress / trust axes, and the
+ * §7.2 enforcement that hangs off `egress` — is `axes.ts`.
  */
 
 /** A copy of the registry that is generated from the canonical one, never authored. */
@@ -36,8 +39,12 @@ export interface RegistryMirror {
  * `koine/registry/predicate-mapping.json`; the loader refuses a registry it does not speak.
  */
 export const RELATION_REGISTRY = {
-  /** `registryVersion` of the canonical registry (koine). */
-  version: '0.2.0',
+  /**
+   * `registryVersion` of the canonical registry (koine). 0.3.0 split the old
+   * `portabilityClasses` key into the two axes `axes.ts` models — a registry at 0.2.0 still
+   * says `portability: [...]` and cannot be read by this build.
+   */
+  version: '0.3.0',
   /** The repo that holds the authoritative copy. There is exactly one. */
   repo: 'koine',
   /** The relation vocabulary: the shared core plus namespaced domain extensions. */
