@@ -317,6 +317,56 @@ describe('the media plane (KMI §2/§5)', () => {
     expect(evaluateAssertion('analysis_attributed_to_constituent', [render.id], ctx).ok).toBe(true);
   });
 
+  it('follows the lineage graph the whole way to an ingested asset (KMI §5)', () => {
+    // A real edit puts an EDL between the render and the footage, and every intermediate is
+    // generated. Stopping at the first hop would find only `source_world: null` and leave
+    // the analysis attributable to nothing.
+    const edl = { id: 'analyzer:asset:blake3-ed10a2', source_world: null };
+    const composite = {
+      id: 'analyzer:asset:blake3-d4af71',
+      source_world: null,
+      assertions: [
+        { subject: 'analyzer:asset:blake3-d4af71', relation: 'media:derived_from', object: edl.id },
+        { subject: edl.id, relation: 'media:derived_from', object: 'analyzer:asset:blake3-c0de99' },
+        {
+          id: 'analyzer:claim:sha256-2ad4e1',
+          world: 'insimul:world:alderforest',
+          subject: 'analyzer:asset:blake3-d4af71',
+          relation: 'cine:shows',
+          object: RENAUD,
+          prov: { agent: 'analyzer:agent:pipeline' },
+        },
+      ],
+    };
+    const ctx = observing({ assets: [ingested, edl], results: [render, composite] });
+    const verdict = evaluateAssertion('analysis_attributed_to_constituent', [composite.id], ctx);
+    expect(verdict.ok).toBe(true);
+    expect(verdict.detail).toMatch(/insimul:world:alderforest/);
+  });
+
+  it('fails when no constituent in the lineage was ever ingested', () => {
+    const generated = { id: 'analyzer:asset:blake3-ed10a2', source_world: null };
+    const composite = {
+      id: 'analyzer:asset:blake3-d4af71',
+      source_world: null,
+      assertions: [
+        { subject: 'analyzer:asset:blake3-d4af71', relation: 'media:derived_from', object: generated.id },
+        {
+          id: 'analyzer:claim:sha256-2ad4e1',
+          world: 'insimul:world:alderforest',
+          subject: 'analyzer:asset:blake3-d4af71',
+          relation: 'cine:shows',
+          object: RENAUD,
+          prov: { agent: 'analyzer:agent:pipeline' },
+        },
+      ],
+    };
+    const ctx = observing({ assets: [generated], results: [composite] });
+    const verdict = evaluateAssertion('analysis_attributed_to_constituent', [composite.id], ctx);
+    expect(verdict.ok).toBe(false);
+    expect(verdict.detail).toMatch(/attributable to no world/);
+  });
+
   it('fails when the analysis was scoped to the composite instead', () => {
     // The render is generated (`source_world: null`), so a claim scoped to consensus
     // reality has dropped out of the fictional world its footage came from.

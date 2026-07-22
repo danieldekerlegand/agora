@@ -404,6 +404,16 @@ const EVALUATORS: Record<string, Evaluator> = {
         return named === undefined ? stated : [...stated, named];
       }),
     );
+    if (worlds.size === 0) {
+      // Every constituent is itself generated. Reporting this as a *misattribution* would
+      // read as "the claims went to the wrong world" when the truth is that the lineage
+      // walk never reached an ingested asset — which is a broken graph, not a broken scope.
+      return {
+        ok: false,
+        detail: `no constituent of ${composite} (${list(parts)}) states a source_world — its analysis is attributable to no world`,
+        support: support(seen),
+      };
+    }
     // Analysis, not lineage: a `media:excerpt_of` also has the composite as its subject,
     // but it is an edge in the asset graph (KMI §3) and carries no world of its own. Only
     // the domain claims analysis produced are attributable.
@@ -567,15 +577,38 @@ function assetsWithId(id: Json | undefined, context: AssertionContext): Sighting
   return context.log.assetsSeen().filter((sighting) => sighting.value.id === id);
 }
 
-/** Every asset the log says this one was made from (KMI §3 lineage + `excerpt.source`). */
+/**
+ * Every asset the log says this one was made from (KMI §3 lineage + `excerpt.source`),
+ * followed **transitively** through the lineage graph.
+ *
+ * KMI §5 says a composite's analysis is attributed to its constituent clips' worlds
+ * "traced via `media:excerpt_of` / `media:derived_from`", and a real edit puts more than one
+ * link between the two: a render is derived from an EDL, the EDL from the clips, the clips
+ * excerpted from an ingested master. Only the master and the clips carry a `source_world` —
+ * every intermediate is generated and declares `null` — so a one-hop walk would find no
+ * world at all and the firewall check would have nothing to check. KMI is explicit that a
+ * composite's provenance is "the union over its lineage graph"; this is that union.
+ */
 function constituentsOf(composite: string, context: AssertionContext): string[] {
   const parts = new Set<string>();
-  for (const sighting of assetsWithId(composite, context)) {
-    for (const part of sighting.value.constituents) parts.add(part);
-  }
-  for (const sighting of context.log.linksSeen()) {
-    const link = sighting.value;
-    if (LINEAGE_RELATIONS.includes(link.relation) && link.from === composite) parts.add(link.to);
+  const frontier = [composite];
+  const walked = new Set<string>([composite]);
+  while (frontier.length > 0) {
+    const asset = frontier.pop() as string;
+    const found: string[] = [];
+    for (const sighting of assetsWithId(asset, context)) found.push(...sighting.value.constituents);
+    for (const sighting of context.log.linksSeen()) {
+      const link = sighting.value;
+      if (LINEAGE_RELATIONS.includes(link.relation) && link.from === asset) found.push(link.to);
+    }
+    for (const part of found) {
+      parts.add(part);
+      // A cycle in the lineage graph is somebody's bug, not this walk's problem to report.
+      if (!walked.has(part)) {
+        walked.add(part);
+        frontier.push(part);
+      }
+    }
   }
   return [...parts];
 }

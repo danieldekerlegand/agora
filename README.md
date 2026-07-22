@@ -86,25 +86,28 @@ cost, every assertion's verdict, and the log beneath it.
 |---|---|---|
 | `kcs:provider-router-roundtrip` | the commons itself | discover the provider-router through the registry, dial its own address, ask for a completion with a ceiling of **zero** budget units, and assert the zero-spend tier served it for nothing (`tier_resolved`, `cost_within_ceiling`, `capability_path_exists`, `always_completes`) |
 | `kcs:worlds-to-fabric` | [`../koine/scenarios/e2e-worlds-to-fabric.md`](../koine/scenarios/e2e-worlds-to-fabric.md) | the identity firewall across the media→knowledge bridge: an Insimul fiction → Analyzer ingest → Pinakes reconcile → cross-project queries, asserting that facts-about-the-real-Napoleon return nothing from the fiction (`firewall_holds`), that every claim is world-scoped (`claim_in_world`), and that cross-world lineage stays `based_on` (`no_sameas_across_worlds`) |
+| `kcs:media-transform` | [`../koine/scenarios/e2e-media-transform.md`](../koine/scenarios/e2e-media-transform.md) | the four-project transform chain: an Insimul playthrough → Analyzer cut + narration → a Composer score → EDL → a DaVinci projection, asserting that a route across planes is plannable before anything is dialed (`capability_path_exists`), that generated assets declare no world while ingested ones do (`source_world_is`), that the one paid hop stayed inside its grant (`cost_within_ceiling`), and that analysis of a *generated composite* is still attributed to its footage's world (`analysis_attributed_to_constituent`) |
 
-Insimul, Analyzer and Pinakes have published no manifest yet, so `kcs:worlds-to-fabric` runs
-them as `standin` participants (KCS delta N) and its report says `stubbed`. The runner
-prefers a live registration over a fixture, so adoption deletes fixtures rather than
-rewriting the scenario.
+None of Insimul, Analyzer, Composer or Pinakes has published a manifest yet, so both scenarios
+run them as `standin` participants (KCS delta N) and their reports say `stubbed`. A stand-in
+fixture may also carry the **`manifest`** its peer has not published: a provider off the bus
+is missing from the *control* plane too, and `capability_path_exists` would otherwise have
+nothing to plan over. The runner indexes those manifests into a **scenario-local** index
+that is thrown away with the run — writing them into the registry peers query would hand out
+an address nobody serves. A live registration still wins over a fixture, so adoption deletes
+fixtures rather than rewriting a scenario.
 
-**The next scenario to add** is the other hand-written pressure test, which KCS §6 names
-alongside it:
-
-| Scenario | From | What it needs next |
-|---|---|---|
-| `kcs:media-transform` | [`../koine/scenarios/e2e-media-transform.md`](../koine/scenarios/e2e-media-transform.md) | encoding the four-project transform chain, and a cross-plane `capability_path_exists` over more than one indexed provider |
-
-The runtime they need is in place: every §3 step kind executes (`fetch` is a CAS GET by
-asset id, `subscribe` reads a delta stream, `emit` writes a pack), `standin` participants
-(delta N) let a scenario name a peer that has not adopted the bus, and every §5 predicate
-in `console/src/kcs/assertions.ts` has an evaluator. A predicate a future KCS revision adds
+The runtime under them: every §3 step kind executes (`fetch` is a CAS GET by asset id,
+`subscribe` reads a delta stream, `emit` writes a pack), `standin` participants (delta N)
+let a scenario name a peer that has not adopted the bus, and every §5 predicate in
+`console/src/kcs/assertions.ts` has an evaluator. A predicate a future KCS revision adds
 still reports as *pending*, which never counts as a pass — a scenario asserting something
 this build cannot check goes red rather than green-by-omission.
+
+**One gap is KCS's, not this console's.** KMI delta I gives every NLE projection an
+asset-id ↔ path media map, and §5 has no predicate that can read one — so
+`kcs:media-transform` carries the map into its observation log and nothing checks it. A
+`media_map_complete(projection)` predicate is the koine follow-up.
 
 Assertions are evaluated over **plane-typed observations, never generated text** (§7 Q2):
 a claim counts when a peer stated it as a KGP assertion, not when a model described it.

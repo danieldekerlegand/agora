@@ -64,6 +64,17 @@ export interface CannedResponse {
  */
 export interface StandinFixture {
   identity?: string;
+  /**
+   * The KCB manifest (§2) this peer has not published yet.
+   *
+   * A peer that has not adopted the bus has no entry in the registry either, so without
+   * this the *control* plane is un-stubbed: `capability_path_exists` (KCS §5) would be
+   * unanswerable for every scenario whose participants are stood in for — which is all of
+   * them today — and the delta F path-planning step could not be encoded at all. The runner
+   * indexes it into a scenario-local index, never into the console's own registry: it
+   * describes routes, and nobody may dial them.
+   */
+  manifest?: Json;
   invoke?: Record<string, CannedResponse>;
   fetch?: Record<string, CannedResponse>;
   subscribe?: Record<string, CannedResponse & { frames?: Json[] }>;

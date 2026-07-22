@@ -21,11 +21,12 @@
  *   is executable here, so a red step means the fabric said no — not that the console
  *   shrugged.
  */
-import type { CapabilityRegistry, Registration } from '@agora/registry';
+import { createRegistry, type CapabilityRegistry, type Registration } from '@agora/registry';
 import type { Resolver } from '@agora/resolver';
 import { createLocalResolver } from '@agora/resolver';
 import {
   isJsonObject,
+  parseManifest,
   parseScenario,
   SPEC_VERSIONS,
   type AssertStep,
@@ -85,7 +86,7 @@ export async function runScenario(
   const resolver = options.resolver ?? createLocalResolver();
   const startedAt = clock();
 
-  const { peers, participants } = await discover(scenario, options.registry, {
+  const { peers, participants, index } = await discover(scenario, options.registry, {
     fetch,
     log,
     fixtures: options.fixtures ?? fixturesOver(fetch),
@@ -99,7 +100,7 @@ export async function runScenario(
     scenario,
     outcomes,
     log,
-    registry: options.registry,
+    registry: index,
   });
 
   const run = execute(steps, {
@@ -164,14 +165,19 @@ interface RunState {
  * A live registration always wins over a `standin`. A stand-in exists for a peer that has
  * not adopted the bus (delta N), so preferring it over a real address would be the one way
  * this console could quietly test itself instead of the fabric.
+ *
+ * The `index` this returns is the one §5's `capability_path_exists` plans against: every
+ * live registration, plus the manifest each stand-in fixture declares on its peer's behalf
+ * (`StandinFixture.manifest`). It is built per run and thrown away with it.
  */
 async function discover(
   scenario: ScenarioDocument,
   registry: CapabilityRegistry,
   options: { fetch: HttpFetch; log: ObservationLog; fixtures: FixtureLoader },
-): Promise<{ peers: Map<string, Peer>; participants: ParticipantOutcome[] }> {
+): Promise<{ peers: Map<string, Peer>; participants: ParticipantOutcome[]; index: CapabilityRegistry }> {
   const peers = new Map<string, Peer>();
   const participants: ParticipantOutcome[] = [];
+  const index = copyOf(registry);
   for (const participant of scenario.participants) {
     const registration: Registration | undefined = registry.get(participant.identity);
     const outcome: ParticipantOutcome = {
@@ -198,7 +204,8 @@ async function discover(
         });
         peers.set(participant.identity, standin);
         outcome.stubbed = true;
-        outcome.note = standin.note;
+        const problem = indexStandin(index, participant.identity, document.manifest);
+        outcome.note = problem === undefined ? standin.note : `${standin.note}; ${problem}`;
       } catch (error) {
         // A fixture that will not load is a red run, not a silently live one.
         outcome.note = `stand-in ${fixtures} could not be loaded: ${message(error)}`;
@@ -219,7 +226,49 @@ async function discover(
     });
     participants.push(outcome);
   }
-  return { peers, participants };
+  return { peers, participants, index };
+}
+
+/**
+ * A scenario-local copy of the discovered index, which the stand-ins then add to.
+ *
+ * A copy rather than the console's own registry, because the manifests added below describe
+ * providers nobody can dial yet: writing them into the registry a peer *queries* would hand
+ * out an address that does not exist, which is the one thing a lookup index must never do
+ * (ADR-0001 decision 3). Within a run they are exactly what the control plane needs — a
+ * route the registry can describe — and the report's `stubbed` flag says so.
+ */
+function copyOf(registry: CapabilityRegistry): CapabilityRegistry {
+  const index = createRegistry();
+  for (const registration of registry.list()) {
+    index.register(registration.manifest, { source: registration.source });
+  }
+  return index;
+}
+
+/**
+ * Index the manifest a stand-in fixture publishes on its peer's behalf, or say why not.
+ *
+ * A fixture may only speak for the participant that declared it: a manifest naming somebody
+ * else would let one scenario's fixture silently redefine another provider's capabilities,
+ * and every path assertion downstream would be planning against a fiction.
+ */
+function indexStandin(
+  index: CapabilityRegistry,
+  identity: string,
+  manifest: Json | undefined,
+): string | undefined {
+  if (manifest === undefined) return undefined;
+  try {
+    const parsed = parseManifest(manifest);
+    if (parsed.identity !== identity) {
+      return `its fixture publishes a manifest for ${parsed.identity}, not for ${identity}`;
+    }
+    index.register(parsed, { source: 'pull' });
+    return undefined;
+  } catch (error) {
+    return `its fixture manifest was not indexed: ${message(error)}`;
+  }
 }
 
 /**

@@ -1,0 +1,54 @@
+{
+  "identity": "pinakes:agent:resolver",
+  "manifest": {
+    "kcb_version": "0.2.0",
+    "identity": "pinakes:agent:resolver",
+    "endpoints": {},
+    "consumes": [{ "plane": "knowledge", "dialect": "grounding-only" }],
+    "capabilities": [
+      {
+        "name": "kgp.publish",
+        "inputs": [{ "plane": "knowledge", "dialect": "grounding-only" }],
+        "outputs": [
+          { "plane": "knowledge", "shape": "pack-receipt", "dialect": "grounding-only" }
+        ],
+        "cost": { "est_units": 0, "tier": "local", "basis": "one delta pack" }
+      }
+    ]
+  },
+  "emit": {
+    "body": {
+      "pack_id": "sha256-2f8c41",
+      "accepted": 2,
+      "deduplicated": 0,
+      "assertions": [
+        {
+          "id": "analyzer:claim:sha256-2ad4e1",
+          "world": "insimul:world:alderforest#save-7f",
+          "subject": "analyzer:asset:blake3-d4af71",
+          "relation": "cine:shows",
+          "object": "insimul:world:alderforest:ent:npc-renaud",
+          "confidence": 0.88,
+          "prov": {
+            "agent": "pinakes:agent:resolver",
+            "activity": "pinakes:src:ingest-2f8c",
+            "asserted": "2026-07-20T10:05:00Z"
+          }
+        },
+        {
+          "id": "analyzer:claim:sha256-90cc7b",
+          "world": "insimul:world:alderforest#save-7f",
+          "subject": "analyzer:asset:blake3-d4af71",
+          "relation": "cine:continuity_break",
+          "object": "analyzer:ent:shot-14",
+          "confidence": 0.64,
+          "prov": {
+            "agent": "pinakes:agent:resolver",
+            "activity": "pinakes:src:ingest-2f8c",
+            "asserted": "2026-07-20T10:05:00Z"
+          }
+        }
+      ]
+    }
+  }
+}

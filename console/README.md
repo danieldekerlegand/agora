@@ -62,8 +62,17 @@ the command in that test's failure message rather than editing it.
   Insimul, Analyzer and Pinakes have published no manifest yet, so all three run as stand-ins
   (delta N) and the report says `stubbed`; the runner prefers a live registration over a
   fixture, so adoption deletes fixtures rather than rewriting the scenario.
+- **`kcs:media-transform`** — the other pressure test,
+  `../../koine/scenarios/e2e-media-transform.md`: a playthrough → a cut + narration → a
+  Composer score → a multitrack EDL → a DaVinci projection, over four projects. It asserts the
+  control and media planes where `worlds-to-fabric` asserts identity — a cross-plane route
+  planned before anything is dialed (delta F/J), a CAS `fetch` by id (delta G), per-asset
+  `source_world` with `null` for everything generated (delta H), a spend ceiling on the one
+  paid hop (delta K), a dangling reference tolerated (delta L) — and ends on the result the
+  pressure test called the key one: analysis of a *generated composite* is attributed to its
+  footage's world, traced through the lineage graph. Four stand-ins, all stubbed.
 
-Next, per KCS §6: `kcs:media-transform`. See the root README for what it still needs.
+Next, per the tasklist: the full KINP resolver, then the report + scenario-library UI.
 
 ### On stand-in fixtures
 
@@ -72,8 +81,15 @@ envelopes and KINP links exactly as the specs write them — and are read throug
 `facts.ts` extraction as live traffic. A fixture in console-flavoured JSON would make a
 green run meaningless.
 
+A fixture may also declare the **`manifest`** its peer has not published (KCB §2). Without
+it a stand-in covers only the data planes, and the control plane — path planning, which is
+Step 1 of `kcs:media-transform` — would be unassertable for every peer off the bus. The
+runner indexes those manifests into an index built for the run and discarded with it, never
+into the registry other peers query: it may describe a route, and nobody may dial it.
+
 Each scenario's assertions are paired with the injury they are supposed to catch (see
-`worlds-to-fabric.test.ts`): damage one fixture field — drop an asset's `source_world`,
-reconcile into `same_as` instead of `based_on`, leak one fiction claim into a
+`worlds-to-fabric.test.ts` and `media-transform.test.ts`): damage one fixture field — drop
+an asset's `source_world`, type a transform's port back to media-only, report spend past a
+ceiling, reconcile into `same_as` instead of `based_on`, leak one fiction claim into a
 consensus-reality answer — and the run must go red on exactly the assertion that names that
 property. A conformance scenario that cannot fail is a demo.

@@ -19,6 +19,10 @@
 import type { Json } from '@agora/schemas';
 
 import insimul from './standin-insimul.json';
+import mediaTransformArgos from './media-transform/analyzer.json';
+import mediaTransformFormant from './media-transform/composer.json';
+import mediaTransformInsimul from './media-transform/insimul.json';
+import mediaTransformPinakes from './media-transform/pinakes.json';
 import pinakes from './standin-pinakes.json';
 import worldsToFabricArgos from './worlds-to-fabric/analyzer.json';
 import worldsToFabricInsimul from './worlds-to-fabric/insimul.json';
@@ -33,12 +37,29 @@ export const WORLDS_TO_FABRIC_INSIMUL = 'fixtures/worlds-to-fabric/insimul.json'
 export const WORLDS_TO_FABRIC_ARGOS = 'fixtures/worlds-to-fabric/analyzer.json';
 export const WORLDS_TO_FABRIC_PINAKES = 'fixtures/worlds-to-fabric/pinakes.json';
 
+/**
+ * `kcs:media-transform` (US-CS3) — four projects, none of them on the bus.
+ *
+ * These fixtures carry a `manifest` as well as canned exchanges, because the scenario's
+ * first step is *path planning*: a peer that has published no manifest is missing from the
+ * control plane too, and `capability_path_exists` would have nothing to plan over. The
+ * runner indexes them for the run only (see `kcs/runner.ts`).
+ */
+export const MEDIA_TRANSFORM_INSIMUL = 'fixtures/media-transform/insimul.json';
+export const MEDIA_TRANSFORM_ARGOS = 'fixtures/media-transform/analyzer.json';
+export const MEDIA_TRANSFORM_FORMANT = 'fixtures/media-transform/composer.json';
+export const MEDIA_TRANSFORM_PINAKES = 'fixtures/media-transform/pinakes.json';
+
 const FIXTURES: Record<string, unknown> = {
   [INSIMUL_STANDIN]: insimul,
   [PINAKES_STANDIN]: pinakes,
   [WORLDS_TO_FABRIC_INSIMUL]: worldsToFabricInsimul,
   [WORLDS_TO_FABRIC_ARGOS]: worldsToFabricArgos,
   [WORLDS_TO_FABRIC_PINAKES]: worldsToFabricPinakes,
+  [MEDIA_TRANSFORM_INSIMUL]: mediaTransformInsimul,
+  [MEDIA_TRANSFORM_ARGOS]: mediaTransformArgos,
+  [MEDIA_TRANSFORM_FORMANT]: mediaTransformFormant,
+  [MEDIA_TRANSFORM_PINAKES]: mediaTransformPinakes,
 };
 
 /**

@@ -1,0 +1,339 @@
+{
+  "identity": "analyzer:agent:pipeline",
+  "manifest": {
+    "kcb_version": "0.2.0",
+    "identity": "analyzer:agent:pipeline",
+    "endpoints": {},
+    "capabilities": [
+      {
+        "name": "analyze.mood",
+        "inputs": [
+          { "plane": "media", "media_types": ["video/mp4"], "world_pattern": "*" }
+        ],
+        "outputs": [
+          { "plane": "knowledge", "shape": "mood-descriptor", "dialect": "grounding-only" }
+        ],
+        "cost": { "est_units": 0, "tier": "local", "basis": "one av-analysis pass" }
+      },
+      {
+        "name": "narrate",
+        "inputs": [{ "plane": "knowledge", "shape": "script", "dialect": "grounding-only" }],
+        "outputs": [{ "plane": "media", "media_types": ["audio/wav"] }],
+        "cost": { "est_units": 0, "tier": "local-tts", "basis": "one narration track" }
+      },
+      {
+        "name": "edit.clip",
+        "inputs": [{ "plane": "media", "media_types": ["video/mp4"], "world_pattern": "*" }],
+        "outputs": [{ "plane": "media", "media_types": ["video/mp4"], "world_pattern": "*" }],
+        "cost": { "est_units": 0, "tier": "local", "basis": "one cut" }
+      },
+      {
+        "name": "conform",
+        "inputs": [
+          { "plane": "media", "media_types": ["video/mp4"], "world_pattern": "*" },
+          { "plane": "media", "media_types": ["audio/wav"] }
+        ],
+        "outputs": [
+          { "plane": "media", "media_types": ["application/vnd.koine.edl+json"] }
+        ],
+        "cost": { "est_units": 0, "tier": "local", "basis": "one multitrack timeline" }
+      },
+      {
+        "name": "render",
+        "inputs": [
+          { "plane": "media", "media_types": ["application/vnd.koine.edl+json"] }
+        ],
+        "outputs": [{ "plane": "media", "media_types": ["video/mp4"] }],
+        "cost": { "est_units": 0, "tier": "local", "basis": "one 30-second render" }
+      },
+      {
+        "name": "export.cmx3600",
+        "inputs": [
+          { "plane": "media", "media_types": ["application/vnd.koine.edl+json"] }
+        ],
+        "outputs": [{ "plane": "media", "media_types": ["application/vnd.cmx3600.edl"] }],
+        "cost": { "est_units": 0, "tier": "local", "basis": "one NLE projection" }
+      },
+      {
+        "name": "analyze.continuity",
+        "inputs": [{ "plane": "media", "media_types": ["video/mp4"] }],
+        "outputs": [
+          { "plane": "knowledge", "shape": "continuity-report", "dialect": "grounding-only" }
+        ],
+        "cost": { "est_units": 0, "tier": "local", "basis": "one continuity pass" }
+      }
+    ]
+  },
+  "invoke": {
+    "analyze.mood": {
+      "body": {
+        "kgp_version": "0.4.0",
+        "kind": "delta",
+        "dialect": "grounding-only",
+        "worlds": ["insimul:world:alderforest#save-7f"],
+        "assertions": [
+          {
+            "id": "analyzer:claim:sha256-6b1f09",
+            "world": "insimul:world:alderforest#save-7f",
+            "subject": "insimul:asset:blake3-77aa10",
+            "relation": "cine:mood",
+            "object": "analyzer:ent:mood-elegiac",
+            "confidence": 0.78,
+            "prov": {
+              "agent": "analyzer:agent:pipeline",
+              "activity": "analyzer:src:mood-3e91",
+              "method": "av-analysis@1.4",
+              "asserted": "2026-07-20T08:50:00Z"
+            }
+          }
+        ]
+      }
+    },
+    "narrate": {
+      "body": {
+        "agora": {
+          "tier": "local-tts",
+          "provider": "analyzer",
+          "model": "piper-en-gb",
+          "cost": {
+            "currency": "budget_units",
+            "budget_units": 0,
+            "projected_units": 0,
+            "actual_units": 0
+          }
+        },
+        "assets": [
+          {
+            "kmi_version": "0.2.0",
+            "id": "analyzer:asset:blake3-4e2f80",
+            "media_type": "audio/wav",
+            "bytes": 2822400,
+            "source_world": null,
+            "attaches_to": [],
+            "produced_by": "analyzer:src:narrate-8c02",
+            "prov": {
+              "agent": "analyzer:agent:pipeline",
+              "activity": "analyzer:src:narrate-8c02",
+              "asserted": "2026-07-20T09:02:00Z"
+            }
+          }
+        ]
+      }
+    },
+    "edit.clip": {
+      "body": {
+        "assets": [
+          {
+            "kmi_version": "0.2.0",
+            "id": "analyzer:asset:blake3-c10704",
+            "media_type": "video/mp4",
+            "bytes": 48234496,
+            "source_world": "insimul:world:alderforest#save-7f",
+            "attaches_to": ["insimul:world:alderforest:ent:npc-renaud"],
+            "excerpt": {
+              "source": "insimul:asset:blake3-77aa10",
+              "start_ms": 812000,
+              "end_ms": 842000
+            },
+            "produced_by": "analyzer:src:cut-1d55",
+            "prov": {
+              "agent": "analyzer:agent:pipeline",
+              "activity": "analyzer:src:cut-1d55",
+              "asserted": "2026-07-20T09:20:00Z"
+            }
+          }
+        ],
+        "links": [
+          {
+            "subject": "analyzer:asset:blake3-c10704",
+            "relation": "media:excerpt_of",
+            "object": "insimul:asset:blake3-77aa10",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    "conform": {
+      "body": {
+        "assets": [
+          {
+            "kmi_version": "0.2.0",
+            "id": "analyzer:asset:blake3-ed10a2",
+            "media_type": "application/vnd.koine.edl+json",
+            "bytes": 4812,
+            "source_world": null,
+            "attaches_to": [],
+            "produced_by": "analyzer:src:conform-77b3",
+            "prov": {
+              "agent": "analyzer:agent:pipeline",
+              "activity": "analyzer:src:conform-77b3",
+              "asserted": "2026-07-20T09:31:00Z"
+            }
+          }
+        ],
+        "links": [
+          {
+            "subject": "analyzer:asset:blake3-ed10a2",
+            "relation": "media:derived_from",
+            "object": "analyzer:asset:blake3-c10704",
+            "confidence": 1
+          },
+          {
+            "subject": "analyzer:asset:blake3-ed10a2",
+            "relation": "media:derived_from",
+            "object": "composer:asset:blake3-5c0e33",
+            "confidence": 1
+          },
+          {
+            "subject": "analyzer:asset:blake3-ed10a2",
+            "relation": "media:derived_from",
+            "object": "analyzer:asset:blake3-4e2f80",
+            "confidence": 1
+          }
+        ],
+        "edl": {
+          "kmi_edl_version": "0.1.0",
+          "id": "analyzer:asset:blake3-ed10a2",
+          "fps": "24000/1001",
+          "tracks": [
+            {
+              "id": "V1",
+              "kind": "video",
+              "clips": [
+                {
+                  "asset": "analyzer:asset:blake3-c10704",
+                  "in_ms": 0,
+                  "out_ms": 30000,
+                  "timeline_ms": 0
+                }
+              ]
+            },
+            {
+              "id": "A1",
+              "kind": "audio",
+              "clips": [
+                {
+                  "asset": "composer:asset:blake3-5c0e33",
+                  "in_ms": 0,
+                  "out_ms": 30000,
+                  "timeline_ms": 0,
+                  "gain_db": -6
+                }
+              ]
+            },
+            {
+              "id": "A2",
+              "kind": "audio",
+              "clips": [
+                {
+                  "asset": "analyzer:asset:blake3-4e2f80",
+                  "in_ms": 0,
+                  "out_ms": 28000,
+                  "timeline_ms": 1000
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "render": {
+      "body": {
+        "assets": [
+          {
+            "kmi_version": "0.2.0",
+            "id": "analyzer:asset:blake3-d4af71",
+            "media_type": "video/mp4",
+            "bytes": 41943040,
+            "source_world": null,
+            "attaches_to": ["insimul:world:alderforest:ent:npc-renaud"],
+            "produced_by": "analyzer:src:render-5a09",
+            "prov": {
+              "agent": "analyzer:agent:pipeline",
+              "activity": "analyzer:src:render-5a09",
+              "asserted": "2026-07-20T09:44:00Z"
+            }
+          }
+        ],
+        "links": [
+          {
+            "subject": "analyzer:asset:blake3-d4af71",
+            "relation": "media:derived_from",
+            "object": "analyzer:asset:blake3-ed10a2",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    "export.cmx3600": {
+      "body": {
+        "assets": [
+          {
+            "kmi_version": "0.2.0",
+            "id": "analyzer:asset:blake3-cc36a0",
+            "media_type": "application/vnd.cmx3600.edl",
+            "bytes": 2044,
+            "source_world": null,
+            "attaches_to": [],
+            "produced_by": "analyzer:src:export-9e14",
+            "media_map": [
+              { "asset": "analyzer:asset:blake3-c10704", "path": "media/clip-c10704.mp4" },
+              { "asset": "composer:asset:blake3-5c0e33", "path": "media/score-5c0e33.wav" },
+              { "asset": "analyzer:asset:blake3-4e2f80", "path": "media/narration-4e2f80.wav" }
+            ],
+            "prov": {
+              "agent": "analyzer:agent:pipeline",
+              "activity": "analyzer:src:export-9e14",
+              "asserted": "2026-07-20T09:47:00Z"
+            }
+          }
+        ],
+        "links": [
+          {
+            "subject": "analyzer:asset:blake3-cc36a0",
+            "relation": "media:derived_from",
+            "object": "analyzer:asset:blake3-ed10a2",
+            "confidence": 1
+          }
+        ]
+      }
+    },
+    "analyze.continuity": {
+      "body": {
+        "kgp_version": "0.4.0",
+        "kind": "delta",
+        "dialect": "grounding-only",
+        "assertions": [
+          {
+            "id": "analyzer:claim:sha256-2ad4e1",
+            "world": "insimul:world:alderforest#save-7f",
+            "subject": "analyzer:asset:blake3-d4af71",
+            "relation": "cine:shows",
+            "object": "insimul:world:alderforest:ent:npc-renaud",
+            "confidence": 0.88,
+            "prov": {
+              "agent": "analyzer:agent:pipeline",
+              "activity": "analyzer:src:continuity-6f30",
+              "method": "vision-analysis@2.3",
+              "asserted": "2026-07-20T09:52:00Z"
+            }
+          },
+          {
+            "id": "analyzer:claim:sha256-90cc7b",
+            "world": "insimul:world:alderforest#save-7f",
+            "subject": "analyzer:asset:blake3-d4af71",
+            "relation": "cine:continuity_break",
+            "object": "analyzer:ent:shot-14",
+            "confidence": 0.64,
+            "prov": {
+              "agent": "analyzer:agent:pipeline",
+              "activity": "analyzer:src:continuity-6f30",
+              "method": "vision-analysis@2.3",
+              "asserted": "2026-07-20T09:52:00Z"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
