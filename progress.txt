@@ -15,6 +15,12 @@
   as `cd provider-router && uv run …`; `uv --project … run mypy` silently loses the config.
 - The koine spec versions are pinned in BOTH `schemas/src/index.ts` and
   `agora_provider_router.KCB_VERSION`, and a pytest cross-asserts them. Bump both together.
+- Secrets are `SecretStr` and nothing retains the raw environment — a config that does puts
+  every exported key into its own `repr`. Anything reportable goes through a `describe()`
+  that reports *whether* a key is set, never its value; tests assert on the rendered surface.
+- FastAPI routes take their dependencies as `Annotated[T, Depends(fn)]` module-level aliases
+  (a call in an argument default trips ruff B008), and `app.dependency_overrides` keys on the
+  `fn` identity — which is how a test swaps the whole router for one it configured.
 
 ---
 ## Bootstrap
@@ -29,4 +35,43 @@
   .chief/agent-context.md. `make check` and `make build` both green on the skeleton.
 - Next: US-AG2 — port the sacred ladder from ~/Development/analyzer
   (`src/filmstudio/core/ladders.py`, `mlx_serve.py`; cost lives in `cost.py`/`cost_gate.py`).
+---
+## US-AG2 — Provider-router: the sacred ladder, OpenAI-compatible, always-completes
+- New modules under `provider-router/src/agora_provider_router/`: `ladder.py` (tier order as
+  configuration), `backends.py` (tier → dialable backend or the reason it is not),
+  `placeholder.py` (the deterministic terminal tier), `router.py` (the walk + the invariant),
+  `config.py` (the CUNEIFORM_PROVIDER_* schema); `app.py` grew the OpenAI routes and /doctor.
+- Tests: `test_ladder.py`, `test_config.py`, `test_fallthrough.py`, `test_zero_spend.py`,
+  `test_app.py` + `conftest.py` (43 passing). Gate `make check-provider-router` green.
+- Ported from Analyzer with two deliberate changes: ladder tokens are the four TIERS
+  (paid/mlx/local + terminal placeholder) rather than vendor names, because here the router
+  *is* the ladder; and the local tiers require a CONFIGURED base URL — no implicit localhost
+  probe, or "no local servers" would depend on what happens to be listening on the box.
+- Next: US-AG3 — budget ceilings + the KCB manifest. Analyzer's cost logic is in
+  `~/Development/analyzer/src/filmstudio/core/cost.py` / `cost_gate.py`. Seams already in place:
+  `Backend`/`TierResolution` are where a per-capability `cost` hangs, `Completion.routing()`
+  is where projected/actual cost joins the response, and the placeholder already reports
+  zero-token usage so an estimator can read every tier the same way.
+
+### Learnings for future iterations
+- **A config must not retain the environment.** `RouterConfig` first kept the whole env dict
+  for ladder lookups; a `repr` of it then contained every exported key and the secrets test
+  caught it. It now keeps only `AGORA_*`. Keys are `SecretStr` everywhere, and failure
+  reasons redact the backend's own key (a transport error quotes the URL it dialed).
+- **`next(gen)` on a `@contextmanager`-shaped generator is a trap.** `client = next(client_for(r))`
+  left no reference to the generator, so it was collected immediately, its `finally` ran, and
+  the FastAPI dependency override was cleared before the request — two tests silently
+  exercised the real environment instead. Use a plain function + an autouse cleanup fixture.
+- **FastAPI + ruff:** `Depends(...)`/`Body(...)` in an argument default trips B008. Use
+  `Annotated[Router, Depends(get_router)]` aliases — and keep `Depends(get_router)` by name,
+  since that identity is what `app.dependency_overrides` keys on.
+- **A test helper taking both `**env` and a named option does not type-check** under
+  `mypy --strict`: unpacking a `dict[str, str]` could supply that option. Split them —
+  `router_for(**env)` for the common case, `Router(config_for(**env), transport)` when a test
+  needs a fake transport.
+- Tests import `conftest` directly (`from conftest import ...`); pytest puts `tests/` on the
+  path and mypy resolves it, so shared helpers do not need a package.
+- The `agora` key on every generation response (tier/provider/model/attempts, mirrored into
+  `X-Agora-*`) is the seam the console (US-AG5) reads. Body over header on purpose: a header
+  needs CORS expose-headers to survive a browser fetch.
 ---
