@@ -1,26 +1,37 @@
 /**
  * The conformance console.
  *
- * It lists the scenario library, runs any of them on demand against the live commons, and
- * renders what was observed: the report's content address, which providers were discovered,
- * which tier served each routed call and what it cost, every assertion's verdict with the
- * log slice supporting it, and the observation timeline underneath.
+ * Two panels over one engine. The **scenario library** runs an authored KCS document on
+ * demand; the **capability explorer** composes a single request by hand from what the
+ * registry advertises. Both compile to a `ScenarioDocument` and go through the same
+ * `runConformance` — discovery through the registry, a direct link to the provider, one
+ * observation log, one report. A manual request that had its own client would be a second,
+ * unwitnessed implementation of ADR-0001 decision 7.
  *
- * ADR-0001 decision 7 is the shape of this component: the console *runs* a scenario, it
- * does not sit between anybody. `run` is a prop so a test can replay a captured session
- * instead of opening a socket — the seam is the transport, never the logic under test.
+ * What a report renders is the same either way: the content address, which providers were
+ * discovered, which tier served each routed call and what it cost, every assertion's verdict
+ * with the log slice supporting it, and the observation timeline underneath.
+ *
+ * `run` and `discover` are props so a test can replay a captured session instead of opening
+ * a socket — the seam is the transport, never the logic under test.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { describeRegistry } from '@agora/registry';
 import { describeResolver } from '@agora/resolver';
 import { SPEC_VERSIONS, type ScenarioDocument } from '@agora/schemas';
 
 import './App.css';
-import { runConformance, type ConformanceRun } from './commons.ts';
-import { bundledFixtures } from './fixtures/standins.ts';
-import { routings, type AssertionOutcome } from './kcs/outcome.ts';
+import { discoverCommons, runConformance, type ConformanceRun, type Discovery } from './commons.ts';
+import { bundledFixtures, bundledStandins } from './fixtures/standins.ts';
+import { routings, type AssertionOutcome, type ConformanceReport } from './kcs/outcome.ts';
+import { Explorer } from './manual/Explorer.tsx';
+import { catalogue, type CataloguedProvider } from './manual/catalogue.ts';
+import { manualScenario, MANUAL_STEP_ID, type ManualRequest } from './manual/request.ts';
 import { SCENARIO_LIBRARY, type LibraryEntry } from './scenarios/library.ts';
+
+/** Which panel is open. The library proves properties; the explorer asks questions. */
+export type Mode = 'library' | 'manual';
 
 export interface AppProps {
   /** What the console offers. Defaults to every scenario it ships. */
@@ -29,11 +40,17 @@ export interface AppProps {
   scenario?: ScenarioDocument;
   /** How to run it. Defaults to the live commons — discover, then dial directly. */
   run?: (scenario: ScenarioDocument) => Promise<ConformanceRun>;
+  /** How the explorer finds what to offer. Defaults to the same crawl a run does. */
+  discover?: () => Promise<Discovery>;
+  /** Which panel is open on mount. Defaults to the library. */
+  mode?: Mode;
 }
 
 type State =
+  /** Manual mode on mount: nothing has been sent, and the console has dialed nobody. */
+  | { phase: 'idle' }
   | { phase: 'running' }
-  | { phase: 'done'; run: ConformanceRun }
+  | { phase: 'done'; run: ConformanceRun; manual?: ManualRequest | undefined }
   | { phase: 'error'; error: string };
 
 /**
@@ -44,14 +61,30 @@ type State =
 const liveRun = (document: ScenarioDocument): Promise<ConformanceRun> =>
   runConformance(document, { fixtures: bundledFixtures() });
 
-export function App({ library = SCENARIO_LIBRARY, scenario, run = liveRun }: AppProps) {
+const liveDiscovery = (): Promise<Discovery> => discoverCommons();
+
+export function App({
+  library = SCENARIO_LIBRARY,
+  scenario,
+  run = liveRun,
+  discover = liveDiscovery,
+  mode: initialMode = 'library',
+}: AppProps) {
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [selected, setSelected] = useState(scenario ?? library[0]?.scenario);
   // Bumped by "run again": the same scenario twice is two runs, and a conformance report is
   // about one of them. Without it React would see identical deps and skip the second.
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<State>({ phase: 'running' });
+  const [state, setState] = useState<State>(
+    initialMode === 'library' ? { phase: 'running' } : { phase: 'idle' },
+  );
+  const [providers, setProviders] = useState<readonly CataloguedProvider[]>([]);
+  const [problems, setProblems] = useState<readonly string[]>([]);
 
   useEffect(() => {
+    // Only the library auto-runs. Opening the explorer must not dial anybody: manual mode
+    // exists so that what goes out is what an operator composed and nothing else.
+    if (mode !== 'library') return;
     let live = true;
     if (selected === undefined) {
       setState({ phase: 'error', error: 'the scenario library is empty' });
@@ -70,7 +103,36 @@ export function App({ library = SCENARIO_LIBRARY, scenario, run = liveRun }: App
     return () => {
       live = false;
     };
-  }, [selected, attempt, run]);
+  }, [selected, attempt, run, mode]);
+
+  useEffect(() => {
+    // The catalogue is discovery, not traffic: the explorer needs the index before an
+    // operator can pick anything, and crawling manifests is what the registry is for.
+    if (mode !== 'manual') return;
+    let live = true;
+    void discover().then((discovery) => {
+      if (!live) return;
+      setProviders(catalogue({ registry: discovery.registry, standins: bundledStandins() }));
+      setProblems(discovery.problems);
+    });
+    return () => {
+      live = false;
+    };
+  }, [discover, mode]);
+
+  const send = useCallback(
+    (request: ManualRequest): void => {
+      setState({ phase: 'running' });
+      run(manualScenario(request))
+        .then((result) => {
+          setState({ phase: 'done', run: result, manual: request });
+        })
+        .catch((error: unknown) => {
+          setState({ phase: 'error', error: error instanceof Error ? error.message : String(error) });
+        });
+    },
+    [run],
+  );
 
   return (
     <main className="console">
@@ -94,19 +156,46 @@ export function App({ library = SCENARIO_LIBRARY, scenario, run = liveRun }: App
         </dl>
       </header>
 
-      <Library
-        library={library}
-        selected={selected?.id}
-        busy={state.phase === 'running'}
-        onRun={(entry) => {
-          if (entry.scenario.id === selected?.id) setAttempt((count) => count + 1);
-          else setSelected(entry.scenario);
-        }}
-      />
+      <nav aria-label="console mode" className="modes">
+        {(['library', 'manual'] as const).map((panel) => (
+          <button
+            key={panel}
+            type="button"
+            aria-pressed={mode === panel}
+            onClick={() => {
+              setMode(panel);
+            }}
+          >
+            {panel === 'library' ? 'scenario library' : 'capability explorer'}
+          </button>
+        ))}
+      </nav>
 
-      {state.phase === 'running' && <p role="status">running {selected?.id}…</p>}
+      {mode === 'library' ? (
+        <Library
+          library={library}
+          selected={selected?.id}
+          busy={state.phase === 'running'}
+          onRun={(entry) => {
+            if (entry.scenario.id === selected?.id) setAttempt((count) => count + 1);
+            else setSelected(entry.scenario);
+          }}
+        />
+      ) : (
+        <Explorer
+          providers={providers}
+          problems={problems}
+          busy={state.phase === 'running'}
+          onSend={send}
+        />
+      )}
+
+      {state.phase === 'idle' && <p>nothing has been sent yet.</p>}
+      {state.phase === 'running' && (
+        <p role="status">running {mode === 'manual' ? 'the composed request' : selected?.id}…</p>
+      )}
       {state.phase === 'error' && <p role="alert">the scenario could not be run: {state.error}</p>}
-      {state.phase === 'done' && <Report run={state.run} />}
+      {state.phase === 'done' && <Report run={state.run} manual={state.manual} />}
     </main>
   );
 }
@@ -153,7 +242,7 @@ function Library({
   );
 }
 
-function Report({ run }: { run: ConformanceRun }) {
+function Report({ run, manual }: { run: ConformanceRun; manual?: ManualRequest | undefined }) {
   const { report, discovery, archive } = run;
   const routed = routings(report);
   return (
@@ -179,6 +268,8 @@ function Report({ run }: { run: ConformanceRun }) {
           {problem}
         </p>
       ))}
+
+      {manual !== undefined && <Exchange report={report} manual={manual} />}
 
       <h3>Routing</h3>
       {routed.length === 0 ? (
@@ -238,6 +329,14 @@ function Report({ run }: { run: ConformanceRun }) {
             <code>{step.id}</code> ({step.kind}) — {step.status}
             {step.error === undefined ? '' : `: ${step.error}`}
             {step.title === undefined ? '' : ` — ${step.title}`}
+            {/* The provider's own refusal, kept apart from the error text: under
+                `expect: reject` a refusal is how a step *passes* (KCS delta O). */}
+            {step.refused === undefined ? null : (
+              <span className="refused">
+                {' '}
+                — the provider refused with {step.refused.status}: {step.refused.reason}
+              </span>
+            )}
           </li>
         ))}
       </ol>
@@ -277,6 +376,35 @@ function Report({ run }: { run: ConformanceRun }) {
           ))}
         </tbody>
       </table>
+    </section>
+  );
+}
+
+/**
+ * The one exchange a manual request produced, in full.
+ *
+ * A scenario report summarises — that is what makes it auditable at a glance. An operator
+ * who composed a request by hand is asking a different question ("what exactly did it say?"),
+ * so the composed request and the provider's verbatim answer are rendered here, above the
+ * same observation timeline every run gets. `raw` is the provider's own body (`kcs/wire.ts`);
+ * for `fetch` and `resolve` there is no invocation body and the bound result stands in.
+ */
+function Exchange({ report, manual }: { report: ConformanceReport; manual: ManualRequest }) {
+  const step = report.steps.find((entry) => entry.id === MANUAL_STEP_ID);
+  const answer = step?.result?.raw ?? step?.output ?? null;
+  return (
+    <section aria-label="manual exchange" className="exchange">
+      <h3>Manual exchange</h3>
+      <p data-testid="manual-grant">
+        grant:{' '}
+        {step?.refused === undefined
+          ? 'granted — the provider served the call'
+          : `refused with ${step.refused.status}: ${step.refused.reason}`}
+      </p>
+      <h4>Raw request</h4>
+      <pre data-testid="manual-request">{JSON.stringify(manual, null, 2)}</pre>
+      <h4>Raw response</h4>
+      <pre data-testid="manual-response">{JSON.stringify(answer, null, 2)}</pre>
     </section>
   );
 }

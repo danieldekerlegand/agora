@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { createRegistry } from '@agora/registry';
 import type { ScenarioDocument } from '@agora/schemas';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { App } from './App.tsx';
-import { runConformance, type ConformanceRun } from './commons.ts';
+import { runConformance, type ConformanceRun, type Discovery } from './commons.ts';
 import { CAPTURED_FROM, replaySession } from './fixtures/session.ts';
-import { bundledFixtures } from './fixtures/standins.ts';
+import { bundledFixtures, MEDIA_TRANSFORM_FORMANT } from './fixtures/standins.ts';
 import { SCENARIO_LIBRARY } from './scenarios/library.ts';
 import { PROVIDER_ROUTER_ROUNDTRIP } from './scenarios/provider-router-roundtrip.ts';
 import { WORLDS_TO_FABRIC } from './scenarios/worlds-to-fabric.ts';
@@ -90,6 +91,90 @@ describe('the scenario library', () => {
     // Same scenario, same fabric: a second run is the same evidence and so the same
     // address (KCS §4.4). That it re-ran at all is what the button is for.
     expect((await screen.findByTestId('report-id')).textContent).toBe(first);
+  });
+});
+
+/**
+ * Discovery with nothing registered, so the explorer offers only the peers that have not
+ * adopted the bus (delta N) — which is what makes the manual test below a test against a
+ * stand-in rather than against the one provider that happens to be on the network.
+ */
+const noRegistrations = (): Promise<Discovery> =>
+  Promise.resolve({ registry: createRegistry(), providers: [], problems: [] });
+
+/** Open the explorer on the stand-in composer and return its only capability's form. */
+function chooseFormant(): void {
+  fireEvent.change(screen.getByRole('combobox', { name: /provider/ }), {
+    target: { value: 'composer:agent:composer' },
+  });
+}
+
+describe('the capability explorer (manual mode)', () => {
+  it('dials nobody until a request is composed and sent', async () => {
+    render(<App mode="manual" run={replay} discover={noRegistrations} />);
+    await screen.findByRole('combobox', { name: /provider/ });
+    expect(screen.queryByTestId('verdict')).toBeNull();
+  });
+
+  it('browses the plane-typed ports a provider advertises, priced and addressed', async () => {
+    render(<App mode="manual" run={replay} discover={noRegistrations} />);
+    await screen.findByRole('combobox', { name: /provider/ });
+    chooseFormant();
+    // Everything the composer shows comes off the manifest, including what the provider
+    // will demand of a caller before it grants anything (KCB §2 `auth`).
+    expect(screen.getByTestId('grants-required').textContent).toBe('none stated');
+    expect(screen.getByTestId('capability-endpoint').textContent).toBe('no address published');
+    // The manifest's own numbers, not the console's opinion of them (KCB §2.1 delta K).
+    expect(screen.getByTestId('capability-cost').textContent).toContain('24 budget units');
+    expect(screen.getByTestId('capability-cost').textContent).toContain('tier paid-model');
+    // A field per input port, labelled with the port's declared type — no hand-written form.
+    expect(
+      screen.getByRole('textbox', { name: /input 1 · knowledge · shape mood-descriptor/ }),
+    ).toBeTruthy();
+  });
+
+  it('sends one manual invoke against a stand-in provider and reports it like any run', async () => {
+    // The acceptance criterion end to end: no scenario file, the same discovery → direct
+    // link → observation log → report plumbing, and the exchange on screen.
+    render(<App mode="manual" run={replay} discover={noRegistrations} />);
+    await screen.findByRole('combobox', { name: /provider/ });
+    chooseFormant();
+    fireEvent.change(screen.getByRole('textbox', { name: /input 1 · knowledge/ }), {
+      target: { value: '{"mood":"elegiac"}' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'ceiling · budget units' }), {
+      target: { value: '40' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'send' }));
+
+    expect((await screen.findByTestId('report-scenario')).textContent).toContain('kcs:manual');
+    const report = reportSection();
+    // Routing, cost and grant come back through the same views a scenario's do.
+    expect((await screen.findByTestId('tier-manual')).textContent).toBe('paid-model');
+    expect(screen.getByTestId('cost-manual').textContent).toBe('24 budget_units');
+    expect(screen.getByTestId('manual-grant').textContent).toContain('granted');
+    expect(screen.getByTestId('manual-request').textContent).toContain('"capability": "compose"');
+    expect(screen.getByTestId('manual-response').textContent).toContain(
+      'composer:asset:blake3-5c0e33',
+    );
+    // Stood in for, and the report says so — a manual green is not a claim about a live peer.
+    expect(within(report).getByTestId('report-scenario').textContent).toContain('stood in for');
+    expect(within(report).getAllByText(MEDIA_TRANSFORM_FORMANT, { exact: false })).not.toHaveLength(
+      0,
+    );
+    expect(within(report).getAllByTestId(/^observation-/).length).toBeGreaterThan(1);
+  });
+
+  it('refuses to send a port payload that is not JSON, before anybody is dialed', async () => {
+    render(<App mode="manual" run={replay} discover={noRegistrations} />);
+    await screen.findByRole('combobox', { name: /provider/ });
+    chooseFormant();
+    fireEvent.change(screen.getByRole('textbox', { name: /input 1 · knowledge/ }), {
+      target: { value: '{oops' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'send' }));
+    expect(screen.getByRole('alert').textContent).toMatch(/is not JSON/);
+    expect(screen.queryByTestId('verdict')).toBeNull();
   });
 });
 

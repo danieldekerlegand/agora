@@ -89,6 +89,12 @@ with a run button per scenario, then that run's verdict and content address, the
 served each call and what it cost, every assertion's verdict with the log entries supporting
 it, and the observation timeline beneath.
 
+Its second panel is the **capability explorer** — browse what the registry advertises (per
+provider, plane-typed ports, address, projected cost), compose a request from a form the port
+schema generated, and send it. There is no second client behind it: a manual request compiles
+into a one-step scenario and goes through the same `runConformance`, so it is discovered,
+dialed and logged exactly as an authored scenario is.
+
 **The scenarios that ship:**
 
 | Scenario | From | What it proves |
@@ -277,5 +283,5 @@ From [`tasks/chief/30-agora-console-scenarios.json`](tasks/chief/30-agora-consol
 the KCS runner and its cross-plane assertion vocabulary (US-CS1); both koine pressure tests
 encoded as runnable scenarios — `kcs:worlds-to-fabric` (US-CS2) and `kcs:media-transform`
 (US-CS3); the full KINP resolver dialing the Pinakes authority (US-CS4); the content-addressed
-conformance report and the scenario-library UI (US-CS5). Next: the manual capability explorer
-and the passive live fabric monitor.
+conformance report and the scenario-library UI (US-CS5); the manual capability explorer
+(US-CS6). Next: the passive live fabric monitor.

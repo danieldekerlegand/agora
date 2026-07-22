@@ -67,6 +67,18 @@ const FIXTURES: Record<string, unknown> = {
  * them over HTTP. Unknown paths fail loudly: a scenario naming a fixture nobody ships must
  * go red, not run against an empty stand-in.
  */
+/**
+ * Every bundled fixture, by the path a scenario names it at.
+ *
+ * The manual explorer browses these as well as the registry: a fixture that carries a
+ * `manifest` describes a peer nobody can dial yet, and an operator wanting to see the shape
+ * of a capability before its provider ships it has nowhere else to look. Handed out as a
+ * copy — a caller that could edit this map would be editing what every scenario stands in on.
+ */
+export function bundledStandins(): Record<string, Json> {
+  return { ...(FIXTURES as Record<string, Json>) };
+}
+
 export function bundledFixtures(): (path: string) => Promise<Json> {
   return (path: string): Promise<Json> => {
     const document = FIXTURES[path];

@@ -25,7 +25,10 @@ neither does anything else, because the console only ever dials on its own behal
 | `src/commons.ts` | bootstrap: crawl the providers into a registry, then run a scenario |
 | `src/scenarios/` | the scenario documents themselves |
 | `src/scenarios/library.ts` | the library the UI lists and runs from |
-| `src/App.tsx` | the UI: the library, the report, the observation timeline |
+| `src/manual/catalogue.ts` | what the registry advertises, arranged to browse; the port-driven form |
+| `src/manual/request.ts` | a hand-composed request, compiled to a one-step scenario |
+| `src/manual/Explorer.tsx` | the manual composer UI |
+| `src/App.tsx` | the UI: both panels, the report, the observation timeline |
 
 All six §3 verbs execute: `invoke` and `resolve` on the control/identity planes, and
 `fetch` / `subscribe` / `emit` on the data planes — a CAS GET by asset id, a delta stream
@@ -76,10 +79,11 @@ the command in that test's failure message rather than editing it.
 
 ## The UI
 
-One screen, three parts: the **scenario library** (`src/scenarios/library.ts`) with a run
-button per scenario, the **report** — verdict, content address, routing, participants, each
-assertion with the log entries that support it, each step — and the **observation timeline**
-underneath, every entry stamped with its time, participant, plane and the KINP ids it touched.
+One screen, two panels over one engine. The **scenario library** (`src/scenarios/library.ts`)
+has a run button per scenario; the **capability explorer** composes a single request by hand.
+Underneath either sits the same **report** — verdict, content address, routing, participants,
+each assertion with the log entries that support it, each step — and the same **observation
+timeline**, every entry stamped with its time, participant, plane and the KINP ids it touched.
 
 The library carries the scenario *documents*, not descriptions of them, so a scenario that
 stopped parsing is a red gate rather than a menu item that fails when somebody clicks it. The
@@ -109,7 +113,40 @@ dialed for real either way, because the runner prefers a live registration over 
 
 All three are in the library and runnable on demand from the UI.
 
-Next, per the tasklist: the manual capability explorer, then the passive live fabric monitor.
+Next, per the tasklist: the passive live fabric monitor.
+
+## Manual mode — the capability explorer
+
+"Postman for the fabric": browse what the registry advertises — providers, their capabilities,
+each capability's plane-typed ports, the address it is dialed at and what it is projected to
+cost — pick one, fill in a form, and send. No scenario file.
+
+The whole of its runtime is `manualScenario`, which compiles what was composed into a
+**one-step `ScenarioDocument`** and hands it to the same `runConformance` the library uses. So
+discovery is the registry's, the connection is `kcs/link.ts`'s direct one, and the exchange
+lands in the same observation log under the same report — routing, resolved tier, cost, and the
+grant outcome all render in the views a scenario's do. A manual mode with its own client would
+be a second implementation of ADR-0001 decision 7, and the one no scenario keeps honest.
+
+Four things fall out of that design, and each is a decision rather than an accident:
+
+- **The form is generated from the port schema** (`fieldsFor`), one field per declared input
+  port, labelled with the port's own type vocabulary. Whether a field takes JSON or a KINP id
+  comes from the port's plane: entity and media ports reference, because KCS §3 says payloads
+  "reference things by KINP id … never inline blobs".
+- **Nothing is prefilled.** A skeleton payload is a guess at what the operator meant, and the
+  console would then be observing traffic it half-authored.
+- **The compiled scenario carries no assertions.** A manual call proves the call went through,
+  not that the fabric holds any property — green here means "the peer answered". Asserting more
+  than that is what the library is for.
+- **Only `invoke` / `fetch` / `resolve` are offered.** `emit` and `subscribe` write to, or hold
+  open, somebody else's plane; neither is a thing to do from a form with no scenario recording
+  what it meant.
+
+Stand-ins are browsable too, and stamped everywhere their name appears. A peer that has not
+adopted the bus has no registration, so without that an operator could not see the shape of a
+capability until its provider shipped it — and a registration always beats a fixture of the
+same identity, the same preference the runner makes.
 
 ### On stand-in fixtures
 

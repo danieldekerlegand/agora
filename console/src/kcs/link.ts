@@ -136,7 +136,7 @@ export interface Peer {
 }
 
 /** Where the console looks for each verb in a provider's published endpoints (KCB §2). */
-const VERB_ENDPOINTS: Record<'fetch' | 'subscribe' | 'emit', readonly string[]> = {
+export const VERB_ENDPOINTS: Record<'fetch' | 'subscribe' | 'emit', readonly string[]> = {
   fetch: ['cas', 'fetch'],
   subscribe: ['subscribe', 'stream'],
   emit: ['emit', 'kgp'],
