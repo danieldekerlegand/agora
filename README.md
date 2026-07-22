@@ -38,7 +38,7 @@ Each directory is a **buildable unit with its own gate**:
 | `resolver/` | TypeScript | the KINP resolver reference implementation |
 | `console/` | TypeScript + React | the conformance console (scenario runner + UI) |
 | `schemas/` | TypeScript | shared koine manifest schemas / protocol types |
-| `clients/*` | TypeScript | shared protocol client libraries (`@agora/kcb-client`) |
+| `clients/*` | TypeScript | shared protocol client libraries (`@agora/kcb-client`, `@agora/relation-registry-client`) |
 
 ## Discovery in one minute
 
@@ -165,6 +165,11 @@ live in koine**. agora holds the tooling — the schema, validator and loader �
 vendored copy; a copy would be the second source of truth the registry exists to prevent. The
 `registryVersion` this build speaks, and the paths it speaks it at, are pinned in
 `RELATION_REGISTRY` (`schemas/src/relation-registry.ts`), the same way the spec versions are.
+The one copy in this repo is `schemas/src/fixtures/koine-registry/` — a snapshot the validator's
+tests run against, because a validator tested only on hand-written samples proves only that it
+accepts hand-written samples. It is reachable as `@agora/schemas/fixtures`, never from the
+library surface, and a test asserts its `registryVersion` is the one this build claims to speak,
+so it cannot quietly go stale.
 
 The bridge layer covers both bridged projects — **analyzer** (as lifted) and **insimul** (added at
 registryVersion 0.4.0), each mapping its own predicates onto the canonical vocabulary that
@@ -183,6 +188,28 @@ Egress is the axis with teeth, and agora enforces it in both directions (§7.2):
 `filterPackForEgress` drops `local-only` records at pack construction — the **producer's**
 obligation, never delegated — and `assertPackEgress` lets a **consumer** reject a pack that
 still carries some, reporting every violation instead of silently dropping the records.
+
+#### Reading it
+
+`parseRegistry` / `parseVocabulary` (`schemas/src/registry-schema.ts`) validate the two
+artifacts, and `assertRelationsResolve` cross-checks them: a mapping that crosses as a claim
+must *name* a relation the TSVs declare, and one that does not must name none — that rule is
+what keeps the two files one vocabulary. `assertSignatureStability` diffs two registry versions
+and rejects an edit that moved a published `relation · arity · arg_roles · symmetric`, because
+that silently re-hashes every claim id derived from it (KGP §3); a change means a new name.
+
+`@agora/relation-registry-client` is what a consumer actually calls:
+
+```ts
+const registry = await loadRelationRegistry('https://koine.example');
+registry.signature('soc:parent_of');      // 'soc:parent_of · 2 · parent|child · false'
+const analyzer = registry.egressFor('analyzer'); // predicate → KGP §7.2 class
+filterPackForEgress(pack, analyzer);          // …which is what the producer filter takes
+```
+
+It fetches `predicate-mapping.json`, follows it to the vocabulary files it names, validates
+both, and indexes them. It never writes and never mirrors — a cached copy belongs to the
+caller, and a caller that edits one has forked the registry.
 
 ## Status
 

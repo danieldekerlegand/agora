@@ -13,9 +13,39 @@
  * - `relation-registry.ts` — where the shared relation registry lives (koine) and which
  *   `registryVersion` this build speaks
  * - `axes.ts`     — dialect (KGP §5) / egress (§7.2) / trust, and the egress enforcement
+ * - `registry-schema.ts` — the registry's own schema and validator, over both its artifacts
+ *
+ * `./fixtures` is a second entry point, carrying a snapshot of the real koine registry for
+ * tests. It is deliberately not re-exported here: it is test data, not a library surface.
  */
 export { SPEC_VERSIONS } from './versions.ts';
 export { RELATION_REGISTRY, type RegistryMirror } from './relation-registry.ts';
+export {
+  assertRelationsResolve,
+  assertSignatureStability,
+  CANONICAL_KINDS,
+  CLAIM_KINDS,
+  crossesAsClaim,
+  diffSignatures,
+  isCanonicalKind,
+  isCompatibleRegistryVersion,
+  isRegistryDocument,
+  parseRegistry,
+  parseVocabulary,
+  predicateNames,
+  RegistryError,
+  relationSignature,
+  VOCABULARY_COLUMNS,
+  type CanonicalKind,
+  type MappingEntry,
+  type ProjectMappings,
+  type RegistryDocument,
+  type RegistrySnapshot,
+  type RelationRow,
+  type SignatureChange,
+  type VocabularyFile,
+  type VocabularyIndex,
+} from './registry-schema.ts';
 export {
   assertPackEgress,
   DEFAULT_DIALECT,

@@ -1,0 +1,611 @@
+{
+  "registryVersion": "0.4.0",
+  "title": "Relation registry — bridge mappings (canonical vocabulary ⇄ bridged-project relations)",
+  "description": "The machine-validated bridge layer of the koine relation registry: how each bridged project's own predicates cross into the canonical node/edge vocabulary Pinakes hosts. Lifted from pinakes `shared/predicate-mapping.json` (merged as `17f0713`) into koine as the ecosystem contract — every merged entry preserved as-is, the lift purely additive — koine holds the vocabulary DATA, agora holds the tooling that validates and loads it (ADR-0001; ADR-0002 amendment). It does NOT coin relation names: the relation vocabulary is `relations.tsv` + `relations/<domain>.tsv` in this directory, and every mapping that crosses as a claim names the registry relation it normalizes to (`koineRelations`) — ONE vocabulary, no second source of truth. Encodes ARGOS_SYNC_PLAN.md Appendix A: the Analyzer relations, the `sha256:`/`cs:` id-space rules, the `local-only` class that keeps personal-tier facts from ever leaving the machine (an EGRESS class per KGP §7.2, not a dialect tier — the two axes were split apart at registryVersion 0.3.0, see `axes`), and the `t_start`/`t_end` ⇄ `time_start`/`time_end` temporal-field map. Each relation entry names a canonical node/edge type (validated for totality against the producer's canonical schema) or a non-type mapping (derived rule / provenance columns / temporal fields); a `pending` flag marks declared-but-not-yet-added canonical schema additions, so the flag doubles as a live checklist. The `projects` block covers both bridged projects: analyzer (lifted as merged) and insimul (added additively at registryVersion 0.4.0 from INSIMUL_SYNC_PLAN.md Appendix A + insimul-babylon `packages/core/src/prolog/predicate-schema.ts`; every entry carries the `sourceRow` it came from). pinakes is not listed there — it is the canonical side of every mapping, so its coverage IS the relation vocabulary and the canonical node/edge schema.",
+  "canonicalHome": {
+    "repo": "koine",
+    "path": "registry/predicate-mapping.json",
+    "decidedBy": [
+      "decisions/ADR-0001-control-plane-topology.md",
+      "decisions/ADR-0002-reconcile-with-existing-bridges.md"
+    ],
+    "tooling": "agora — schema, validator and loader library (`20-shared-relation-registry` US-SRR4); koine ships no code",
+    "rule": "This file is the only authoritative copy. A consumer loads it from here (over the wire, via the agora loader) or keeps a declared mirror; it never edits a local copy."
+  },
+  "mirrors": [
+    {
+      "project": "pinakes",
+      "path": "shared/predicate-mapping.json",
+      "mode": "generated-mirror",
+      "note": "The pre-lift original. It stays byte-derived from this file — regenerated, never hand-edited — so the registry cannot fork; `shared/predicate-mapping.ts` keeps typing it and the pinakes drift gate compares the mirror against this canonical copy. Wiring that regeneration is pinakes tasklist `10-pinakes-koine-align` (this tranche does not touch the projects, per ADR-0002 'Consequences')."
+    }
+  ],
+  "relationRegistry": {
+    "core": "relations.tsv",
+    "domains": [
+      "relations/cinematography.tsv",
+      "relations/media.tsv",
+      "relations/social.tsv"
+    ],
+    "rule": "The relation vocabulary lives in those TSVs and nowhere else. A mapping whose `canonicalKind` is `edge` or `derived-rule` crosses as a KGP claim and MUST name at least one relation from them in `koineRelations`; every other kind (node / node-property / provenance / temporal / rule / none) is not a relation and MUST leave `koineRelations` empty. A bridged predicate with no registry relation is closed by adding the relation to the TSV by PR — never by naming it only here.",
+    "spec": "KGP §3.2 rule 1 — the registry fixes arity and canonical argument order, so claim ids are not producer-dependent."
+  },
+  "signaturePolicy": {
+    "signature": "relation · arity · ordered arg_roles · symmetric",
+    "rule": "A relation's signature is immutable once published. Changing arity, argument order or the symmetric flag silently changes every dependent claim id (KGP §3), so a change means a NEW relation name — never an edit to a published row.",
+    "appliesTo": [
+      "relations.tsv",
+      "relations/*.tsv"
+    ],
+    "mappingEntries": "A mapping entry's `id` and `external` are likewise stable within a project: retarget by adding an entry and superseding, not by rewriting a published one.",
+    "enforcedBy": "agora — the registry validator diffs signatures across `registryVersion`s (US-SRR4)"
+  },
+  "axes": {
+    "rule": "THREE orthogonal axes ride on knowledge, and none implies another: `dialect` (what logic a consumer may evaluate), `egress` (whether it may leave at all) and provenance `trust` (how much to believe the source). A relation entry carries `dialect` and `egress` independently; trust is not a registry field.",
+    "supersedes": "`portabilityClasses` (registryVersion ≤ 0.2.0) bundled the first two into one enum, which read `local-only` as a fourth dialect tier. KGP 0.4.0 ruled it an EGRESS class instead, so 0.3.0 splits the key: the three dialect tiers moved to `dialectTiers`, `local-only` to `egressClasses`, and each relation's `portability: [...]` array became a `dialect` + `egress` pair (`horn-safe`+`local-only` → `dialect: horn-safe`, `egress: local-only`; an entry that named no dialect keeps `dialect: null`).",
+    "collision": "ADR-0002 'Terminology collisions' — the projects use the word 'tier' for all three. Do not conflate them."
+  },
+  "dialectTiers": {
+    "axis": "dialect — what logic a consumer may safely EVALUATE",
+    "spec": "KGP §5",
+    "default": "grounding-only",
+    "nests": [
+      "grounding-only",
+      "horn-safe",
+      "full-prolog"
+    ],
+    "rule": "A producer ships the lowest tier that carries the needed content; a consumer rejects a pack whose tier exceeds what it can safely evaluate. The tiers nest in the order above, so a `grounding-only` relation is safe in a `horn-safe` pack.",
+    "classes": {
+      "grounding-only": "Reference data consumed at ground time; no runtime predicate crosses.",
+      "horn-safe": "Crosses the boundary into pinakes's constrained-Horn Datalog layer (+ arithmetic after Phase 1).",
+      "full-prolog": "Full ISO Prolog only (cuts / negation / probabilistic likelihood) — does not cross to Datalog."
+    }
+  },
+  "egressClasses": {
+    "axis": "egress — whether knowledge may LEAVE its originating tier at all",
+    "spec": "KGP §7.2",
+    "default": "exportable",
+    "rule": "Enforced in BOTH directions. A producer MUST NOT emit a `local-only` relation or record into a pack that crosses a project boundary — the filter runs at pack construction and is never left to the consumer. A consumer MUST reject a pack that carries one and report it (it means a producer bug or a tampered pack) rather than silently dropping the offending records.",
+    "hashing": "Because it is enforced at pack construction, egress class does not enter the claim hash (KGP §3.1) and never affects claim identity.",
+    "enforcedBy": "agora — `@agora/schemas` egress tooling (`20-shared-relation-registry` US-SRR2)",
+    "classes": {
+      "exportable": "May cross a project boundary, subject to the licence policy (KGP §7.1) and the dialect tier (§5).",
+      "local-only": "Never leaves the personal tier. Hard-gated out of open-data releases, packaged corpora, and any non-personal export or training set (the privacy invariant this bridge introduces)."
+    }
+  },
+  "trustTiers": {
+    "axis": "trust — how much to BELIEVE a source. Descriptive, never enforcing",
+    "spec": "KGP §7 / KINP §11 decision 2",
+    "carriedBy": "provenance records on the pack, NOT relation entries here — listed only to keep the third axis distinct",
+    "classes": {
+      "pinakes": [
+        "curated",
+        "auto-admitted",
+        "quarantine"
+      ],
+      "bridges": [
+        "synthetic",
+        "personal"
+      ]
+    },
+    "note": "`personal` typically co-occurs with egress `local-only`, but that is correlation: trust describes where a fact came from, egress decides whether it may move."
+  },
+  "idSpaces": [
+    {
+      "prefix": "sha256:",
+      "form": "sha256:<hex>",
+      "canonicalKind": "node",
+      "nodeType": "asset",
+      "description": "A content-addressed Analyzer asset (id = sha256 of bytes) → canonical `asset` node. Re-encode changes the hash; `derived-from` lineage partially compensates (registry future-work)."
+    },
+    {
+      "prefix": "cs:",
+      "form": "cs:<type>:<id>",
+      "canonicalKind": "entity",
+      "description": "A grounded canonical pinakes entity (csid). The Bridge-1 `refers_to` target: a fact may reference a real-world entity, not only an asset hash."
+    },
+    {
+      "prefix": "run:",
+      "form": "run:<id>",
+      "canonicalKind": "provenance",
+      "description": "An Analyzer run. Default: fact provenance only, not a graph node."
+    },
+    {
+      "prefix": "edl:",
+      "form": "edl:<run>:<v>",
+      "canonicalKind": "provenance",
+      "description": "A versioned Analyzer EDL take. Default: fact provenance only, not a graph node."
+    }
+  ],
+  "temporalFieldMap": {
+    "t_start": "time_start",
+    "t_end": "time_end"
+  },
+  "projects": {
+    "analyzer": {
+      "title": "Analyzer — agentic multimedia studio (the user's file web)",
+      "sourceDoc": "ARGOS_SYNC_PLAN.md Appendix A",
+      "direction": {
+        "AR->LS": "Analyzer predicate → pinakes canonical (Bridge 2: the file web as corpus).",
+        "LS->AR": "pinakes canonical → Analyzer (Bridge 1: entity grounding + world knowledge).",
+        "both": "Crosses in both directions."
+      },
+      "pendingSchemaAdditions": {
+        "targetVersion": "1.2.0",
+        "note": "Landed by analyzer-bridge US-003: the `asset` node type + `depicts`/`mentions` edge types now resolve in shared/canonical-schema.json (v1.2.0), so the relation `pending` flags below are flipped to false and these lists are empty. Nothing is pending.",
+        "nodeTypes": [],
+        "edgeTypes": []
+      },
+      "relations": [
+        {
+          "id": 1,
+          "external": "asset_technical",
+          "canonicalKind": "node-property",
+          "canonicalType": "asset",
+          "direction": "AR->LS",
+          "dialect": null,
+          "egress": "local-only",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "container / duration / codec / width / height sub-facts → asset node properties, not edges."
+        },
+        {
+          "id": 2,
+          "external": "shows(asset, X)",
+          "canonicalKind": "edge",
+          "canonicalType": "depicts",
+          "direction": "AR->LS",
+          "dialect": "horn-safe",
+          "egress": "local-only",
+          "koineRelations": [
+            "cine:shows"
+          ],
+          "pending": false,
+          "notes": "Vision caption / detected object. Object X may carry an entity_ref (csid) after Bridge-1 grounding."
+        },
+        {
+          "id": 3,
+          "external": "says(asset, text, t)",
+          "canonicalKind": "node-property",
+          "canonicalType": "asset",
+          "direction": "AR->LS",
+          "dialect": null,
+          "egress": "local-only",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "ASR segments → asset transcript property + temporal facts; t_start/t_end ⇄ time_start/time_end (see temporalFieldMap)."
+        },
+        {
+          "id": 4,
+          "external": "reads(asset, text)",
+          "canonicalKind": "node-property",
+          "canonicalType": "asset",
+          "direction": "AR->LS",
+          "dialect": null,
+          "egress": "local-only",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "Article / text ingest → asset text property."
+        },
+        {
+          "id": 5,
+          "external": "scene(asset, t_start, t_end)",
+          "canonicalKind": "temporal",
+          "direction": "AR->LS",
+          "dialect": null,
+          "egress": "local-only",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "Temporal segmentation facts; endpoints map through temporalFieldMap."
+        },
+        {
+          "id": 6,
+          "external": "co_occurs(a, b, t)",
+          "canonicalKind": "derived-rule",
+          "direction": "AR->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "co_occurs"
+          ],
+          "pending": false,
+          "notes": "A derived rule, never a stored edge — same derived-not-stored discipline as pinakes's temporal edges."
+        },
+        {
+          "id": 7,
+          "external": "derived_from(output, source)",
+          "canonicalKind": "edge",
+          "canonicalType": "derived-from",
+          "direction": "AR->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "derived_from"
+          ],
+          "pending": false,
+          "notes": "Existing canonical edge type. Lineage transitivity is one Horn rule (US-004)."
+        },
+        {
+          "id": 8,
+          "external": "refers_to(asset, entity)",
+          "canonicalKind": "edge",
+          "canonicalTypes": [
+            "depicts",
+            "mentions"
+          ],
+          "direction": "both",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "cine:shows",
+            "media:mentions"
+          ],
+          "pending": false,
+          "notes": "Bridge-1 grounding: `depicts`/`mentions` with entity_ref = csid. Confidence from the grounding rubric; ambiguous candidates never auto-merged."
+        },
+        {
+          "id": 9,
+          "external": "cinematography facts/violations",
+          "canonicalKind": "rule",
+          "direction": "AR->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "US-CS6 constraint facts → rules-registry entries + violation facts. Third instance of the provenanced-rules pattern (pinakes Phase 4b, Insimul validators)."
+        },
+        {
+          "id": 10,
+          "external": "GroundingPack entities",
+          "canonicalKind": "node",
+          "canonicalTypes": [
+            "culture",
+            "place",
+            "language",
+            "deity"
+          ],
+          "direction": "LS->AR",
+          "dialect": "grounding-only",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "Canonical nodes (culture / place / language / deity / …) exported as the shared GroundingPack format (same schema as the Insimul bridge)."
+        },
+        {
+          "id": 11,
+          "external": "fact provenance {source, source_url, retrieved_at, confidence, license}",
+          "canonicalKind": "provenance",
+          "direction": "both",
+          "dialect": null,
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "The US-PL1 alignment — identical field names. `license` is an SPDX id; facts derived from licensed reference data keep the license through the bridge."
+        }
+      ]
+    },
+    "insimul": {
+      "title": "Insimul — generated worlds (Babylon/Unity/Unreal/Godot; ISO Prolog world KBs)",
+      "sourceDoc": "INSIMUL_SYNC_PLAN.md Appendix A (registry v0 draft) + insimul-babylon `packages/core/src/prolog/predicate-schema.ts` (the shipped Mongo ⇄ Prolog catalog)",
+      "addedAt": "0.4.0",
+      "direction": {
+        "IN->LS": "Insimul predicate → pinakes canonical (Bridge 2: generated worlds as a synthetic corpus).",
+        "LS->IN": "pinakes canonical → Insimul (Bridge 1: grounding packs seed a world).",
+        "both": "Crosses in both directions.",
+        "none": "Crosses in NEITHER direction. Catalogued anyway so the KGP §7.2 egress filter has an explicit rule for it — see `egress`."
+      },
+      "entryFields": {
+        "sourceRow": "The INSIMUL_SYNC_PLAN.md Appendix A row this entry derives from (`—` when it comes from predicate-schema.ts alone). Appendix A rows that bundle a node and its edges are split into one entry per `canonicalKind`, so ids are registry-local and do NOT match row numbers.",
+        "external": "The predicate(s) Insimul actually emits, as named in predicate-schema.ts — not the draft's names where the two disagree (see `collisions`)."
+      },
+      "idSpace": {
+        "form": "sanitized MongoDB ObjectId atom, scoped to one world",
+        "rule": "An Insimul entity id is unique within a world, NOT across worlds or projects, so it is not a KINP id and MUST NOT cross a boundary as one. Bridge 1 persists a csid → seeded-entity map per world (idempotent re-import); Bridge 2 mints canonical ids (`cs:`) on export and carries `world_id` + generation seed as provenance. See INSIMUL_SYNC_PLAN §7 'Identity'.",
+        "prefix": null
+      },
+      "pendingSchemaAdditions": {
+        "targetVersion": "1.3.0",
+        "note": "Declared by INSIMUL_SYNC_PLAN §4.3 and NOT yet in pinakes `shared/canonical-schema.json` (v1.2.0 landed the analyzer additions instead): the canonical schema still has no person/character, building or business node type and no genealogy / employment / residence / causality edge types. Entries below carry `pending: true` until they resolve; the flag is the live checklist (pinakes tasklist `insimul-bridge`).",
+        "nodeTypes": [
+          "character",
+          "building",
+          "business"
+        ],
+        "edgeTypes": [
+          "parent-of",
+          "spouse-of",
+          "employed-by",
+          "resides-in",
+          "caused-by"
+        ]
+      },
+      "collisions": {
+        "rule": "Reported and resolved here rather than silently reconciled in an entry (ADR-0002 'Terminology collisions'). Analyzer entries above were left exactly as merged; the insimul block is purely additive.",
+        "resolved": [
+          "`settlement` is not a canonical node type — pinakes models settlements as `place` ('A geographic place, settlement, or site'). Entry 2 targets `place`; Appendix A's node name was a draft convenience.",
+          "Appendix A row 9 writes `spouse_of/2`; the shipped predicate is `married_to/2` (predicate-schema.ts, character block). `external` names what the producer emits, so the entry says `married_to/2` — and the registry relation is `soc:spouse_of`, which is where the draft's name survives.",
+          "`child_of/2` is NOT a second relation. `soc:parent_of` fixes the canonical argument order (parent, child) and names `soc:child_of` as its `inverse`; a producer emitting `child_of/2` normalizes by swapping arguments (KGP §3.2 rule 1), never by coining a relation.",
+          "Analyzer's lineage relation is `derived_from` (an artifact derives from a source); Insimul's is genealogical (`descended_from`, descendant→ancestor). Distinct relations, deliberately not merged — collapsing them would let a re-encode license a claim about ancestry.",
+          "`located_in` vs core `part_of`: `at_location/2` places a person at a location, which is positional, not mereological. Closed by adding `located_in` to `relations.tsv` rather than by overloading `part_of`.",
+          "Insimul's `truth` is a world fact, NOT a KGP claim and NOT a provenance trust tier; its `truth_public/1` flag is a story-visibility flag and says nothing about egress."
+        ]
+      },
+      "relations": [
+        {
+          "id": 1,
+          "sourceRow": 1,
+          "external": "country/1, government_type/2, economic_system/2, country_founded/2",
+          "canonicalKind": "node",
+          "canonicalType": "culture",
+          "direction": "LS->IN",
+          "dialect": "grounding-only",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "Real government / social-structure fields seed `countries.governmentType` etc. Reference data at ground time; no runtime predicate crosses."
+        },
+        {
+          "id": 2,
+          "sourceRow": 2,
+          "external": "settlement/1, settlement_of_country/2, settlement_of_state/2",
+          "canonicalKind": "node",
+          "canonicalType": "place",
+          "direction": "LS->IN",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "Coordinates are real; Insimul lays out lots and streets procedurally around them. Canonical type is `place`, not `settlement` (see `collisions`)."
+        },
+        {
+          "id": 3,
+          "sourceRow": 3,
+          "external": "language/1, language_name/2, language_kind/2, language_parent/2, language_real_code/2",
+          "canonicalKind": "node",
+          "canonicalType": "language",
+          "direction": "LS->IN",
+          "dialect": "grounding-only",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "`WorldLanguage` + vocabulary + CEFR text-generation constraints. Feeds the language-learning vertical; conlang generation is grounded in real typology. `language_real_code/2` is the tie back to the canonical language node (ISO code)."
+        },
+        {
+          "id": 4,
+          "sourceRow": 4,
+          "external": "religion truths / backstory templates (deity + syncretism seeds)",
+          "canonicalKind": "node",
+          "canonicalTypes": [
+            "deity",
+            "religion"
+          ],
+          "direction": "LS->IN",
+          "dialect": "grounding-only",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "The canonical `syncretized-with` edge seeds template selection at ground time; it does NOT cross as a claim, which is why `koineRelations` is empty. If a bridge ever ships it as an edge, add the relation to the TSVs first."
+        },
+        {
+          "id": 5,
+          "sourceRow": 5,
+          "external": "item/1, item_type/2, item_base_type/2, item_is_a/2, item_category/2",
+          "canonicalKind": "node",
+          "canonicalTypes": [
+            "cuisine",
+            "ingredient"
+          ],
+          "direction": "LS->IN",
+          "dialect": "grounding-only",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "Cuisines / ingredients / cooking techniques seed the item taxonomy. `item_is_a/2` (baseType IS-A) is the same shape as core `instance_of`, but it is derived inside the world at sync time and does not cross; an IN->LS export of the taxonomy would be an `instance_of` edge entry of its own."
+        },
+        {
+          "id": 6,
+          "sourceRow": 6,
+          "external": "truth/3 + backstory templates, Tracery `truthBindings`, narrative/2 story templates",
+          "canonicalKind": "node",
+          "canonicalType": "myth-motif",
+          "direction": "LS->IN",
+          "dialect": "grounding-only",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "Motifs seed authored truth / narrative templates (`narratives` collection, stored prologContent)."
+        },
+        {
+          "id": 7,
+          "sourceRow": 7,
+          "external": "at_location/2, lot_of_settlement/2, business_of_settlement/2, residence_of_settlement/2",
+          "canonicalKind": "edge",
+          "canonicalType": "located-in",
+          "direction": "both",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "located_in"
+          ],
+          "pending": false,
+          "notes": "Positional containment in a place. `located_in` was added to `relations.tsv` for this entry (positional, not mereological — see `collisions`)."
+        },
+        {
+          "id": 8,
+          "sourceRow": 8,
+          "external": "lineage chains over parent_of/2 · child_of/2",
+          "canonicalKind": "edge",
+          "canonicalType": "descended-from",
+          "direction": "both",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "descended_from"
+          ],
+          "pending": false,
+          "notes": "Canonical argument order is (descendant, ancestor) on both sides. The ancestor closure is derived by one Horn rule, never stored pairwise."
+        },
+        {
+          "id": 9,
+          "sourceRow": 9,
+          "external": "person/1, first_name/2, last_name/2, birth_year/2, gender/2, alive/1, occupation/2",
+          "canonicalKind": "node",
+          "canonicalType": "character",
+          "direction": "IN->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": true,
+          "notes": "Bridge 2. The canonical schema has no person/character node type yet (see `pendingSchemaAdditions`). Generated persons, so `synthetic` trust — which is a provenance property, not an egress one: they are exportable."
+        },
+        {
+          "id": 10,
+          "sourceRow": 9,
+          "external": "parent_of/2 (childIds), child_of/2 (parentIds)",
+          "canonicalKind": "edge",
+          "canonicalType": "parent-of",
+          "direction": "IN->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "soc:parent_of"
+          ],
+          "pending": true,
+          "notes": "`child_of/2` normalizes to the same relation with arguments swapped (KGP §3.2 rule 1); it is the declared `inverse`, not a second relation."
+        },
+        {
+          "id": 11,
+          "sourceRow": 9,
+          "external": "married_to/2 (spouseId)",
+          "canonicalKind": "edge",
+          "canonicalType": "spouse-of",
+          "direction": "IN->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "soc:spouse_of"
+          ],
+          "pending": true,
+          "notes": "`soc:spouse_of` is symmetric, so operands are sorted before hashing (KGP §3.2 rule 2) and the two directions Insimul stores collapse to one claim. Appendix A called the predicate `spouse_of/2` (see `collisions`)."
+        },
+        {
+          "id": 12,
+          "sourceRow": 10,
+          "external": "truths `causesTruthIds` / `causedByTruthIds`",
+          "canonicalKind": "edge",
+          "canonicalType": "caused-by",
+          "direction": "IN->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "caused_by"
+          ],
+          "pending": true,
+          "notes": "Event causality, canonical order (effect, cause) — high value for multi-hop QA synthesis, because a generated world ships its complete causal chain (no KB-incompleteness noise)."
+        },
+        {
+          "id": 13,
+          "sourceRow": 11,
+          "external": "business/1, business_type/2, lot/1, lot_building/2, lot_building_type/2, residence/1",
+          "canonicalKind": "node",
+          "canonicalTypes": [
+            "building",
+            "business"
+          ],
+          "direction": "IN->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": true,
+          "notes": "Bridge 2; both node types are pending canonical schema additions."
+        },
+        {
+          "id": 14,
+          "sourceRow": 11,
+          "external": "business_owner/2, business_founder/2, occupation/2",
+          "canonicalKind": "edge",
+          "canonicalType": "employed-by",
+          "direction": "IN->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "soc:employed_by"
+          ],
+          "pending": true,
+          "notes": "`occupation/2` is a job title (a node property), not an employer — only owner/founder edges carry an employer id today; a general employment predicate is an Insimul-side gap."
+        },
+        {
+          "id": 15,
+          "sourceRow": 11,
+          "external": "residence_resident/2, residence_owner/2",
+          "canonicalKind": "edge",
+          "canonicalType": "resides-in",
+          "direction": "IN->LS",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [
+            "soc:resides_in"
+          ],
+          "pending": true,
+          "notes": "Occupancy, distinct from `located_in` (a resident dwells there; a character standing there is merely positioned)."
+        },
+        {
+          "id": 16,
+          "sourceRow": 12,
+          "external": "truth_year/2, truth_timestep/2, current_year/1",
+          "canonicalKind": "temporal",
+          "direction": "both",
+          "dialect": "horn-safe",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "temporalFields": {
+            "truth_year": [
+              "time_start",
+              "time_end"
+            ],
+            "truth_timestep": null,
+            "current_year": null
+          },
+          "notes": "A truth is a point event: `truth_year` becomes both canonical endpoints. `truth_timestep` is world-internal ordering and `current_year/1` is engine state — neither has a canonical counterpart. Contemporary / precedes are DERIVED on both sides, never stored pairwise (same discipline as pinakes's temporal edges and analyzer entry 6)."
+        },
+        {
+          "id": 17,
+          "sourceRow": 13,
+          "external": "rule_applies/3, rule_effect/4, rule_priority/2, rule_likelihood/2, can_perform/2",
+          "canonicalKind": "rule",
+          "direction": "both",
+          "dialect": "full-prolog",
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "Insimul runs full ISO Prolog (tau/Trealla): cuts, negation and `rule_likelihood/2` random-chance patterns do NOT cross to pinakes's constrained-Horn layer. Only the horn-safe subset crosses, checked by shared golden conformance cases; a ProbLog emitter can carry likelihood as a fact probability. This is the third instance of the provenanced-rules pattern (pinakes Phase 4b, analyzer entry 9)."
+        },
+        {
+          "id": 18,
+          "sourceRow": 14,
+          "external": "truth.source, citations, radiant_generated/3, world_id + generation seed",
+          "canonicalKind": "provenance",
+          "direction": "both",
+          "dialect": null,
+          "egress": "exportable",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "Bridge-2 output lands in the `synthetic` trust tier with `world_id` + generation seed as provenance and the license marked proprietary — never mixed into open-data releases (INSIMUL_SYNC_PLAN §7 'License leakage'). Trust tier ≠ egress class."
+        },
+        {
+          "id": 19,
+          "sourceRow": "—",
+          "external": "player_cefr_level/2, player_cefr_snapshot/3, player_dimension_score/3, languagechatmessages, playthroughs",
+          "canonicalKind": "none",
+          "direction": "none",
+          "dialect": null,
+          "egress": "local-only",
+          "koineRelations": [],
+          "pending": false,
+          "notes": "A REAL person's language-learning performance and chat turns (predicate-schema.ts `cefrProficiency`; the `languagechatmessages` / `playthroughs` collections). Never a world fact and never a canonical node — catalogued solely so the KGP §7.2 filter has an explicit rule: the producer drops these at pack construction and a consumer rejects-and-reports a pack that still carries them. This is the Insimul counterpart of analyzer's personal-tier file facts."
+        }
+      ]
+    }
+  }
+}

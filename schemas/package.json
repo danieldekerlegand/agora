@@ -5,7 +5,8 @@
   "type": "module",
   "description": "Shared koine manifest schemas and protocol types (KINP/KGP/KCB/KMI/KCS).",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./fixtures": "./src/fixtures/koine-registry.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
