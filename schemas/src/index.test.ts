@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { isPlane, PLANES, SPEC_VERSIONS } from './index.ts';
+import { isPlane, PLANES, RELATION_REGISTRY, SPEC_VERSIONS } from './index.ts';
 
 describe('@agora/schemas', () => {
   it('pins the koine spec versions the commons implements', () => {
     expect(SPEC_VERSIONS.kcb).toBe('0.2.0');
     expect(SPEC_VERSIONS.kinp).toBe('0.2.0');
+    expect(SPEC_VERSIONS.kgp).toBe('0.4.0');
+  });
+
+  it('re-exports the relation-registry pin', () => {
+    expect(RELATION_REGISTRY.repo).toBe('koine');
   });
 
   it('knows the three protocol planes', () => {

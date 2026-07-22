@@ -157,6 +157,15 @@ Everything here implements a koine spec. Read those first:
 - Conformance scenarios — `../koine/specs/conformance-scenario.md` (KCS)
 - Topology decision — `../koine/decisions/ADR-0001-control-plane-topology.md`
 
+### The relation registry
+
+The shared relation vocabulary (`../koine/registry/relations.tsv` + `relations/<domain>.tsv`)
+and its bridge-mapping layer (`../koine/registry/predicate-mapping.json`) are **data, and they
+live in koine**. agora holds the tooling — the schema, validator and loader — and never a
+vendored copy; a copy would be the second source of truth the registry exists to prevent. The
+`registryVersion` this build speaks, and the paths it speaks it at, are pinned in
+`RELATION_REGISTRY` (`schemas/src/relation-registry.ts`), the same way the spec versions are.
+
 ## Status
 
 **Bootstrapping.** The repo is being stood up by the Chief harness from

@@ -10,8 +10,11 @@
  * - `identity.ts` — KINP compact identifiers (KINP §3.2)
  * - `manifest.ts` — the KCB capability manifest (KCB §2), what the registry indexes
  * - `scenario.ts` — the KCS conformance-scenario document (KCS §2/§3), what the console runs
+ * - `relation-registry.ts` — where the shared relation registry lives (koine) and which
+ *   `registryVersion` this build speaks
  */
 export { SPEC_VERSIONS } from './versions.ts';
+export { RELATION_REGISTRY, type RegistryMirror } from './relation-registry.ts';
 export { isJsonObject, type Json, type JsonObject } from './json.ts';
 export { isPlane, PLANES, type Plane } from './planes.ts';
 export { isKinpId, KINP_KINDS, parseKinpId, type KinpId, type KinpKind } from './identity.ts';
