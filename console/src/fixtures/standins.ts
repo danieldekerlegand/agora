@@ -19,6 +19,8 @@
 import type { Json } from '@agora/schemas';
 
 import insimul from './standin-insimul.json';
+import monitorArgos from './monitor/analyzer.json';
+import monitorInsimul from './monitor/insimul.json';
 import mediaTransformArgos from './media-transform/analyzer.json';
 import mediaTransformFormant from './media-transform/composer.json';
 import mediaTransformInsimul from './media-transform/insimul.json';
@@ -50,9 +52,36 @@ export const MEDIA_TRANSFORM_ARGOS = 'fixtures/media-transform/analyzer.json';
 export const MEDIA_TRANSFORM_FORMANT = 'fixtures/media-transform/composer.json';
 export const MEDIA_TRANSFORM_PINAKES = 'fixtures/media-transform/pinakes.json';
 
+/**
+ * The streams the live monitor (US-CS7) is pointed at.
+ *
+ * Kept apart from the scenario fixtures rather than folded in with them, because a monitor is
+ * *configured with what to watch*: subscribing to every fixture that happens to carry a
+ * `subscribe` section would have the same peer watched three times over, once per scenario
+ * that recorded it. These carry no `manifest` on purpose — they describe streams to observe,
+ * not routes anybody may dial.
+ *
+ * `monitor/analyzer.json` emits exchange telemetry (`kcs/spans.ts`); `monitor/insimul.json`
+ * emits none, which is the documented control-plane limitation on screen: an invoke served by
+ * a provider that publishes no telemetry is simply absent from the feed.
+ */
+export const MONITOR_ARGOS = 'fixtures/monitor/analyzer.json';
+export const MONITOR_INSIMUL = 'fixtures/monitor/insimul.json';
+
+const MONITORED: Record<string, unknown> = {
+  [MONITOR_ARGOS]: monitorArgos,
+  [MONITOR_INSIMUL]: monitorInsimul,
+};
+
+/** The watch list, as a copy — a caller that could edit this map edits what everyone sees. */
+export function monitorStandins(): Record<string, Json> {
+  return { ...(MONITORED as Record<string, Json>) };
+}
+
 const FIXTURES: Record<string, unknown> = {
   [INSIMUL_STANDIN]: insimul,
   [PINAKES_STANDIN]: pinakes,
+  ...MONITORED,
   [WORLDS_TO_FABRIC_INSIMUL]: worldsToFabricInsimul,
   [WORLDS_TO_FABRIC_ARGOS]: worldsToFabricArgos,
   [WORLDS_TO_FABRIC_PINAKES]: worldsToFabricPinakes,

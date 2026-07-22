@@ -24,9 +24,11 @@ import { isJsonObject, type Json, type JsonObject } from '@agora/schemas';
 import { readFacts } from './facts.ts';
 import type { ObservedAsset } from './facts.ts';
 import { detail, type ObservationLog } from './log.ts';
+import { readSpan, summariseSpan } from './spans.ts';
 import {
   assetFrom,
   collect,
+  planeOfFrame,
   receiptFrom,
   RefusedError,
   type EmitReceipt,
@@ -191,18 +193,21 @@ export class Standin implements Peer {
     const summary: Subscription = { frames: 0, claims: [], assets: [], worlds: [] };
     for (const frame of canned.frames ?? []) {
       const facts = readFacts(frame);
+      const span = readSpan(frame);
       this.options.log.record({
         step: request.step,
         participant: this.identity,
         direction: 'frame',
-        plane: facts.assets.length > 0 && facts.claims.length === 0 ? 'media' : 'knowledge',
+        plane: planeOfFrame(facts, span),
         entities: [this.identity],
         detail: detail({
           standin: true,
           claims: facts.claims.length,
           assets: facts.assets.length,
+          exchange: span === undefined ? undefined : summariseSpan(span),
         }),
         facts,
+        span,
       });
       summary.frames += 1;
       collect(summary, facts);

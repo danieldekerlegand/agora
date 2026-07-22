@@ -21,6 +21,7 @@ import {
   type ObservedClaim,
   type ObservedLink,
 } from './facts.ts';
+import { idsInSpan, type ObservedSpan } from './spans.ts';
 
 /** Which side of a connection an entry recorded. */
 export type Direction = 'request' | 'response' | 'frame';
@@ -52,6 +53,12 @@ export interface Observation {
    * these, which is how a verdict is about the fabric rather than about generated text.
    */
   facts?: Facts | undefined;
+  /**
+   * The exchange telemetry this entry carried, when the producer emitted any (`spans.ts`).
+   * This is the only way an entry can be *about* an exchange the console was not a party to —
+   * a passive observer may subscribe, never tap somebody else's wire (ADR-0001 decision 7).
+   */
+  span?: ObservedSpan | undefined;
 }
 
 /** What a caller hands {@link ObservationLog.record}; `seq` and `at` are the log's to stamp. */
@@ -71,10 +78,12 @@ export class ObservationLog {
     // with the KINP ids it touched, and a recorder that had to list them by hand would
     // eventually forget one — silently narrowing what an assertion can find.
     const facts = draft.facts;
+    const touched = [
+      ...(facts === undefined || isEmpty(facts) ? [] : idsIn(facts)),
+      ...(draft.span === undefined ? [] : idsInSpan(draft.span)),
+    ];
     const entities =
-      facts === undefined || isEmpty(facts)
-        ? draft.entities
-        : [...new Set([...draft.entities, ...idsIn(facts)])];
+      touched.length === 0 ? draft.entities : [...new Set([...draft.entities, ...touched])];
     const entry: Observation = { ...draft, entities, seq: ++this.seq, at: this.now() };
     this.recorded.push(entry);
     return entry;

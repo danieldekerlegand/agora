@@ -6,7 +6,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './App.tsx';
 import { runConformance, type ConformanceRun, type Discovery } from './commons.ts';
 import { CAPTURED_FROM, replaySession } from './fixtures/session.ts';
-import { bundledFixtures, MEDIA_TRANSFORM_FORMANT } from './fixtures/standins.ts';
+import { bundledFixtures, monitorStandins, MEDIA_TRANSFORM_FORMANT } from './fixtures/standins.ts';
+import { FabricMonitor } from './monitor/monitor.ts';
 import { SCENARIO_LIBRARY } from './scenarios/library.ts';
 import { PROVIDER_ROUTER_ROUNDTRIP } from './scenarios/provider-router-roundtrip.ts';
 import { WORLDS_TO_FABRIC } from './scenarios/worlds-to-fabric.ts';
@@ -175,6 +176,87 @@ describe('the capability explorer (manual mode)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'send' }));
     expect(screen.getByRole('alert').textContent).toMatch(/is not JSON/);
     expect(screen.queryByTestId('verdict')).toBeNull();
+  });
+});
+
+/**
+ * The monitor over the peers it is pointed at, with nothing registered — so every event on
+ * screen is one another platform published, and none of it was caused by this console.
+ */
+const watchStandins = (): Promise<FabricMonitor> =>
+  Promise.resolve(
+    new FabricMonitor({
+      registry: createRegistry(),
+      fetch: replaySession(),
+      standins: monitorStandins(),
+      now: () => '2026-07-22T11:05:00.000Z',
+    }),
+  );
+
+describe('the live fabric monitor (passive mode)', () => {
+  it('shows events crossing the fabric that the console did not initiate', async () => {
+    render(<App mode="monitor" run={replay} observe={watchStandins} />);
+    const feed = await screen.findByRole('table', { name: 'fabric events' });
+    // A KGP delta and a media event, from two platforms, neither of them asked for here.
+    expect(within(feed).getAllByText('claim').length).toBeGreaterThan(0);
+    expect(within(feed).getAllByText('asset').length).toBeGreaterThan(0);
+    expect(within(feed).getAllByText(/insimul:world:alderforest:ent:npc-renaud/).length,
+    ).toBeGreaterThan(0);
+    // Nothing was run, so there is no report — a watch produces observations, not verdicts.
+    expect(screen.queryByTestId('verdict')).toBeNull();
+  });
+
+  it('renders an exchange between two other peers, from the telemetry its server emitted', async () => {
+    render(<App mode="monitor" run={replay} observe={watchStandins} />);
+    const feed = await screen.findByRole('table', { name: 'fabric events' });
+    expect(within(feed).getByText(/composer:agent:composer → analyzer:agent:ingest/)).toBeTruthy();
+    expect(within(feed).getAllByText('control').length).toBe(1);
+  });
+
+  it('says out loud how much of the control plane it can see', async () => {
+    render(<App mode="monitor" run={replay} observe={watchStandins} />);
+    const limitation = await screen.findByTestId('monitor-limitation');
+    expect(limitation.textContent).toMatch(/absent at the invoke level/);
+    // Which peers are invisible at the invoke level is on screen per source, not just in prose.
+    expect(
+      screen.getByTestId('source-insimul:agent:world-server').textContent,
+    ).toContain('no exchange telemetry');
+    expect(screen.getByTestId('source-analyzer:agent:ingest').textContent).toContain(
+      'emits exchange telemetry',
+    );
+  });
+
+  it('filters the feed by plane, world and participant', async () => {
+    render(<App mode="monitor" run={replay} observe={watchStandins} />);
+    const total = (await screen.findByTestId('feed-count')).textContent;
+    expect(total).toMatch(/^4 of 4 events$/);
+
+    fireEvent.change(screen.getByRole('combobox', { name: /plane/ }), {
+      target: { value: 'media' },
+    });
+    expect(screen.getByTestId('feed-count').textContent).toBe('1 of 4 events');
+
+    fireEvent.change(screen.getByRole('combobox', { name: /plane/ }), { target: { value: '' } });
+    fireEvent.change(screen.getByRole('combobox', { name: /participant/ }), {
+      target: { value: 'insimul:agent:world-server' },
+    });
+    expect(screen.getByTestId('feed-count').textContent).toBe('1 of 4 events');
+
+    // A time the whole sweep predates: the feed narrows to nothing rather than ignoring it.
+    fireEvent.change(screen.getByRole('combobox', { name: /participant/ }), {
+      target: { value: '' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: 'since' }), {
+      target: { value: '2026-07-23T00:00:00.000Z' },
+    });
+    expect(screen.getByTestId('feed-count').textContent).toBe('0 of 4 events');
+  });
+
+  it('accumulates across sweeps rather than replacing what is on screen', async () => {
+    render(<App mode="monitor" run={replay} observe={watchStandins} />);
+    await screen.findByRole('table', { name: 'fabric events' });
+    fireEvent.click(screen.getByRole('button', { name: 'sweep again' }));
+    expect((await screen.findByTestId('feed-count')).textContent).toBe('8 of 8 events');
   });
 });
 

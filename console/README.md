@@ -17,6 +17,7 @@ neither does anything else, because the console only ever dials on its own behal
 | `src/kcs/standin.ts` | a fixture in place of a peer that has not adopted the bus (delta N) |
 | `src/kcs/wire.ts` | how a plane-typed `invoke` becomes a request on a peer's own protocol |
 | `src/kcs/facts.ts` | reading KGP claims / KMI assets / KINP links off a response |
+| `src/kcs/spans.ts` | reading emitted exchange telemetry — the control plane, provisionally |
 | `src/kcs/assertions.ts` | the §5 cross-plane vocabulary; unimplemented predicates are *pending*, never a pass |
 | `src/kcs/log.ts` | the observation log — ids, summaries and plane-typed facts, never bytes |
 | `src/kcs/bindings.ts` | `${step.path}` (delta M) |
@@ -28,7 +29,10 @@ neither does anything else, because the console only ever dials on its own behal
 | `src/manual/catalogue.ts` | what the registry advertises, arranged to browse; the port-driven form |
 | `src/manual/request.ts` | a hand-composed request, compiled to a one-step scenario |
 | `src/manual/Explorer.tsx` | the manual composer UI |
-| `src/App.tsx` | the UI: both panels, the report, the observation timeline |
+| `src/monitor/monitor.ts` | the passive watch: subscribe to what providers publish, never dial |
+| `src/monitor/feed.ts` | the observation log projected into filterable fabric events |
+| `src/monitor/Monitor.tsx` | the live feed UI |
+| `src/App.tsx` | the UI: all three panels, the report, the observation timeline |
 
 All six §3 verbs execute: `invoke` and `resolve` on the control/identity planes, and
 `fetch` / `subscribe` / `emit` on the data planes — a CAS GET by asset id, a delta stream
@@ -79,11 +83,12 @@ the command in that test's failure message rather than editing it.
 
 ## The UI
 
-One screen, two panels over one engine. The **scenario library** (`src/scenarios/library.ts`)
-has a run button per scenario; the **capability explorer** composes a single request by hand.
-Underneath either sits the same **report** — verdict, content address, routing, participants,
-each assertion with the log entries that support it, each step — and the same **observation
-timeline**, every entry stamped with its time, participant, plane and the KINP ids it touched.
+One screen, three panels over one engine. The **scenario library** (`src/scenarios/library.ts`)
+has a run button per scenario; the **capability explorer** composes a single request by hand;
+the **fabric monitor** drives nothing at all and watches. Underneath the first two sits the same
+**report** — verdict, content address, routing, participants, each assertion with the log entries
+that support it, each step — and the same **observation timeline**, every entry stamped with its
+time, participant, plane and the KINP ids it touched.
 
 The library carries the scenario *documents*, not descriptions of them, so a scenario that
 stopped parsing is a red gate rather than a menu item that fails when somebody clicks it. The
@@ -112,8 +117,6 @@ dialed for real either way, because the runner prefers a live registration over 
   footage's world, traced through the lineage graph. Four stand-ins, all stubbed.
 
 All three are in the library and runnable on demand from the UI.
-
-Next, per the tasklist: the passive live fabric monitor.
 
 ## Manual mode — the capability explorer
 
@@ -147,6 +150,46 @@ Stand-ins are browsable too, and stamped everywhere their name appears. A peer t
 adopted the bus has no registration, so without that an operator could not see the shape of a
 capability until its provider shipped it — and a registration always beats a fixture of the
 same identity, the same preference the runner makes.
+
+## The live fabric monitor — passive mode
+
+The other two panels *drive* the fabric. This one watches it: a live feed of events crossing the
+commons **whether or not this console caused them**, filterable by world, plane, participant and
+time, every row linked to the KINP ids it touched.
+
+It works by being a **consumer**, not a tap. KCB §4's `subscribe` is a first-class verb — register
+for a world or a capability, receive KGP deltas (KGP §6) and media events as they occur — so the
+monitor registers like any other consumer and renders what arrives. It has exactly one verb
+(`describeMonitor().verbs`, asserted against the class's own methods), and it is `subscribe`.
+
+The reason it cannot simply be "show me everything" is ADR-0001 decision 7. A passive observer may
+not read the wire between two other peers; that is precisely the payload-aware proxy this topology
+exists to avoid. So coverage splits:
+
+- **Data plane — complete today, no new contract needed.** Every delta or media event a producer
+  publishes to its subscribers reaches the feed, no matter which platform triggered the work.
+- **Control plane — only what a provider *emits*.** An `invoke` between two other peers is visible
+  only if the serving provider publishes a record of it on its own stream (`kcs/spans.ts` reads
+  those as `control`-plane rows). **A provider that emits no telemetry is simply absent at the
+  invoke level** — the monitor says so per source rather than showing an empty view that reads
+  like "no invocations happened".
+
+That gap is a gap in the *contracts*, and closing it is a koine follow-up: an emitted-telemetry
+contract (a KCB observability extension) fixing the span shape a provider publishes. The reader
+here is deliberately narrow and provisional — a frame is telemetry only when it says it is, so a
+KGP delta is never re-read as an invocation — and it is the one piece of this console that expects
+to be rewritten against a spec rather than to define one.
+
+Watch targets are configured, not discovered by accident: registrations that publish a `subscribe`
+address, plus the fixtures in `src/fixtures/monitor/` for the peers that have not adopted the bus
+(a registration always wins over a fixture of the same identity). `monitor/analyzer.json` emits
+exchange telemetry and `monitor/insimul.json` does not — so the documented limitation is on screen,
+not only in this file. A provider that publishes no subscribe address is listed as unwatchable
+rather than dialed at a guessed URL.
+
+Sweeping again appends to the same observation log, so the feed accumulates and `since` filters
+against real elapsed observation rather than the last button press. No report is produced: nothing
+was asked of the fabric, so there is nothing to conform to — only what was seen.
 
 ### On stand-in fixtures
 

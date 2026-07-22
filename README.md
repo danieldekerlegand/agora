@@ -127,6 +127,17 @@ asset-id ↔ path media map, and §5 has no predicate that can read one — so
 Assertions are evaluated over **plane-typed observations, never generated text** (§7 Q2):
 a claim counts when a peer stated it as a KGP assertion, not when a model described it.
 
+**The third panel drives nothing.** The console's *fabric monitor* is a passive watch: it
+subscribes (KCB §4) to the streams providers publish and renders a filterable live feed of what
+crosses the commons, whether or not this console caused it. Decision 7 is what bounds it — a
+passive observer may register as a consumer, but may not read the wire between two other peers,
+which is the payload-aware proxy the topology exists to avoid. So the **data plane is covered
+today** (every delta and media event a producer publishes reaches the feed) while the **control
+plane is visible only where a provider *emits* exchange telemetry**; a provider that emits none
+is absent at the invoke level, and the monitor says so per source. Closing that is a koine
+follow-up — an emitted-telemetry contract (a KCB observability extension) fixing the span shape.
+`console/src/kcs/spans.ts` is agora's provisional reader for it.
+
 ## Stack
 
 **Polyglot, by decision — not by accident.** Two toolchains, one gate.

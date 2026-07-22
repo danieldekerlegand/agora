@@ -1,19 +1,23 @@
 /**
  * The conformance console.
  *
- * Two panels over one engine. The **scenario library** runs an authored KCS document on
+ * Three panels over one engine. The **scenario library** runs an authored KCS document on
  * demand; the **capability explorer** composes a single request by hand from what the
  * registry advertises. Both compile to a `ScenarioDocument` and go through the same
  * `runConformance` — discovery through the registry, a direct link to the provider, one
  * observation log, one report. A manual request that had its own client would be a second,
  * unwitnessed implementation of ADR-0001 decision 7.
  *
+ * The **fabric monitor** is the one panel that drives nothing. It subscribes to what
+ * providers publish and shows what crossed the fabric whoever caused it — the passive half of
+ * the same decision, and the only half that can show an exchange this console was not part of.
+ *
  * What a report renders is the same either way: the content address, which providers were
  * discovered, which tier served each routed call and what it cost, every assertion's verdict
  * with the log slice supporting it, and the observation timeline underneath.
  *
- * `run` and `discover` are props so a test can replay a captured session instead of opening
- * a socket — the seam is the transport, never the logic under test.
+ * `run`, `discover` and `observe` are props so a test can replay a captured session instead of
+ * opening a socket — the seam is the transport, never the logic under test.
  */
 import { useCallback, useEffect, useState } from 'react';
 
@@ -22,16 +26,35 @@ import { describeResolver } from '@agora/resolver';
 import { SPEC_VERSIONS, type ScenarioDocument } from '@agora/schemas';
 
 import './App.css';
-import { discoverCommons, runConformance, type ConformanceRun, type Discovery } from './commons.ts';
-import { bundledFixtures, bundledStandins } from './fixtures/standins.ts';
+import {
+  discoverCommons,
+  observeCommons,
+  runConformance,
+  type ConformanceRun,
+  type Discovery,
+} from './commons.ts';
+import { bundledFixtures, bundledStandins, monitorStandins } from './fixtures/standins.ts';
 import { routings, type AssertionOutcome, type ConformanceReport } from './kcs/outcome.ts';
 import { Explorer } from './manual/Explorer.tsx';
 import { catalogue, type CataloguedProvider } from './manual/catalogue.ts';
 import { manualScenario, MANUAL_STEP_ID, type ManualRequest } from './manual/request.ts';
+import { Monitor } from './monitor/Monitor.tsx';
+import type { FabricEvent } from './monitor/feed.ts';
+import type { FabricMonitor, MonitorSource } from './monitor/monitor.ts';
 import { SCENARIO_LIBRARY, type LibraryEntry } from './scenarios/library.ts';
 
-/** Which panel is open. The library proves properties; the explorer asks questions. */
-export type Mode = 'library' | 'manual';
+/**
+ * Which panel is open. The library proves properties, the explorer asks questions, and the
+ * monitor asks nothing at all — it watches.
+ */
+export type Mode = 'library' | 'manual' | 'monitor';
+
+/** What each panel's button says. */
+const PANELS: Record<Mode, string> = {
+  library: 'scenario library',
+  manual: 'capability explorer',
+  monitor: 'fabric monitor',
+};
 
 export interface AppProps {
   /** What the console offers. Defaults to every scenario it ships. */
@@ -42,8 +65,23 @@ export interface AppProps {
   run?: (scenario: ScenarioDocument) => Promise<ConformanceRun>;
   /** How the explorer finds what to offer. Defaults to the same crawl a run does. */
   discover?: () => Promise<Discovery>;
+  /** How the monitor opens its watch. Defaults to the same crawl, handed to a monitor. */
+  observe?: () => Promise<FabricMonitor>;
   /** Which panel is open on mount. Defaults to the library. */
   mode?: Mode;
+}
+
+/** What the monitor panel renders — a read of the monitor's log, never a second copy of it. */
+interface Watch {
+  sources: MonitorSource[];
+  events: FabricEvent[];
+  problems: string[];
+}
+
+const EMPTY_WATCH: Watch = { sources: [], events: [], problems: [] };
+
+function snapshot(monitor: FabricMonitor): Watch {
+  return { sources: monitor.sources(), events: monitor.events(), problems: monitor.unwatched() };
 }
 
 type State =
@@ -63,11 +101,16 @@ const liveRun = (document: ScenarioDocument): Promise<ConformanceRun> =>
 
 const liveDiscovery = (): Promise<Discovery> => discoverCommons();
 
+/** The watch list the shipped console opens: the crawl, plus the streams it is pointed at. */
+const liveObservation = (): Promise<FabricMonitor> =>
+  observeCommons({ standins: monitorStandins() });
+
 export function App({
   library = SCENARIO_LIBRARY,
   scenario,
   run = liveRun,
   discover = liveDiscovery,
+  observe = liveObservation,
   mode: initialMode = 'library',
 }: AppProps) {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -80,6 +123,12 @@ export function App({
   );
   const [providers, setProviders] = useState<readonly CataloguedProvider[]>([]);
   const [problems, setProblems] = useState<readonly string[]>([]);
+  // The monitor instance is kept, not its snapshot: it owns the observation log, so sweeping
+  // again appends to what is already on screen instead of replacing the feed with the last
+  // few seconds of it.
+  const [monitor, setMonitor] = useState<FabricMonitor>();
+  const [watch, setWatch] = useState<Watch>(EMPTY_WATCH);
+  const [sweeping, setSweeping] = useState(false);
 
   useEffect(() => {
     // Only the library auto-runs. Opening the explorer must not dial anybody: manual mode
@@ -120,6 +169,33 @@ export function App({
     };
   }, [discover, mode]);
 
+  useEffect(() => {
+    // Opening the monitor opens a subscription, which is not the same as sending anything:
+    // registering as a consumer is the one act ADR-0001 leaves a passive observer (decision 7).
+    if (mode !== 'monitor' || monitor !== undefined) return;
+    let live = true;
+    void observe().then(async (opened) => {
+      if (!live) return;
+      setMonitor(opened);
+      setSweeping(true);
+      await opened.sweep();
+      if (live) setWatch(snapshot(opened));
+      setSweeping(false);
+    });
+    return () => {
+      live = false;
+    };
+  }, [observe, mode, monitor]);
+
+  const sweep = useCallback((): void => {
+    if (monitor === undefined) return;
+    setSweeping(true);
+    void monitor.sweep().then(() => {
+      setWatch(snapshot(monitor));
+      setSweeping(false);
+    });
+  }, [monitor]);
+
   const send = useCallback(
     (request: ManualRequest): void => {
       setState({ phase: 'running' });
@@ -157,7 +233,7 @@ export function App({
       </header>
 
       <nav aria-label="console mode" className="modes">
-        {(['library', 'manual'] as const).map((panel) => (
+        {(Object.keys(PANELS) as Mode[]).map((panel) => (
           <button
             key={panel}
             type="button"
@@ -166,12 +242,12 @@ export function App({
               setMode(panel);
             }}
           >
-            {panel === 'library' ? 'scenario library' : 'capability explorer'}
+            {PANELS[panel]}
           </button>
         ))}
       </nav>
 
-      {mode === 'library' ? (
+      {mode === 'library' && (
         <Library
           library={library}
           selected={selected?.id}
@@ -181,7 +257,8 @@ export function App({
             else setSelected(entry.scenario);
           }}
         />
-      ) : (
+      )}
+      {mode === 'manual' && (
         <Explorer
           providers={providers}
           problems={problems}
@@ -189,13 +266,33 @@ export function App({
           onSend={send}
         />
       )}
-
-      {state.phase === 'idle' && <p>nothing has been sent yet.</p>}
-      {state.phase === 'running' && (
-        <p role="status">running {mode === 'manual' ? 'the composed request' : selected?.id}…</p>
+      {mode === 'monitor' && (
+        <Monitor
+          sources={watch.sources}
+          events={watch.events}
+          problems={watch.problems}
+          busy={sweeping}
+          onRefresh={sweep}
+        />
       )}
-      {state.phase === 'error' && <p role="alert">the scenario could not be run: {state.error}</p>}
-      {state.phase === 'done' && <Report run={state.run} manual={state.manual} />}
+
+      {/* The report belongs to the two panels that drive something. The monitor produces no
+          report by construction: nothing was asked of the fabric, so there is nothing to
+          conform to — only what was observed. */}
+      {mode !== 'monitor' && (
+        <>
+          {state.phase === 'idle' && <p>nothing has been sent yet.</p>}
+          {state.phase === 'running' && (
+            <p role="status">
+              running {mode === 'manual' ? 'the composed request' : selected?.id}…
+            </p>
+          )}
+          {state.phase === 'error' && (
+            <p role="alert">the scenario could not be run: {state.error}</p>
+          )}
+          {state.phase === 'done' && <Report run={state.run} manual={state.manual} />}
+        </>
+      )}
     </main>
   );
 }

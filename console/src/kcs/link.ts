@@ -17,6 +17,7 @@ import { isJsonObject } from '@agora/schemas';
 
 import { noFacts, readFacts, type Facts, type ObservedAsset } from './facts.ts';
 import { detail, type ObservationLog } from './log.ts';
+import { readSpan, summariseSpan, type ObservedSpan } from './spans.ts';
 import type { HttpFetch, HttpResponse } from './http.ts';
 import { wireFor, type InvocationResult, type Wire } from './wire.ts';
 
@@ -437,18 +438,21 @@ export class Link implements Peer {
     };
     for (const frame of stream.frames) {
       const facts = readFacts(frame);
+      const span = readSpan(frame);
       this.options.log.record({
         step: request.step,
         participant: this.identity,
         direction: 'frame',
-        plane: facts.assets.length > 0 && facts.claims.length === 0 ? 'media' : 'knowledge',
+        plane: planeOfFrame(facts, span),
         entities: [this.identity],
         detail: detail({
           claims: facts.claims.length,
           assets: facts.assets.length,
           packs: facts.packs.length,
+          exchange: span === undefined ? undefined : summariseSpan(span),
         }),
         facts,
+        span,
       });
       collect(summary, facts);
     }
@@ -497,6 +501,20 @@ export function receiptFrom(facts: Facts): EmitReceipt {
   const [pack] = facts.packs;
   if (pack !== undefined) receipt.pack_id = pack;
   return receipt;
+}
+
+/**
+ * Which plane a delta frame arrived on.
+ *
+ * A frame that carries only telemetry is on none of them: `Plane` is the *data*-plane
+ * vocabulary (KCB §2.1), and an emitted exchange record is a control-plane statement. Saying
+ * `knowledge` because that is the default would file every span under the knowledge plane and
+ * make the monitor's plane filter lie.
+ */
+export function planeOfFrame(facts: Facts, span: ObservedSpan | undefined): Plane | undefined {
+  if (facts.assets.length > 0 && facts.claims.length === 0) return 'media';
+  if (facts.claims.length === 0 && facts.packs.length === 0 && span !== undefined) return undefined;
+  return 'knowledge';
 }
 
 /** Fold one frame's facts into a subscription summary, by id. */
