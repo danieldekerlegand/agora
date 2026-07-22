@@ -1,12 +1,53 @@
 import { describe, expect, it } from 'vitest';
 
-import { describeResolver, RESOLVER_IDENTITY } from './index.ts';
+import {
+  createLocalResolver,
+  describeResolver,
+  RESOLVER_IDENTITY,
+  ResolverUnavailableError,
+} from './index.ts';
 
 describe('@agora/resolver', () => {
   it('identifies itself in KINP terms and pins the KINP version', () => {
     expect(describeResolver()).toEqual({
       identity: RESOLVER_IDENTITY,
       kinpVersion: '0.2.0',
+      implemented: false,
+      verbs: ['resolve', 'reconcile'],
     });
+  });
+
+  it('says out loud that it is a stub, so the console does not trust it', () => {
+    expect(describeResolver().implemented).toBe(false);
+  });
+});
+
+describe('the local resolver stub', () => {
+  it('resolves an id that already is a KINP id, to itself', async () => {
+    await expect(createLocalResolver().resolve({ id: 'agora:agent:provider-router' })).resolves.toEqual(
+      {
+        id: 'agora:agent:provider-router',
+        kind: 'agent',
+        authority: 'local',
+        confidence: 1,
+      },
+    );
+  });
+
+  it('refuses to invent an identity for a name', async () => {
+    // Minting without authority would seed the fabric with ids nothing can join
+    // against — the failure KINP §4 exists to prevent.
+    await expect(createLocalResolver().resolve({ name: 'Napoleon I' })).rejects.toThrow(
+      ResolverUnavailableError,
+    );
+    await expect(createLocalResolver().resolve({ id: 'not-a-kinp-id' })).rejects.toThrow(
+      /minting authority/,
+    );
+  });
+
+  it('refuses to reconcile — equivalence is the authority’s to assert', async () => {
+    await expect(
+      createLocalResolver().reconcile([{ id: 'pinakes:ent:napoleon-i' }, { name: 'Napoleon' }]),
+    ).rejects.toThrow(ResolverUnavailableError);
   });
 });

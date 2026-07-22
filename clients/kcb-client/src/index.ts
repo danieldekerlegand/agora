@@ -6,17 +6,24 @@
  * it must never grow a "call it for me" method that relays a payload, or the commons
  * becomes the traffic hub the ADR rejects.
  *
- * The lookup verbs land with the registry (US-AG4); this module currently defines the
- * address shape every area agrees on.
+ * The lookup verbs live in `@agora/registry` (US-AG4); this module owns the address shape
+ * every area agrees on, and the one projection that turns a manifest into an address.
  */
-import { SPEC_VERSIONS } from '@agora/schemas';
+import { SPEC_VERSIONS, type Capability, type CapabilityManifest } from '@agora/schemas';
 
-/** The endpoints a KCB provider publishes (capability-bus.md §2). */
+/**
+ * The endpoints a KCB provider publishes (capability-bus.md §2).
+ *
+ * `mcp` and `a2a` are the spec's named transports; the map is open because a provider
+ * publishes the addresses it actually serves and only those — the provider-router, for
+ * one, serves `openai`/`doctor`/`manifest` and no MCP surface yet.
+ */
 export interface ProviderEndpoints {
   /** MCP server exposing the provider's tools. */
   mcp?: string;
   /** A2A agent card. */
   a2a?: string;
+  [name: string]: string | undefined;
 }
 
 /** What a lookup resolves to: who the provider is and where to dial it. */
@@ -31,5 +38,22 @@ export const KCB_CLIENT_VERSION = SPEC_VERSIONS.kcb;
 
 /** True when an address is dialable — a provider with no endpoint cannot be reached. */
 export function isDialable(address: ProviderAddress): boolean {
-  return Boolean(address.endpoints.mcp ?? address.endpoints.a2a);
+  return Object.values(address.endpoints).some((endpoint) => Boolean(endpoint));
+}
+
+/** The address a manifest advertises. The only projection of a manifest this client makes. */
+export function addressOf(manifest: CapabilityManifest): ProviderAddress {
+  return { identity: manifest.identity, endpoints: { ...manifest.endpoints } };
+}
+
+/**
+ * Where to dial one capability: its own `endpoint` when it declares one, otherwise the
+ * provider's preferred transport. Returns `undefined` when the provider published nothing
+ * dialable — the caller must not invent an address.
+ */
+export function endpointFor(
+  address: ProviderAddress,
+  capability?: Pick<Capability, 'endpoint'>,
+): string | undefined {
+  return capability?.endpoint ?? address.endpoints.mcp ?? address.endpoints.a2a;
 }

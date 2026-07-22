@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 from agora_provider_router import KCB_VERSION, ROUTER_IDENTITY
@@ -109,3 +111,38 @@ class TestSecrets:
     def test_the_manifest_never_carries_a_key(self) -> None:
         rendered = str(manifest_for(OPENAI_API_KEY="sk-live-should-never-appear"))
         assert "sk-live" not in rendered
+
+
+class TestTheRegistryFixture:
+    """The TypeScript registry (US-AG4) indexes a captured copy of this manifest.
+
+    ``registry/src/fixtures/provider-router.manifest.json`` is the zero-spend manifest,
+    byte-for-byte, so the registry's tests exercise the provider they will actually meet
+    rather than a hand-written idea of it. This asserts the capture is still current —
+    the same cross-language pin as the KCB version, one level up.
+
+    If this fails, regenerate the fixture rather than editing it:
+
+        cd provider-router && uv run python -c "..."   # see the command in the failure
+    """
+
+    FIXTURE = (
+        Path(__file__).resolve().parents[2]
+        / "registry"
+        / "src"
+        / "fixtures"
+        / "provider-router.manifest.json"
+    )
+
+    def test_the_captured_fixture_still_matches_what_the_router_publishes(self) -> None:
+        captured = json.loads(self.FIXTURE.read_text(encoding="utf-8"))
+        assert captured == manifest_for(), (
+            f"{self.FIXTURE} is stale; regenerate it with:\n"
+            "  cd provider-router && uv run python -c 'import json;"
+            "from agora_provider_router.config import RouterConfig;"
+            "from agora_provider_router.router import Router;"
+            "from agora_provider_router.manifest import capability_manifest;"
+            "print(json.dumps(capability_manifest("
+            "Router(RouterConfig.from_env({}, read_file=False))), indent=2))'"
+            f" > {self.FIXTURE}"
+        )

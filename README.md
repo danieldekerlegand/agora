@@ -40,6 +40,26 @@ Each directory is a **buildable unit with its own gate**:
 | `schemas/` | TypeScript | shared koine manifest schemas / protocol types |
 | `clients/*` | TypeScript | shared protocol client libraries (`@agora/kcb-client`) |
 
+## Discovery in one minute
+
+The registry is an index of KCB manifests that answers with **addresses**. Nothing flows
+through it — the caller dials what it gets back (ADR-0001 decisions 3-4).
+
+```ts
+import { createRegistry, registerProviderRouter } from '@agora/registry';
+
+const registry = createRegistry();
+await registerProviderRouter(registry, 'http://127.0.0.1:8000'); // crawls /.well-known/kcb-manifest.json
+
+registry.find({ capability: 'generate.text' }); // → [{ address, capabilities: [{ endpoint, estUnits, tier }] }]
+registry.find({ produces: { mediaType: 'audio/wav' }, world: 'alderforest' });
+registry.path({ from: { entityType: 'mood' }, to: { mediaType: 'audio/wav' } });
+```
+
+`find` ranks zero-cost routes first and *unpriced* ones last (unknown is not free, KCB §3
+delta K); `path` chains capabilities across planes and providers and returns the plan plus its
+projected cost, so a caller can gate spend before invoking anything.
+
 ## Stack
 
 **Polyglot, by decision — not by accident.** Two toolchains, one gate.
@@ -102,7 +122,8 @@ Everything here implements a koine spec. Read those first:
 ## Status
 
 **Bootstrapping.** The repo is being stood up by the Chief harness from
-[`tasks/chief/10-agora-bootstrap.json`](tasks/chief/10-agora-bootstrap.json). US-AG1 (the
-skeleton, stack, layout and gates above) has landed; every area is a green but empty unit. Next:
-the sacred-ladder port (US-AG2), cost/budget + the KCB manifest (US-AG3), the registry (US-AG4),
-and the console's first end-to-end scenario (US-AG5).
+[`tasks/chief/10-agora-bootstrap.json`](tasks/chief/10-agora-bootstrap.json). Landed: the
+skeleton, stack, layout and gates (US-AG1); the sacred-ladder port (US-AG2); cost/budget
+enforcement + the router's KCB manifest (US-AG3); the discovery registry, its capability-path
+search and the resolver interface stub (US-AG4). Next: the console's first end-to-end scenario
+(US-AG5).

@@ -14,7 +14,9 @@ from fastapi.testclient import TestClient
 from agora_provider_router import KCB_VERSION, ROUTER_IDENTITY
 from agora_provider_router.app import app
 
-SCHEMAS_INDEX = Path(__file__).resolve().parents[2] / "schemas" / "src" / "index.ts"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+#: Where the TypeScript side pins the same spec versions (``@agora/schemas``).
+SCHEMAS_VERSIONS = REPO_ROOT / "schemas" / "src" / "versions.ts"
 
 
 def test_health_reports_identity_without_secrets() -> None:
@@ -28,13 +30,13 @@ def test_health_reports_identity_without_secrets() -> None:
 
 
 def test_kcb_version_matches_the_typescript_schemas_package() -> None:
-    source = SCHEMAS_INDEX.read_text(encoding="utf-8")
+    source = SCHEMAS_VERSIONS.read_text(encoding="utf-8")
     match = re.search(r"kcb:\s*('|\")([^'\"]+)\1", source)
-    assert match is not None, f"could not find the kcb version pin in {SCHEMAS_INDEX}"
+    assert match is not None, f"could not find the kcb version pin in {SCHEMAS_VERSIONS}"
     assert match.group(2) == KCB_VERSION
 
 
 def test_the_router_is_listed_as_an_area_of_the_commons() -> None:
-    workspaces = json.loads((SCHEMAS_INDEX.parents[2] / "package.json").read_text())["workspaces"]
+    workspaces = json.loads((REPO_ROOT / "package.json").read_text())["workspaces"]
     assert "registry" in workspaces
-    assert (SCHEMAS_INDEX.parents[2] / "provider-router" / "pyproject.toml").exists()
+    assert (REPO_ROOT / "provider-router" / "pyproject.toml").exists()
