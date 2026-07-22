@@ -50,7 +50,7 @@ never as cross-language source). See README "Stack" for the rationale.
   `src/index.ts`, nothing is emitted, so there is no cross-package build ordering. Tests live
   next to their subject as `*.test.ts(x)`.
 
-The koine spec versions are pinned once in `schemas/src/index.ts` and asserted against the
+The koine spec versions are pinned once in `schemas/src/versions.ts` and asserted against the
 Python constant by `provider-router/tests/`; if you bump one, bump both or that gate goes red.
 
 ## The contracts live in ../koine

@@ -13,7 +13,7 @@
   ordering. Relative imports carry the real `.ts`/`.tsx` extension.
 - The Python tools read config from `provider-router/pyproject.toml`, so the Makefile runs them
   as `cd provider-router && uv run …`; `uv --project … run mypy` silently loses the config.
-- The koine spec versions are pinned in BOTH `schemas/src/index.ts` and
+- The koine spec versions are pinned in BOTH `schemas/src/versions.ts` and
   `agora_provider_router.KCB_VERSION`, and a pytest cross-asserts them. Bump both together.
 - Secrets are `SecretStr` and nothing retains the raw environment — a config that does puts
   every exported key into its own `repr`. Anything reportable goes through a `describe()`
@@ -27,6 +27,14 @@
 - **Safety invariants are asserted on what was CONTACTED, not on what won.** `recording_transport`
   records every backend the transport was handed; zero-spend and budget tests assert that list is
   empty. "It lost the race" is not the same guarantee as "it was never dialed".
+- **Cross-language pins make file paths API.** The spec versions now live in
+  `schemas/src/versions.ts` and the router's zero-spend manifest is captured at
+  `registry/src/fixtures/provider-router.manifest.json`; pytest reads BOTH by path. Moving or
+  regenerating either is a two-language edit. Regenerate the fixture with the command in the
+  test's failure message; never hand-edit it.
+- **Unpriced is not free, anywhere in the stack.** The router flags a cost it could not compute,
+  and both `find` and `path` rank those last however expensive the priced alternative is. A
+  missing price read as 0 makes the unknown route the system's favourite.
 - **Under `mypy --strict`, a helper taking `**env: str` plus another parameter needs that
   parameter positional-only** (`def f(calls, ceiling, /, **env: str)`) — the splat could otherwise
   supply it. Splitting into two helpers (conftest's `router_for`) is the other way out.
@@ -131,4 +139,58 @@
   adds prompt chars/3.5 on top of `max_tokens`.
 - Editing `tasks/chief/*.json` with `json.dump` reformats the whole file (escapes em-dashes,
   re-wraps arrays). Flip `"passes"` with a surgical string edit instead.
+---
+## US-AG4 — Thin discovery registry: route-by-lookup, never proxy
+- New `registry/src/`: `registry.ts` (the index + `find`), `path.ts` (capability-path search),
+  `ports.ts` (`matchesPort` / `servesWorld` / `satisfies`), `cost.ts` (the ranking),
+  `crawl.ts` (pull population + `registerProviderRouter`), `fixtures/` (synthetic providers +
+  the router's captured manifest). `schemas/` split into `versions.ts` / `planes.ts` /
+  `identity.ts` / `manifest.ts` with `index.ts` re-exporting. `clients/kcb-client` gained
+  `addressOf` / `endpointFor` and an open endpoints map. `resolver/` gained the interface stub.
+- Tests: 51 in registry, 16 in schemas, 5 each in clients/resolver, +1 pytest. `make check` exit 0.
+- **The registry's surface is asserted, not just documented.** `describeRegistry().verbs` is
+  compared against the prototype's own method names, so adding an `invoke`/`proxy` method fails
+  the gate. Prose saying "never proxies" is what every proxy's README said first.
+- **`find` splits into two questions and so does the code.** `matchesPort` (does this port
+  answer the query) and `satisfies` (can this produced port feed that consumed port) look
+  similar and are not: the second is asymmetric — the consumer states requirements, the
+  producer meets the ones stated. Conflating them made path search accept backwards hops.
+- **Unpriced is not free** (carried over from US-AG3's `cost.unpriced`). Both `find` and `path`
+  rank unpriced last however expensive the alternative; reading a missing price as 0 would make
+  the *unknown* route the registry's favourite, which is the opposite of KCB §3 delta K.
+  A capability with no `cost` block at all is unpriced too — absence is not zero.
+- **Ladder-style preference vs. constraint, again.** Path search is best-first on
+  (unpriced hops, projected units, hop count) — not shortest-path — because §3 says "prefers
+  zero-cost routes"; a shorter paid path losing to a longer free one is the intent.
+- **A world query is refused, not guessed.** A media port with no `world_pattern` does not
+  answer `find({world})`. Delta J exists because world-scoped discovery is impossible without
+  the declaration; defaulting to "probably all worlds" hands back a provider that may hold
+  none of that world's material. But `satisfies` only constrains worlds when BOTH ends declare
+  one — mid-chain, an unscoped producer is unscoped material, not wrong-world material.
+- The provider-router is the first entry, crawled from `/.well-known/kcb-manifest.json`.
+  `registry/src/fixtures/provider-router.manifest.json` is the real zero-spend manifest captured
+  verbatim, and `provider-router/tests/test_manifest.py::TestTheRegistryFixture` asserts the
+  capture is still current — the same cross-language pin as the KCB version, one level up.
+  The failure message carries the regeneration command; regenerate, never hand-edit.
+- Next: US-AG5 — the console. Seams in place: `registerProviderRouter(registry, baseUrl, {fetch})`
+  takes an injectable fetch (so the console can instrument the traffic it observes),
+  `find({capability:'generate.text'})[0].capabilities[0].endpoint` is the exact URL to POST to,
+  and the response's `agora` block (US-AG2) carries the tier/cost to surface. `createLocalResolver()`
+  is the resolver the console depends on; `describeResolver().implemented === false` on purpose.
+
+### Learnings for future iterations
+- **Split a package into modules before it needs re-exporting, not after.** `schemas/index.ts`
+  held the spec-version pin that a *pytest* greps by path; moving it to `versions.ts` meant
+  editing `test_skeleton.py` in the same commit. Cross-language pins make file paths API.
+- **`as const` on a port literal breaks assignability**: `readonly ['audio/wav']` is not
+  `string[]`. Annotate test fixtures with their real type (`const MIDI: MediaPort = …`) instead.
+- **Avoid a runtime import cycle by extracting the shared leaf.** `path.ts` needed `costOf` from
+  `registry.ts`, which imports `path.ts`; `cost.ts` broke it. Type-only imports (`import type
+  { Registration }`) are erased and stay fine either way.
+- `@typescript-eslint/recommended` bans `!`, so narrow into a local (`const { mediaType } = query`)
+  before using an optional field inside a closure — property narrowing does not survive a callback.
+- `structuredClone` is not in the `ES2023` lib the repo pins. A manifest is JSON by definition, so
+  `JSON.parse(JSON.stringify(x))` is both available and honest about what is being copied.
+- Frozen objects: assigning to one throws only in strict mode — which ESM always is, so
+  `expect(() => { frozen.x = 1 }).toThrow()` is a valid assertion in vitest.
 ---

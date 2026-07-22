@@ -77,7 +77,7 @@ projected cost, so a caller can gate spend before invoking anything.
   *service over the wire* (OpenAI-compatible HTTP + a KCB manifest), never an imported library —
   so Analyzer (Python) and Orchestrator (TS) both just call it. Nothing in the commons is shared as
   source across the language boundary. The one thing that *must* agree — the koine spec versions
-  — is pinned in `schemas/src/index.ts` and asserted against the Python constant by the router's
+  — is pinned in `schemas/src/versions.ts` and asserted against the Python constant by the router's
   own test suite, so drift fails a gate instead of failing in production.
 
 The TypeScript areas are a **source-first workspace**: each package's `exports` points at
