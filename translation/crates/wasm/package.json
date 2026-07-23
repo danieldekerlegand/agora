@@ -1,0 +1,5 @@
+{
+  "private": true,
+  "type": "commonjs",
+  "//": "Not an npm workspace (the root lists only schemas/clients/*/registry/resolver/console). This file exists solely to scope the wasm-bindgen nodejs pkg and test.js to CommonJS, since the repo root is \"type\": \"module\"."
+}

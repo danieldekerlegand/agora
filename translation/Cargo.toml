@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/core"]
+members = ["crates/core", "crates/wasm"]
 
 # agora's data-translation engine — a native Rust core (embeddable-first) that ports
 # pinakes's culture-scrape exporters over the koine canonical node/edge graph. WASM
