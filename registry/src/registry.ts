@@ -24,7 +24,8 @@ import {
 } from '@agora/schemas';
 
 import { compareByCost, costOf } from './cost.ts';
-import { findCapabilityPath, type CapabilityPath, type PathQuery } from './path.ts';
+import { findCapabilityPathIndexed } from './path-index.ts';
+import type { CapabilityPath, PathQuery } from './path.ts';
 import { matchesPort, type PortQuery } from './ports.ts';
 import type { ManifestStore } from './store.ts';
 
@@ -190,9 +191,18 @@ export class CapabilityRegistry {
   /**
    * A capability path from one port to another, across providers (§3 composition).
    * Returns the plan — addresses to dial in order — never a route through here.
+   *
+   * The search runs in the in-process Rust path-index when its native artifact is present,
+   * and in the pure-TS `findCapabilityPath` otherwise ({@link findCapabilityPathIndexed}) —
+   * a byte-identical {@link CapabilityPath} either way (pinned by the golden parity harness).
+   * The binding is an implementation detail, not a service boundary: the addon is handed the
+   * registry's own registrations and hands back a plan of addresses + capability names, so
+   * nothing crosses a network hop and nothing is proxied. Each step's `address` is still the
+   * {@link Registration.address} this registry holds and its `endpoint` is still `endpointFor`
+   * — the Rust side echoes the address it was given, it never re-derives one (ADR-0001 3).
    */
   path(query: PathQuery): CapabilityPath | undefined {
-    return findCapabilityPath(this.list(), query);
+    return findCapabilityPathIndexed(this.list(), query);
   }
 }
 

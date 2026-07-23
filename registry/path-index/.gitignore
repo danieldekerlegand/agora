@@ -1,0 +1,4 @@
+# Cargo build output and the copied N-API artifact — never committed (source-first: no build
+# artifact leaks into @agora/registry's package surface). Cargo.lock IS committed to pin the gate.
+/target
+*.node

@@ -17,6 +17,7 @@
   "scripts": {
     "start": "node src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build:native": "node path-index/build-node-addon.mjs"
   }
 }
