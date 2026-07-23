@@ -11,7 +11,11 @@
     "@agora/kcb-client": "*",
     "@agora/schemas": "*"
   },
+  "devDependencies": {
+    "@agora/resolver": "*"
+  },
   "scripts": {
+    "start": "node src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   }

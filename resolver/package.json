@@ -11,6 +11,7 @@
     "@agora/schemas": "*"
   },
   "scripts": {
+    "start": "node src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   }

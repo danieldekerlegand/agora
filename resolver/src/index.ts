@@ -62,6 +62,27 @@ export {
 } from './policy.ts';
 export { createMemoryCache, type ResolverCache } from './cache.ts';
 export {
+  createFileCache,
+  createFileLinkStore,
+  createMemoryLinkStore,
+  type LinkStore,
+} from './persistence.ts';
+export {
+  createResolverServer,
+  type ResolverService,
+  type ResolverServerOptions,
+  type ServiceAddress,
+} from './server.ts';
+export {
+  DEFAULT_RESOLVER_HOST,
+  DEFAULT_RESOLVER_PORT,
+  resolverLaunchFromEnv,
+  startResolver,
+  type ResolverEnv,
+  type ResolverLaunch,
+  type StartedResolver,
+} from './main.ts';
+export {
   closureOver,
   createPinakesResolver,
   PINAKES_IDENTITY,
