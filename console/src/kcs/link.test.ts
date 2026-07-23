@@ -32,6 +32,22 @@ const MANIFEST = {
   },
 };
 
+/** An mcp-only provider — the console must open the mcp wire, not throw (US-4). */
+const MCP_MANIFEST = {
+  kcb_version: SPEC_VERSIONS.kcb,
+  identity: 'analyzer:agent:filmstudio',
+  endpoints: { mcp: 'https://analyzer.example/mcp' },
+  capabilities: [{ name: 'run_pipeline' }],
+};
+
+/** An a2a-only provider — the console must open the a2a wire, not throw (US-4). */
+const A2A_MANIFEST = {
+  kcb_version: SPEC_VERSIONS.kcb,
+  identity: 'orchestrator:agent:writer',
+  endpoints: { a2a: 'https://orchestrator.example/.well-known/agent-card.json' },
+  capabilities: [{ name: 'draft' }],
+};
+
 interface Call {
   url: string;
   init?: HttpRequestInit | undefined;
@@ -178,6 +194,68 @@ describe('emit — writing knowledge into the fabric (KGP §2)', () => {
     });
     expect(calls[0]?.url).toBe('https://analyzer.example/packs');
     expect(receipt).toEqual({ pack_id: 'sha256-7b1e44', claims: ['insimul:claim:sha256-9f3c1a'] });
+  });
+});
+
+describe('invoke — opening the mcp/a2a wires a peer advertises (US-4)', () => {
+  function dialed(
+    manifest: unknown,
+    fetch: HttpFetch,
+  ): { peer: ReturnType<typeof openLink>; log: ObservationLog } {
+    const log = new ObservationLog(() => '2026-07-22T00:00:00.000Z');
+    const registration: Registration = createRegistry().register(manifest);
+    return { peer: openLink(registration, { fetch, log }), log };
+  }
+
+  it('opens the mcp wire for an mcp-only provider and records every leg', async () => {
+    // A fake `/mcp` answering the JSON-RPC handshake initialize → tools/list → tools/call.
+    const { fetch } = scripted((_url, init) => {
+      const body = JSON.parse((init?.body ?? '{}') as string) as { id: number; method: string };
+      switch (body.method) {
+        case 'initialize':
+          return { body: { jsonrpc: '2.0', id: body.id, result: { protocolVersion: '2025-11-25', capabilities: {}, serverInfo: { name: 'filmstudio' } } } };
+        case 'tools/list':
+          return { body: { jsonrpc: '2.0', id: body.id, result: { tools: [{ name: 'run_pipeline' }] } } };
+        default:
+          return { body: { jsonrpc: '2.0', id: body.id, result: { content: [{ type: 'text', text: 'a one-minute film' }] } } };
+      }
+    });
+    const { peer, log } = dialed(MCP_MANIFEST, fetch);
+    const result = await peer.invoke({
+      step: 'compose',
+      capability: 'run_pipeline',
+      inputs: [{ plane: 'knowledge', shape: 'prompt-text', value: 'a film about a lighthouse' }],
+      options: {},
+    });
+    expect(peer.note).toMatch(/dialed directly over the mcp wire/);
+    expect(result.text).toBe('a one-minute film');
+    // initialize → tools/list → tools/call, both directions each — six observed legs.
+    expect(log.entries().map((e) => e.direction)).toEqual([
+      'request', 'response', 'request', 'response', 'request', 'response',
+    ]);
+  });
+
+  it('opens the a2a wire for an a2a-only provider and records every leg', async () => {
+    // A fake A2A host: a GET serves the card, a POST answers message/send with a completed Task.
+    const { fetch } = scripted((_url, init) => {
+      if ((init?.method ?? 'GET') === 'GET') {
+        return { body: { name: 'writer', version: '1.1', url: 'https://orchestrator.example/a2a' } };
+      }
+      return { body: { jsonrpc: '2.0', id: 1, result: { id: 't-1', status: { state: 'completed', message: { role: 'agent', parts: [{ kind: 'text', text: 'drafted the brief' }], messageId: 'm-1' } } } } };
+    });
+    const { peer, log } = dialed(A2A_MANIFEST, fetch);
+    const result = await peer.invoke({
+      step: 'draft',
+      capability: 'draft',
+      inputs: [{ plane: 'knowledge', shape: 'prompt-text', value: 'draft the brief' }],
+      options: {},
+    });
+    expect(peer.note).toMatch(/dialed directly over the a2a wire/);
+    expect(result.text).toBe('drafted the brief');
+    // agent-card GET → message/send POST, both directions each — four observed legs.
+    expect(log.entries().map((e) => e.direction)).toEqual([
+      'request', 'response', 'request', 'response',
+    ]);
   });
 });
 

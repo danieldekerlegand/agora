@@ -7,13 +7,17 @@
  * that is the whole point of ADR-0001 decision 7: a green scenario proves the real
  * protocol, so there is no console-flavoured envelope in between.
  *
- * One wire is implemented today, because one provider has adopted the bus: the
- * provider-router's OpenAI-compatible surface. MCP and A2A are named and *refused* rather
- * than absent — {@link wireFor} throws with the transport it found, so the day a peer
- * advertises `mcp` the failure says which wire to write instead of silently mis-dialing.
+ * Three wires are implemented — the provider-router's OpenAI-compatible surface, an MCP
+ * client (Analyzer `/mcp`) and an A2A client (a Orchestrator/Analyzer agent card). {@link wireFor}
+ * picks between them from what a provider *serves*; a transport this build cannot speak is
+ * still named and *refused* rather than mis-dialed, so the day a peer advertises a fourth
+ * the failure says which wire to write.
  */
 import type { Capability, CapabilityManifest, Json, JsonObject } from '@agora/schemas';
 import { isJsonObject } from '@agora/schemas';
+
+import { a2aWire } from './a2a-wire.ts';
+import { mcpWire } from './mcp-wire.ts';
 
 /** A direct call the console will make: a URL on the *provider's* address, nothing relayed. */
 export interface WireCall {
@@ -57,8 +61,54 @@ export interface WireContext {
   budgetUnits?: number | undefined;
 }
 
+/** The summary a wire wants recorded for one leg of its exchange (undefined fields dropped). */
+export interface ExchangeDetail {
+  /** Merged into the request leg — the protocol step, the ceiling, the tool being called. */
+  request?: Record<string, Json | undefined>;
+  /**
+   * Given the parsed answer, the detail merged into the response leg. A wire reads its own
+   * body to summarise it (tier/provider/cost) because only it knows where those live.
+   */
+  response?: (body: JsonObject) => Record<string, Json | undefined>;
+  /**
+   * A hook onto a successful answer's *headers*, so a multi-step wire can pick up a transport
+   * token it must echo on a later leg — MCP's `Mcp-Session-Id`, which lives in the header, not
+   * the JSON-RPC body. The seam still owns the socket; this only reads what came back.
+   */
+  captureHeaders?: (headers: { get(name: string): string | null }) => void;
+}
+
+/**
+ * The I/O-and-observation seam a wire drives its protocol through.
+ *
+ * A wire never holds a socket. It asks the seam to make each round-trip; the seam — the
+ * console's {@link Link} — runs it over the injected {@link HttpFetch} and records both legs
+ * to the ObservationLog. That is ADR-0001 decision 7 for a handshake: every leg of an MCP
+ * `initialize` → `tools/call` or an A2A `message/send` is an observed, direct connection, and
+ * a delta-N stand-in substitutes for the peer without the wire noticing. A non-ok answer or a
+ * non-object body is surfaced as a {@link RefusedError} by the seam, not returned.
+ */
+export interface WireIO {
+  exchange(call: WireCall, detail?: ExchangeDetail): Promise<JsonObject>;
+}
+
+/**
+ * How a plane-typed KCS `invoke` becomes a real invocation on a provider's own protocol.
+ *
+ * `invoke` drives the whole exchange through the {@link WireIO} seam — a single round-trip for
+ * openai, a multi-round-trip handshake for MCP/A2A — and normalises whatever comes back to one
+ * {@link InvocationResult}.
+ */
 export interface Wire {
   name: string;
+  invoke(context: WireContext, io: WireIO): Promise<InvocationResult>;
+}
+
+/**
+ * A wire whose invocation is a single request → response, exposed as two pure steps so a
+ * fixture can drive `request`/`read` directly. The openai wire is the archetype.
+ */
+export interface SingleShotWire extends Wire {
   request(context: WireContext): WireCall;
   read(body: JsonObject): InvocationResult;
 }
@@ -67,8 +117,8 @@ export interface Wire {
 export class UnsupportedWireError extends Error {
   constructor(identity: string, transports: string[]) {
     super(
-      `no wire for ${identity}: it advertises ${transports.join(', ') || 'nothing'} and this ` +
-        'build speaks openai only',
+      `no wire for ${identity}: it advertises ${transports.join(', ') || 'nothing'}, none of ` +
+        'which this build can dial (it speaks openai, mcp and a2a)',
     );
     this.name = 'UnsupportedWireError';
   }
@@ -84,8 +134,33 @@ const SHAPE_FIELDS: Record<string, string> = {
   'completion-text': 'prompt',
 };
 
-export const openaiWire: Wire = {
+export const openaiWire: SingleShotWire = {
   name: 'openai',
+
+  /** One round-trip through the seam — the single-shot case of the generalised contract. */
+  async invoke(context: WireContext, io: WireIO): Promise<InvocationResult> {
+    const call = openaiWire.request(context);
+    const body = await io.exchange(call, {
+      request: {
+        wire: openaiWire.name,
+        capability: context.capability.name,
+        endpoint: call.url,
+        budget_units: context.budgetUnits ?? null,
+      },
+      response: (answer) => {
+        const result = openaiWire.read(answer);
+        return {
+          tier: result.tier,
+          provider: result.provider,
+          model: result.model,
+          actual_units: result.cost?.actual_units,
+          projected_units: result.cost?.projected_units,
+          assets: result.assets?.map((asset) => asset.media_type),
+        };
+      },
+    });
+    return openaiWire.read(body);
+  },
 
   request(context: WireContext): WireCall {
     const body: JsonObject = {
@@ -135,9 +210,17 @@ export const openaiWire: Wire = {
 /**
  * The wire for a provider, chosen from what its manifest says it *serves*. A manifest
  * address is a promise (US-AG3); this is the console keeping its half of it.
+ *
+ * The precedence is openai → mcp → a2a: the console prefers the provider-router's own
+ * surface when a peer offers one, else its MCP tool surface, else its A2A agent. A manifest
+ * that advertises none of the three has no wire in this build and is refused *by name*
+ * ({@link UnsupportedWireError}) rather than mis-dialed. (Which endpoint each wire dials is
+ * `endpointFor`'s job in @agora/kcb-client; this only names the protocol.)
  */
 export function wireFor(manifest: CapabilityManifest): Wire {
   if (typeof manifest.endpoints.openai === 'string') return openaiWire;
+  if (typeof manifest.endpoints.mcp === 'string') return mcpWire;
+  if (typeof manifest.endpoints.a2a === 'string') return a2aWire;
   throw new UnsupportedWireError(manifest.identity, Object.keys(manifest.endpoints));
 }
 

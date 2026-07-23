@@ -19,7 +19,7 @@ import { noFacts, readFacts, type Facts, type ObservedAsset } from './facts.ts';
 import { detail, type ObservationLog } from './log.ts';
 import { readSpan, summariseSpan, type ObservedSpan } from './spans.ts';
 import type { HttpFetch, HttpResponse } from './http.ts';
-import { wireFor, type InvocationResult, type Wire } from './wire.ts';
+import { wireFor, type InvocationResult, type Wire, type WireIO } from './wire.ts';
 
 /** The provider refused the call (an over-ceiling invoke, an unauthorized fetch, a 4xx). */
 export class RefusedError extends Error {
@@ -197,73 +197,45 @@ export class Link implements Peer {
     // Refused rather than absent when the transport is unknown (US-AG5): the day a peer
     // advertises `mcp`, the report says which wire to write instead of mis-dialing it.
     const wire = wireFor(this.registration.manifest);
-    const call = wire.request({
-      manifest: this.registration.manifest,
-      capability,
-      endpoint,
-      inputs: request.inputs,
-      options: request.options,
-      budgetUnits: request.budgetUnits,
-    });
     const plane = request.inputs[0]?.plane;
-    this.options.log.record({
-      step: request.step,
-      participant: this.identity,
-      direction: 'request',
-      plane,
-      entities: [this.identity],
-      detail: detail({
-        wire: wire.name,
-        capability: request.capability,
-        endpoint: call.url,
-        budget_units: request.budgetUnits ?? null,
-      }),
-    });
+    const io = this.exchangeSeam(request.step, plane, request.signal);
+    // The wire owns its protocol — one round-trip for openai, a handshake for MCP/A2A —
+    // and drives every leg through this seam, so the observer contract holds either way.
+    return wire.invoke(
+      {
+        manifest: this.registration.manifest,
+        capability,
+        endpoint,
+        inputs: request.inputs,
+        options: request.options,
+        budgetUnits: request.budgetUnits,
+      },
+      io,
+    );
+  }
 
-    const response = await this.options.fetch(call.url, {
-      method: call.method,
-      headers: call.headers,
-      body: JSON.stringify(call.body),
-      signal: request.signal,
-    });
-    const body = await response.json();
-    if (!response.ok) {
-      const reason = refusalReason(body);
-      this.options.log.record({
-        step: request.step,
-        participant: this.identity,
-        direction: 'response',
-        plane,
-        entities: [this.identity],
-        detail: detail({ status: response.status, refused: true, reason }),
-      });
-      throw new RefusedError(response.status, reason);
-    }
-    if (!isJsonObject(body)) {
-      throw new RefusedError(response.status, 'provider returned a non-object body');
-    }
-    const result = wire.read(body);
-    this.options.log.record({
-      step: request.step,
-      participant: this.identity,
-      direction: 'response',
+  /**
+   * The I/O-and-observation seam a wire drives its handshake through: one HTTP round-trip on
+   * the provider's own address, both legs recorded to the ObservationLog. A multi-step wire
+   * calls it once per leg; the openai wire calls it once. Nothing is relayed and no socket is
+   * opened outside the injected fetch — ADR-0001 decision 7 held across a handshake.
+   *
+   * A non-ok answer or a non-object body is a {@link RefusedError} here, so a wire reads only
+   * bodies that arrived and parsed. The per-leg `detail` a wire supplies is merged in: the
+   * request leg always carries the endpoint, the response leg always the status and the facts
+   * the body stated (KCB §2.1 delta F — an invoke may answer on the knowledge or media plane).
+   */
+  private exchangeSeam(
+    step: string,
+    plane: Plane | undefined,
+    signal: AbortSignal | undefined,
+  ): WireIO {
+    return invokeIO(
+      { fetch: this.options.fetch, log: this.options.log, identity: this.identity },
+      step,
       plane,
-      entities: [this.identity],
-      detail: detail({
-        status: response.status,
-        tier: result.tier,
-        provider: result.provider,
-        model: result.model,
-        actual_units: result.cost?.actual_units,
-        projected_units: result.cost?.projected_units,
-        // Ids and summaries only — bytes are fetched by id (KMI §7), never logged.
-        assets: result.assets?.map((asset) => asset.media_type) ?? undefined,
-      }),
-      // A capability may answer on the knowledge or media plane (KCB §2.1 delta F), so an
-      // invoke's response is read for claims and assets exactly like a subscription's.
-      facts: readFacts(body),
-    });
-    return result;
+      signal,
+    );
   }
 
   /**
@@ -471,6 +443,106 @@ export class Link implements Peer {
 
 export function openLink(registration: Registration, options: LinkOptions): Link {
   return new Link(registration, options);
+}
+
+/** What {@link invokeIO} needs to run and record one wire's exchange. */
+export interface InvokeIOContext {
+  fetch: HttpFetch;
+  log: ObservationLog;
+  identity: string;
+}
+
+/**
+ * The I/O-and-observation seam a wire drives its protocol through — one HTTP round-trip on
+ * the provider's own address, both legs recorded to the ObservationLog. A single-shot wire
+ * (openai) calls it once; a handshake wire (MCP `initialize` → `tools/call`) calls it once
+ * per leg. Nothing is relayed and no socket is opened outside the injected fetch, so the
+ * observer contract of ADR-0001 decision 7 holds across a multi-step exchange.
+ *
+ * A non-ok answer or a non-object body is a {@link RefusedError} here, so a wire reads only
+ * bodies that arrived and parsed. An answer served as `text/event-stream` (MCP's other
+ * accepted content type) is read as a sequence of SSE `data:` documents and normalised to
+ * its final JSON-RPC message, so a wire never sees the framing. The per-leg `detail` a wire
+ * supplies is merged in: the request leg always carries the endpoint, the response leg always
+ * the status and the facts the body stated (KCB §2.1 delta F).
+ *
+ * Exported so a wire's own gate can drive it against a fake endpoint without reaching into a
+ * `Link` — the same seam the live console runs.
+ */
+export function invokeIO(
+  context: InvokeIOContext,
+  step: string,
+  plane: Plane | undefined,
+  signal: AbortSignal | undefined,
+): WireIO {
+  const { fetch, log, identity } = context;
+  return {
+    exchange: async (call, legs) => {
+      log.record({
+        step,
+        participant: identity,
+        direction: 'request',
+        plane,
+        entities: [identity],
+        detail: detail({ endpoint: call.url, ...(legs?.request ?? {}) }),
+      });
+      // A2A opens with an agent-card GET (no body); a GET/HEAD carrying a body is malformed
+      // (the platform fetch rejects it), so the seam sends one only on a method that takes it.
+      const carriesBody = call.method !== 'GET' && call.method !== 'HEAD';
+      const response = await fetch(call.url, {
+        method: call.method,
+        headers: call.headers,
+        body: carriesBody ? JSON.stringify(call.body) : undefined,
+        signal,
+      });
+      const body = await readExchangeBody(response);
+      if (!response.ok) {
+        const reason = refusalReason(body);
+        log.record({
+          step,
+          participant: identity,
+          direction: 'response',
+          plane,
+          entities: [identity],
+          detail: detail({ status: response.status, refused: true, reason }),
+        });
+        throw new RefusedError(response.status, reason);
+      }
+      if (!isJsonObject(body)) {
+        throw new RefusedError(response.status, 'provider returned a non-object body');
+      }
+      // A transport token a later leg must echo (MCP's session id) rides in the headers.
+      legs?.captureHeaders?.(response.headers);
+      log.record({
+        step,
+        participant: identity,
+        direction: 'response',
+        plane,
+        entities: [identity],
+        // Ids and summaries only — bytes are fetched by id (KMI §7), never logged.
+        detail: detail({ status: response.status, ...(legs?.response?.(body) ?? {}) }),
+        facts: readFacts(body),
+      });
+      return body;
+    },
+  };
+}
+
+/**
+ * The body of one exchange leg, read whichever content type the provider answered with.
+ *
+ * `application/json` is one document; MCP's Streamable-HTTP also answers `text/event-stream`,
+ * a sequence of SSE `data:` documents whose last message is the JSON-RPC reply to the request
+ * just sent. Both are accepted (KCB §4 invoke = MCP tool call) so a wire never has to know
+ * which framing its peer chose.
+ */
+async function readExchangeBody(response: HttpResponse): Promise<unknown> {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (/event-stream/.test(contentType) && response.text !== undefined) {
+    const frames = parseFrames(await response.text());
+    return frames.length > 0 ? frames[frames.length - 1] : null;
+  }
+  return response.json();
 }
 
 /**

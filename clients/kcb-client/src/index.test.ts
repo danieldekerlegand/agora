@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SPEC_VERSIONS, type CapabilityManifest } from '@agora/schemas';
 
-import { addressOf, endpointFor, isDialable, KCB_CLIENT_VERSION } from './index.ts';
+import { addressOf, endpointFor, isDialable, KCB_CLIENT_VERSION, transportOf } from './index.ts';
 
 const ROUTER: CapabilityManifest = {
   kcb_version: SPEC_VERSIONS.kcb,
@@ -45,5 +45,40 @@ describe('@agora/kcb-client', () => {
       'https://router.example/v1/chat/completions',
     );
     expect(endpointFor({ identity: 'x:agent:y', endpoints: {} })).toBeUndefined();
+  });
+
+  it('names the transport an mcp-only address is dialed over', () => {
+    expect(
+      transportOf({ identity: 'agora:agent:analyzer', endpoints: { mcp: 'http://analyzer/mcp' } }),
+    ).toBe('mcp');
+  });
+
+  it('names the transport an a2a-only address is dialed over', () => {
+    expect(
+      transportOf({
+        identity: 'agora:agent:orchestrator',
+        endpoints: { a2a: 'http://orchestrator/.well-known/agent-card.json' },
+      }),
+    ).toBe('a2a');
+  });
+
+  it('names the transport a capability’s own endpoint is hosted on', () => {
+    // The router capability dials `/v1/chat/completions`, which lives under `endpoints.openai`
+    // (`/v1`) — so the caller learns WHERE (endpointFor) and OVER WHAT (transportOf) agree.
+    const address = addressOf(ROUTER);
+    expect(transportOf(address, ROUTER.capabilities?.[0])).toBe('openai');
+  });
+
+  it('honors endpointFor’s precedence: mcp before a2a, capability endpoint first', () => {
+    const both = { identity: 'x:agent:y', endpoints: { mcp: 'http://y/mcp', a2a: 'http://y/card' } };
+    expect(transportOf(both)).toBe('mcp');
+    // A capability endpoint under the a2a surface wins over the provider's mcp default.
+    expect(transportOf(both, { endpoint: 'http://y/card/tasks' })).toBe('a2a');
+  });
+
+  it('invents no transport when nothing dialable — or nothing hosts the endpoint', () => {
+    expect(transportOf({ identity: 'x:agent:y', endpoints: {} })).toBeUndefined();
+    // A capability endpoint no published transport hosts is honestly unknown, not guessed.
+    expect(transportOf(addressOf(ROUTER), { endpoint: 'https://elsewhere.example/rpc' })).toBeUndefined();
   });
 });
