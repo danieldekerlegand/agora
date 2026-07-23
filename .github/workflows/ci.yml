@@ -1,8 +1,15 @@
 name: check
 
+# agora is the ecosystem's runtime/validation home (ADR-0001; koine's ADR-0003 retires
+# legacy as the interchange contract). It absorbs legacy's self-gating conformance
+# (legacy/.github/workflows/conformance.yml): both language ecosystems run here because
+# both ship a validator, and a schema/validator/fixture change lands green only when BOTH
+# agree. The whole suite — the TS conformance vitest, the Python conformance pytest, and a
+# validator-CLI smoke looping every artifact type through both validators — is gated by
+# `make check`, so this gate can never ship drift agora does not catch in itself.
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
 
 jobs:
@@ -20,5 +27,6 @@ jobs:
         with:
           enable-cache: true
 
-      # One gate for the whole commons — the same `make check` a developer runs locally.
+      # One gate for the whole commons — the same `make check` a developer runs locally,
+      # which now includes the absorbed conformance suite + dual-ecosystem CLI smoke.
       - run: make check
