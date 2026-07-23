@@ -12,9 +12,11 @@ A request's spend ceiling (KCB §5) rides in the body as ``budget_units`` or in 
 ``X-Agora-Budget-Units`` header — the header exists because a stock OpenAI SDK will not let
 a caller add an unknown body key. The body wins when both are present.
 
-The KCB capability manifest is served at
+The router's A2A AgentCard — carrying the KCB capability manifest as its one extension
+(capability-bus.md §2/§6) — is served at
 :data:`~agora_provider_router.manifest.MANIFEST_PATH` for the registry to crawl or the
-router to push (KCB §3).
+router to push (KCB §3). The pre-0.3.0 standalone
+:data:`~agora_provider_router.manifest.LEGACY_MANIFEST_PATH` permanently redirects to it.
 
 The router is built once from the process environment and cached. Tests that need a
 different configuration build their own :class:`Router` and override the :func:`get_router`
@@ -27,14 +29,14 @@ from functools import lru_cache
 from typing import Annotated, Any
 
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from . import KCB_VERSION, ROUTER_IDENTITY, __version__
 from .backends import LOCAL_PROVIDER, MLX_PROVIDER, PAID_PROVIDERS, PAID_VENDORS
 from .config import RouterConfig
 from .cost import BUDGET_HEADER
 from .ladder import MODALITIES, resolve_all
-from .manifest import MANIFEST_PATH, capability_manifest
+from .manifest import LEGACY_MANIFEST_PATH, MANIFEST_PATH, capability_manifest
 from .router import Router
 
 app = FastAPI(title="agora provider-router", version=__version__)
@@ -118,9 +120,19 @@ def providers() -> dict[str, Any]:
 
 
 @app.get(MANIFEST_PATH)
-def kcb_manifest(router: RouterDep) -> dict[str, Any]:
-    """The router's KCB capability manifest (KCB §2) — what the registry indexes."""
+def agent_card(router: RouterDep) -> dict[str, Any]:
+    """The router's A2A AgentCard, carrying the KCB manifest extension (§2/§6).
+
+    What the registry indexes: it reads the ``capabilities.extensions[]`` entry whose ``uri``
+    is the KCB manifest extension URI and takes that entry's ``params`` as the manifest.
+    """
     return capability_manifest(router)
+
+
+@app.get(LEGACY_MANIFEST_PATH)
+def legacy_kcb_manifest() -> RedirectResponse:
+    """Point a pre-0.3.0 crawler at the AgentCard — the manifest folded onto it (§6)."""
+    return RedirectResponse(MANIFEST_PATH, status_code=308)
 
 
 async def _generate(

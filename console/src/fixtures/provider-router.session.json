@@ -7,7 +7,7 @@
     "endpoints": {
       "openai": "http://127.0.0.1:8000/v1",
       "doctor": "http://127.0.0.1:8000/doctor",
-      "manifest": "http://127.0.0.1:8000/.well-known/kcb-manifest.json"
+      "manifest": "http://127.0.0.1:8000/.well-known/agent-card.json"
     },
     "produces": [
       {

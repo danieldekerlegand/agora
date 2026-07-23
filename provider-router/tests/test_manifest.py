@@ -10,12 +10,31 @@ import pytest
 
 from agora_provider_router import KCB_VERSION, ROUTER_IDENTITY
 from agora_provider_router.ladder import MODALITIES
-from agora_provider_router.manifest import BASE_URL_ENV, capability_manifest
+from agora_provider_router.manifest import (
+    BASE_URL_ENV,
+    KCB_MANIFEST_EXTENSION_URI,
+    capability_manifest,
+)
 from conftest import router_for
 
 
-def manifest_for(**env: str) -> dict[str, Any]:
+def card_for(**env: str) -> dict[str, Any]:
+    """The full A2A AgentCard the router publishes (capability-bus.md §2/§6)."""
     return capability_manifest(router_for(**env))
+
+
+def kcb_params(card: dict[str, Any]) -> dict[str, Any]:
+    """The KCB manifest body — the params of the card's one KCB extension."""
+    extensions = card["capabilities"]["extensions"]
+    (extension,) = [e for e in extensions if e["uri"] == KCB_MANIFEST_EXTENSION_URI]
+    params = extension["params"]
+    assert isinstance(params, dict)
+    return params
+
+
+def manifest_for(**env: str) -> dict[str, Any]:
+    """The KCB manifest body alone — most assertions here are about the payload, not the card."""
+    return kcb_params(card_for(**env))
 
 
 def capability(manifest: dict[str, Any], name: str) -> dict[str, Any]:
@@ -54,6 +73,28 @@ class TestShape:
         assert "invoke:generate.text" in auth["grants_required"]
         assert auth["budget_units"]["supported"] is True
         assert auth["budget_units"]["request_key"] == "budget_units"
+
+
+class TestCard:
+    """The A2A AgentCard wrapper (capability-bus.md §2/§6) — the KCB body rides as one extension."""
+
+    def test_the_card_names_the_router_and_carries_one_kcb_extension(self) -> None:
+        card = card_for()
+        assert card["name"] == ROUTER_IDENTITY
+        extensions = card["capabilities"]["extensions"]
+        kcb = [e for e in extensions if e["uri"] == KCB_MANIFEST_EXTENSION_URI]
+        assert len(kcb) == 1, "exactly one KCB manifest extension"
+        assert kcb[0]["required"] is False
+
+    def test_the_extension_params_are_the_kcb_manifest_body(self) -> None:
+        params = kcb_params(card_for())
+        assert params["kcb_version"] == KCB_VERSION
+        assert params["identity"] == ROUTER_IDENTITY
+        assert [c["name"] for c in params["capabilities"]] == [f"generate.{m}" for m in MODALITIES]
+
+    def test_the_card_advertises_no_a2a_endpoint_it_does_not_serve(self) -> None:
+        """The router serves no A2A surface yet, so it publishes no card ``url`` (ADR-0001 d.3)."""
+        assert "url" not in card_for()
 
 
 class TestPorts:
@@ -118,10 +159,11 @@ class TestSecrets:
 class TestTheRegistryFixture:
     """The TypeScript registry (US-AG4) indexes a captured copy of this manifest.
 
-    ``registry/src/fixtures/provider-router.manifest.json`` is the zero-spend manifest,
-    byte-for-byte, so the registry's tests exercise the provider they will actually meet
-    rather than a hand-written idea of it. This asserts the capture is still current —
-    the same cross-language pin as the KCB version, one level up.
+    ``registry/src/fixtures/provider-router.manifest.json`` is the zero-spend manifest
+    *body* (the KCB extension's ``params``) byte-for-byte — the registry indexes the KCB body
+    it reads off a peer's card, so the fixture is that body, not the whole AgentCard wrapper.
+    This asserts the capture is still current — the same cross-language pin as the KCB version,
+    one level up.
 
     If this fails, regenerate the fixture rather than editing it:
 
@@ -147,8 +189,8 @@ class TestTheRegistryFixture:
             "  cd provider-router && uv run python -c 'import json;"
             "from agora_provider_router.config import RouterConfig;"
             "from agora_provider_router.router import Router;"
-            "from agora_provider_router.manifest import capability_manifest;"
-            "print(json.dumps(capability_manifest("
+            "from agora_provider_router.manifest import manifest_body;"
+            "print(json.dumps(manifest_body("
             "Router(RouterConfig.from_env({}, read_file=False))), indent=2))'"
             f" > {self.FIXTURE}"
         )
