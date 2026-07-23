@@ -19,7 +19,7 @@ import { noFacts, readFacts, type Facts, type ObservedAsset } from './facts.ts';
 import { detail, type ObservationLog } from './log.ts';
 import { readSpan, summariseSpan, type ObservedSpan } from './spans.ts';
 import type { HttpFetch, HttpResponse } from './http.ts';
-import { wireFor, type InvocationResult, type Wire } from './wire.ts';
+import { wireFor, type InvocationResult, type Wire, type WireIO } from './wire.ts';
 
 /** The provider refused the call (an over-ceiling invoke, an unauthorized fetch, a 4xx). */
 export class RefusedError extends Error {
@@ -197,73 +197,84 @@ export class Link implements Peer {
     // Refused rather than absent when the transport is unknown (US-AG5): the day a peer
     // advertises `mcp`, the report says which wire to write instead of mis-dialing it.
     const wire = wireFor(this.registration.manifest);
-    const call = wire.request({
-      manifest: this.registration.manifest,
-      capability,
-      endpoint,
-      inputs: request.inputs,
-      options: request.options,
-      budgetUnits: request.budgetUnits,
-    });
     const plane = request.inputs[0]?.plane;
-    this.options.log.record({
-      step: request.step,
-      participant: this.identity,
-      direction: 'request',
-      plane,
-      entities: [this.identity],
-      detail: detail({
-        wire: wire.name,
-        capability: request.capability,
-        endpoint: call.url,
-        budget_units: request.budgetUnits ?? null,
-      }),
-    });
+    const io = this.exchangeSeam(request.step, plane, request.signal);
+    // The wire owns its protocol — one round-trip for openai, a handshake for MCP/A2A —
+    // and drives every leg through this seam, so the observer contract holds either way.
+    return wire.invoke(
+      {
+        manifest: this.registration.manifest,
+        capability,
+        endpoint,
+        inputs: request.inputs,
+        options: request.options,
+        budgetUnits: request.budgetUnits,
+      },
+      io,
+    );
+  }
 
-    const response = await this.options.fetch(call.url, {
-      method: call.method,
-      headers: call.headers,
-      body: JSON.stringify(call.body),
-      signal: request.signal,
-    });
-    const body = await response.json();
-    if (!response.ok) {
-      const reason = refusalReason(body);
-      this.options.log.record({
-        step: request.step,
-        participant: this.identity,
-        direction: 'response',
-        plane,
-        entities: [this.identity],
-        detail: detail({ status: response.status, refused: true, reason }),
-      });
-      throw new RefusedError(response.status, reason);
-    }
-    if (!isJsonObject(body)) {
-      throw new RefusedError(response.status, 'provider returned a non-object body');
-    }
-    const result = wire.read(body);
-    this.options.log.record({
-      step: request.step,
-      participant: this.identity,
-      direction: 'response',
-      plane,
-      entities: [this.identity],
-      detail: detail({
-        status: response.status,
-        tier: result.tier,
-        provider: result.provider,
-        model: result.model,
-        actual_units: result.cost?.actual_units,
-        projected_units: result.cost?.projected_units,
-        // Ids and summaries only — bytes are fetched by id (KMI §7), never logged.
-        assets: result.assets?.map((asset) => asset.media_type) ?? undefined,
-      }),
-      // A capability may answer on the knowledge or media plane (KCB §2.1 delta F), so an
-      // invoke's response is read for claims and assets exactly like a subscription's.
-      facts: readFacts(body),
-    });
-    return result;
+  /**
+   * The I/O-and-observation seam a wire drives its handshake through: one HTTP round-trip on
+   * the provider's own address, both legs recorded to the ObservationLog. A multi-step wire
+   * calls it once per leg; the openai wire calls it once. Nothing is relayed and no socket is
+   * opened outside the injected fetch — ADR-0001 decision 7 held across a handshake.
+   *
+   * A non-ok answer or a non-object body is a {@link RefusedError} here, so a wire reads only
+   * bodies that arrived and parsed. The per-leg `detail` a wire supplies is merged in: the
+   * request leg always carries the endpoint, the response leg always the status and the facts
+   * the body stated (KCB §2.1 delta F — an invoke may answer on the knowledge or media plane).
+   */
+  private exchangeSeam(
+    step: string,
+    plane: Plane | undefined,
+    signal: AbortSignal | undefined,
+  ): WireIO {
+    return {
+      exchange: async (call, legs) => {
+        this.options.log.record({
+          step,
+          participant: this.identity,
+          direction: 'request',
+          plane,
+          entities: [this.identity],
+          detail: detail({ endpoint: call.url, ...(legs?.request ?? {}) }),
+        });
+        const response = await this.options.fetch(call.url, {
+          method: call.method,
+          headers: call.headers,
+          body: JSON.stringify(call.body),
+          signal,
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          const reason = refusalReason(body);
+          this.options.log.record({
+            step,
+            participant: this.identity,
+            direction: 'response',
+            plane,
+            entities: [this.identity],
+            detail: detail({ status: response.status, refused: true, reason }),
+          });
+          throw new RefusedError(response.status, reason);
+        }
+        if (!isJsonObject(body)) {
+          throw new RefusedError(response.status, 'provider returned a non-object body');
+        }
+        this.options.log.record({
+          step,
+          participant: this.identity,
+          direction: 'response',
+          plane,
+          entities: [this.identity],
+          // Ids and summaries only — bytes are fetched by id (KMI §7), never logged.
+          detail: detail({ status: response.status, ...(legs?.response?.(body) ?? {}) }),
+          facts: readFacts(body),
+        });
+        return body;
+      },
+    };
   }
 
   /**

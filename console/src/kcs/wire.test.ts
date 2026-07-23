@@ -1,8 +1,16 @@
-import { parseManifest, type CapabilityManifest } from '@agora/schemas';
+import { parseManifest, type CapabilityManifest, type JsonObject } from '@agora/schemas';
 import { describe, expect, it } from 'vitest';
 
 import { CAPTURED_EXCHANGE, CAPTURED_MANIFEST } from '../fixtures/session.ts';
-import { budgetHeaderName, openaiWire, UnsupportedWireError, wireFor } from './wire.ts';
+import {
+  budgetHeaderName,
+  openaiWire,
+  UnsupportedWireError,
+  wireFor,
+  type ExchangeDetail,
+  type WireCall,
+  type WireIO,
+} from './wire.ts';
 
 const MANIFEST: CapabilityManifest = parseManifest(CAPTURED_MANIFEST);
 
@@ -70,6 +78,54 @@ describe('the openai wire', () => {
 
   it('reports no cost when the provider reported none — rather than inventing a zero', () => {
     expect(openaiWire.read({ agora: { tier: 'paid' } }).cost).toBeUndefined();
+  });
+});
+
+describe('the generalised invoke seam', () => {
+  /**
+   * A one-shot stand-in for the console's exchange seam: it captures the call a wire made,
+   * runs the wire's response-detail callback against a canned answer (as the live seam does
+   * before recording the response leg), and hands the answer back. A multi-step wire would
+   * drive several of these; the openai wire drives exactly one.
+   */
+  function fakeIo(answer: JsonObject): {
+    io: WireIO;
+    calls: { call: WireCall; detail?: ExchangeDetail | undefined }[];
+    legDetails: Record<string, unknown>[];
+  } {
+    const calls: { call: WireCall; detail?: ExchangeDetail | undefined }[] = [];
+    const legDetails: Record<string, unknown>[] = [];
+    const io: WireIO = {
+      exchange(call, detail) {
+        calls.push({ call, detail });
+        if (detail?.request !== undefined) legDetails.push(detail.request);
+        if (detail?.response !== undefined) legDetails.push(detail.response(answer));
+        return Promise.resolve(answer);
+      },
+    };
+    return { io, calls, legDetails };
+  }
+
+  it('returns the openai InvocationResult verbatim through the handshake-capable path', async () => {
+    const { io, calls } = fakeIo(CAPTURED_EXCHANGE.response);
+    const result = await openaiWire.invoke(
+      {
+        manifest: MANIFEST,
+        capability: capability('generate.text'),
+        endpoint: 'http://127.0.0.1:8000/v1/chat/completions',
+        inputs: [],
+        options: { max_tokens: 64 },
+        budgetUnits: 7,
+      },
+      io,
+    );
+    // The generalised path normalises to precisely what read() gives on the same body: the
+    // single-shot wire is one round-trip of the multi-step contract, nothing more.
+    expect(result).toEqual(openaiWire.read(CAPTURED_EXCHANGE.response));
+    // One round-trip, dialing the resolved endpoint and carrying the ceiling into the leg.
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.call.url).toBe('http://127.0.0.1:8000/v1/chat/completions');
+    expect(calls[0]?.detail?.request).toMatchObject({ wire: 'openai', budget_units: 7 });
   });
 });
 

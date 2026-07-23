@@ -57,8 +57,48 @@ export interface WireContext {
   budgetUnits?: number | undefined;
 }
 
+/** The summary a wire wants recorded for one leg of its exchange (undefined fields dropped). */
+export interface ExchangeDetail {
+  /** Merged into the request leg — the protocol step, the ceiling, the tool being called. */
+  request?: Record<string, Json | undefined>;
+  /**
+   * Given the parsed answer, the detail merged into the response leg. A wire reads its own
+   * body to summarise it (tier/provider/cost) because only it knows where those live.
+   */
+  response?: (body: JsonObject) => Record<string, Json | undefined>;
+}
+
+/**
+ * The I/O-and-observation seam a wire drives its protocol through.
+ *
+ * A wire never holds a socket. It asks the seam to make each round-trip; the seam — the
+ * console's {@link Link} — runs it over the injected {@link HttpFetch} and records both legs
+ * to the ObservationLog. That is ADR-0001 decision 7 for a handshake: every leg of an MCP
+ * `initialize` → `tools/call` or an A2A `message/send` is an observed, direct connection, and
+ * a delta-N stand-in substitutes for the peer without the wire noticing. A non-ok answer or a
+ * non-object body is surfaced as a {@link RefusedError} by the seam, not returned.
+ */
+export interface WireIO {
+  exchange(call: WireCall, detail?: ExchangeDetail): Promise<JsonObject>;
+}
+
+/**
+ * How a plane-typed KCS `invoke` becomes a real invocation on a provider's own protocol.
+ *
+ * `invoke` drives the whole exchange through the {@link WireIO} seam — a single round-trip for
+ * openai, a multi-round-trip handshake for MCP/A2A — and normalises whatever comes back to one
+ * {@link InvocationResult}.
+ */
 export interface Wire {
   name: string;
+  invoke(context: WireContext, io: WireIO): Promise<InvocationResult>;
+}
+
+/**
+ * A wire whose invocation is a single request → response, exposed as two pure steps so a
+ * fixture can drive `request`/`read` directly. The openai wire is the archetype.
+ */
+export interface SingleShotWire extends Wire {
   request(context: WireContext): WireCall;
   read(body: JsonObject): InvocationResult;
 }
@@ -84,8 +124,33 @@ const SHAPE_FIELDS: Record<string, string> = {
   'completion-text': 'prompt',
 };
 
-export const openaiWire: Wire = {
+export const openaiWire: SingleShotWire = {
   name: 'openai',
+
+  /** One round-trip through the seam — the single-shot case of the generalised contract. */
+  async invoke(context: WireContext, io: WireIO): Promise<InvocationResult> {
+    const call = openaiWire.request(context);
+    const body = await io.exchange(call, {
+      request: {
+        wire: openaiWire.name,
+        capability: context.capability.name,
+        endpoint: call.url,
+        budget_units: context.budgetUnits ?? null,
+      },
+      response: (answer) => {
+        const result = openaiWire.read(answer);
+        return {
+          tier: result.tier,
+          provider: result.provider,
+          model: result.model,
+          actual_units: result.cost?.actual_units,
+          projected_units: result.cost?.projected_units,
+          assets: result.assets?.map((asset) => asset.media_type),
+        };
+      },
+    });
+    return openaiWire.read(body);
+  },
 
   request(context: WireContext): WireCall {
     const body: JsonObject = {
