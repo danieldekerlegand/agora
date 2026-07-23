@@ -7,13 +7,17 @@
  * that is the whole point of ADR-0001 decision 7: a green scenario proves the real
  * protocol, so there is no console-flavoured envelope in between.
  *
- * One wire is implemented today, because one provider has adopted the bus: the
- * provider-router's OpenAI-compatible surface. MCP and A2A are named and *refused* rather
- * than absent — {@link wireFor} throws with the transport it found, so the day a peer
- * advertises `mcp` the failure says which wire to write instead of silently mis-dialing.
+ * Three wires are implemented — the provider-router's OpenAI-compatible surface, an MCP
+ * client (Analyzer `/mcp`) and an A2A client (a Orchestrator/Analyzer agent card). {@link wireFor}
+ * picks between them from what a provider *serves*; a transport this build cannot speak is
+ * still named and *refused* rather than mis-dialed, so the day a peer advertises a fourth
+ * the failure says which wire to write.
  */
 import type { Capability, CapabilityManifest, Json, JsonObject } from '@agora/schemas';
 import { isJsonObject } from '@agora/schemas';
+
+import { a2aWire } from './a2a-wire.ts';
+import { mcpWire } from './mcp-wire.ts';
 
 /** A direct call the console will make: a URL on the *provider's* address, nothing relayed. */
 export interface WireCall {
@@ -113,8 +117,8 @@ export interface SingleShotWire extends Wire {
 export class UnsupportedWireError extends Error {
   constructor(identity: string, transports: string[]) {
     super(
-      `no wire for ${identity}: it advertises ${transports.join(', ') || 'nothing'} and this ` +
-        'build speaks openai only',
+      `no wire for ${identity}: it advertises ${transports.join(', ') || 'nothing'}, none of ` +
+        'which this build can dial (it speaks openai, mcp and a2a)',
     );
     this.name = 'UnsupportedWireError';
   }
@@ -206,9 +210,17 @@ export const openaiWire: SingleShotWire = {
 /**
  * The wire for a provider, chosen from what its manifest says it *serves*. A manifest
  * address is a promise (US-AG3); this is the console keeping its half of it.
+ *
+ * The precedence is openai → mcp → a2a: the console prefers the provider-router's own
+ * surface when a peer offers one, else its MCP tool surface, else its A2A agent. A manifest
+ * that advertises none of the three has no wire in this build and is refused *by name*
+ * ({@link UnsupportedWireError}) rather than mis-dialed. (Which endpoint each wire dials is
+ * `endpointFor`'s job in @agora/kcb-client; this only names the protocol.)
  */
 export function wireFor(manifest: CapabilityManifest): Wire {
   if (typeof manifest.endpoints.openai === 'string') return openaiWire;
+  if (typeof manifest.endpoints.mcp === 'string') return mcpWire;
+  if (typeof manifest.endpoints.a2a === 'string') return a2aWire;
   throw new UnsupportedWireError(manifest.identity, Object.keys(manifest.endpoints));
 }
 

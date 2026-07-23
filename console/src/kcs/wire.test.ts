@@ -130,18 +130,47 @@ describe('the generalised invoke seam', () => {
 });
 
 describe('wireFor', () => {
-  it('picks the wire from what the provider says it serves', () => {
+  it('picks the openai wire when the provider serves an openai surface', () => {
     expect(wireFor(MANIFEST).name).toBe('openai');
   });
 
-  it('refuses loudly when a provider advertises a transport this build cannot speak', () => {
-    // Named, not guessed at: the day a peer publishes `mcp`, the failure says which wire
-    // to write instead of the console mis-dialing an endpoint it does not understand.
+  it('picks the mcp wire for an mcp-only provider', () => {
     const mcpOnly: CapabilityManifest = {
       ...MANIFEST,
       endpoints: { mcp: 'https://peer.example/mcp' },
     };
-    expect(() => wireFor(mcpOnly)).toThrow(UnsupportedWireError);
-    expect(() => wireFor(mcpOnly)).toThrow(/advertises mcp/);
+    expect(wireFor(mcpOnly).name).toBe('mcp');
+  });
+
+  it('picks the a2a wire for an a2a-only provider', () => {
+    const a2aOnly: CapabilityManifest = {
+      ...MANIFEST,
+      endpoints: { a2a: 'https://peer.example/.well-known/agent-card.json' },
+    };
+    expect(wireFor(a2aOnly).name).toBe('a2a');
+  });
+
+  it('follows the openai → mcp → a2a precedence when several are advertised', () => {
+    const all: CapabilityManifest = {
+      ...MANIFEST,
+      endpoints: { openai: 'https://p/v1', mcp: 'https://p/mcp', a2a: 'https://p/card.json' },
+    };
+    expect(wireFor(all).name).toBe('openai');
+    const mcpThenA2a: CapabilityManifest = {
+      ...MANIFEST,
+      endpoints: { mcp: 'https://p/mcp', a2a: 'https://p/card.json' },
+    };
+    expect(wireFor(mcpThenA2a).name).toBe('mcp');
+  });
+
+  it('refuses loudly when a provider advertises only a transport this build cannot speak', () => {
+    // Named, not guessed at: a peer that publishes a fourth transport gets a failure that
+    // says which wire to write instead of the console mis-dialing an endpoint it can't read.
+    const unknownOnly: CapabilityManifest = {
+      ...MANIFEST,
+      endpoints: { carrierpigeon: 'https://peer.example/coop' },
+    };
+    expect(() => wireFor(unknownOnly)).toThrow(UnsupportedWireError);
+    expect(() => wireFor(unknownOnly)).toThrow(/carrierpigeon/);
   });
 });
