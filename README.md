@@ -17,7 +17,9 @@ for the decision that created this repo.
   Analyzer's "sacred ladder" (paid → mlx-serve → local → placeholder, per modality,
   always-completes) with cost estimation + budget-ceiling enforcement (the first concrete
   implementation of the KCB `cost`/grant model). A *leaf capability*, not an inter-platform
-  router.
+  router. **The canonical implementation is `provider-router-erl/` (Erlang/OTP, agora:80);
+  `provider-router/` (Python, agora:50) is superseded** — see "The provider-router
+  supersession" below.
 - **registry** — the thin KCB discovery registry: **route-by-lookup, never proxy** (returns
   addresses; peers dial each other directly over MCP/A2A). ADR-0001.
 - **resolver** — the KINP resolver reference implementation (`resolve` / `reconcile`), backed
@@ -33,12 +35,43 @@ Each directory is a **buildable unit with its own gate**:
 
 | Area | Language | What it is |
 |---|---|---|
-| `provider-router/` | Python (uv) | the model-backend gateway — the sacred ladder |
+| `provider-router-erl/` | Erlang/OTP (rebar3) | **the** model-backend gateway — the sacred ladder as a supervision tree (agora:80, ADR-0004) |
+| `provider-router/` | Python (uv) | the same gateway, superseded — the contract of record it was extracted from (agora:50) |
 | `registry/` | TypeScript | the thin KCB discovery registry |
 | `resolver/` | TypeScript | the KINP resolver reference implementation |
 | `console/` | TypeScript + React | the conformance console (scenario runner + UI) |
 | `schemas/` | TypeScript | shared koine manifest schemas / protocol types |
 | `clients/*` | TypeScript | shared protocol client libraries (`@agora/kcb-client`, `@agora/relation-registry-client`) |
+
+## The provider-router supersession (ADR-0004)
+
+There are two provider-routers in this tree, and that is deliberate but temporary.
+`provider-router-erl/` (Erlang/OTP) is **canonical**: the sacred ladder as a supervision tree,
+with the KCB subscribe fan-out as BEAM processes and native-wire vendors dialed through the
+Rust translator. `provider-router/` (Python) is **superseded**: it is the extraction that
+defined the contract, and it stays in the tree as the executable specification the Erlang app
+is judged against.
+
+*Judged* is literal. `provider-router-erl/test/apr_conformance_SUITE.erl` replays a corpus
+captured from the Python app itself
+(`test/apr_conformance_SUITE_data/python-surface.json` — regenerate with the command in
+`capture_python_surface.py`) and asserts every answer is **the same bytes**: all five
+generation routes, `/health`, `/doctor`, `/v1/models`, `/v1/providers`, the AgentCard and the
+308 off the legacy manifest path, in a bare and a keyed configuration. It satisfies the same
+`console/src/fixtures/provider-router.session.json` capture the console replays, and pins its
+`kcb_version` to `schemas/src/versions.ts` the way `test_skeleton.py` pins Python's.
+
+The cutover:
+
+1. **Now** — both build, both gated by `make check`; `make check-router-erl` is the router's
+   gate. A deployment may run either; they answer identically.
+2. **Next** — deployments move to the Erlang app (same image contract: an HTTP port, the same
+   `AGORA_*` environment). Nothing that dials the router changes, because nothing about the
+   wire changes.
+3. **Then** — `provider-router/` is retired to its own repository or deleted, and the
+   conformance corpus (already captured) becomes the frozen record of the contract. Until that
+   step the Python suite stays green: a change to the contract lands in both, or it lands in
+   neither.
 
 ## Discovery in one minute
 
@@ -147,6 +180,11 @@ follow-up — an emitted-telemetry contract (a KCB observability extension) fixi
   along with most of the model-backend ecosystem it talks to (mlx-serve, Ollama clients) — is
   Python. Porting it into TypeScript would mean re-deriving tier-resolution behaviour that
   already exists and is trusted, in a language with worse coverage of the backends it dials.
+- **`provider-router-erl` is Erlang/OTP** (26+, rebar3, cowboy, dialyzer/eunit/ct) and is now
+  the canonical router (ADR-0004). A ladder whose whole promise is "always completes" is a
+  supervision tree with a permanent terminal child; a fan-out to many soft-realtime consumers
+  is one cheap process each. That is the language's home ground, and it is reachable *because*
+  language is internal — the third toolchain costs nothing to any caller.
 - **Everything else is TypeScript** (Node 22, npm workspaces, React 19 + Vite for the console,
   vitest, ESLint, `tsc --noEmit`). The registry, resolver, client libs and console are web-stack
   surfaces the rest of the ecosystem consumes from TS/React, so TS keeps them one language away
@@ -154,9 +192,11 @@ follow-up — an emitted-telemetry contract (a KCB observability extension) fixi
 - **The split is safe because ADR-0001 makes language internal.** The provider-router is a
   *service over the wire* (OpenAI-compatible HTTP + a KCB manifest), never an imported library —
   so Analyzer (Python) and Orchestrator (TS) both just call it. Nothing in the commons is shared as
-  source across the language boundary. The one thing that *must* agree — the koine spec versions
-  — is pinned in `schemas/src/versions.ts` and asserted against the Python constant by the router's
-  own test suite, so drift fails a gate instead of failing in production.
+  source across the language boundary — which is exactly why the router could be re-implemented
+  in a third language without a single caller noticing. The one thing that *must* agree — the
+  koine spec versions — is pinned in `schemas/src/versions.ts` and asserted against the Python
+  constant (`test_skeleton.py`) and the Erlang one (`apr_conformance_SUITE`), so drift fails a
+  gate instead of failing in production.
 
 The TypeScript areas are a **source-first workspace**: each package's `exports` points at
 `src/index.ts` and `tsc` emits nothing, so there is no cross-package build ordering. The
@@ -175,7 +215,8 @@ Per area, when a change touches only one:
 
 | Area | Gate |
 |---|---|
-| `provider-router/` | `make check-provider-router` — `ruff check` + `ruff format --check` + `mypy` + `pytest` |
+| `provider-router-erl/` | `make check-router-erl` — `rebar3 compile` + `dialyzer` + `eunit` + `ct`. **The router's gate** (agora:80 / ADR-0004), including the byte-for-byte conformance suite; skips cleanly when the Erlang toolchain is absent |
+| `provider-router/` | `make check-provider-router` — `ruff check` + `ruff format --check` + `mypy` + `pytest` (the superseded Python router, kept green until the cutover completes) |
 | `schemas/` | `make check-schemas` |
 | `clients/*` | `make check-clients` |
 | `registry/` | `make check-registry` |

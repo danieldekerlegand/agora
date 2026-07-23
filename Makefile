@@ -21,9 +21,12 @@ TS_AREAS := schemas clients/kcb-client clients/relation-registry-client registry
 ARTIFACTS := grounding-pack canonical-world-export entity-grounding-snapshot analyzer-canonical-export dataset-jsonl-header finetune-job
 FIXTURES  := $(CURDIR)/schemas/src/conformance/fixtures
 
-.PHONY: help install install-py install-ts check check-provider-router check-ts \
-        check-schemas check-clients check-registry check-resolver check-console \
+.PHONY: help install install-py install-ts check check-provider-router check-router-erl \
+        check-ts check-schemas check-clients check-registry check-resolver check-console \
         check-conformance check-translation build fmt clean
+
+# The Erlang provider-router (agora:80, ADR-0004) — supersedes provider-router/ (agora:50).
+ROUTER_ERL_DIR := provider-router-erl
 
 help:  ## List the available targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN{FS=":.*?## "}{printf "  %-24s %s\n", $$1, $$2}'
@@ -36,14 +39,32 @@ install-py:  ## Install the provider-router's Python deps
 install-ts:  ## Install the TypeScript workspace deps
 	npm install
 
-check: check-provider-router check-ts check-conformance check-translation  ## Run every area's gate (what CI runs)
+check: check-provider-router check-router-erl check-ts check-conformance check-translation  ## Run every area's gate (what CI runs)
 
 # --- provider-router (Python / uv) ---
-check-provider-router: install-py  ## Gate: lint + typecheck + test the provider-router
+# Superseded by provider-router-erl (see below), and kept green: it is the executable
+# specification the Erlang router's conformance suite is judged against.
+check-provider-router: install-py  ## Gate: the superseded Python provider-router (lint + typecheck + test)
 	$(UV) run ruff check .
 	$(UV) run ruff format --check .
 	$(UV) run mypy
 	$(UV) run pytest -q
+
+# --- provider-router-erl (Erlang/OTP — rebar3) ---
+# THE ROUTER'S GATE. The Erlang provider-router is canonical (agora:80, ADR-0004) and the
+# Python one above is superseded; this target runs the byte-for-byte conformance suite that
+# holds the two to the same external contract until the cutover completes. Skipped (not
+# failed) when the Erlang toolchain is absent, mirroring check-path-index / check-translation's
+# native-optional convention: a rebar3-less host still passes `make check` and the Rust/TS
+# gates cover their own areas. When rebar3 is present it runs the full gate — compile,
+# dialyzer, eunit, ct — so the byte-for-byte contract is verified everywhere Erlang is built.
+check-router-erl:  ## Gate: THE provider-router — Erlang (rebar3 compile + dialyzer + eunit + ct)
+	@if command -v rebar3 >/dev/null 2>&1; then \
+		echo "rebar3 compile + dialyzer + eunit + ct (provider-router-erl)"; \
+		cd $(ROUTER_ERL_DIR) && rebar3 compile && rebar3 dialyzer && rebar3 eunit && rebar3 ct; \
+	else \
+		echo "rebar3 not found — skipping Erlang provider-router gate (agora:80; install Erlang/OTP + rebar3 to run it)"; \
+	fi
 
 # --- TypeScript areas (npm workspaces) ---
 # The whole workspace at once: one install, one lint pass, then per-package typecheck+test.

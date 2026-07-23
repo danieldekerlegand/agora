@@ -1,0 +1,18 @@
+[package]
+name = "translation-wire"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Hot-path OpenAI <-> native-vendor wire conversion, and the length-prefixed port program the Erlang provider-router (agora:80) drives it through."
+
+[lib]
+name = "translation_wire"
+
+[[bin]]
+name = "agora-translation-port"
+path = "src/main.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

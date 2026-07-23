@@ -1,0 +1,157 @@
+# provider-router-erl
+
+The **Erlang/OTP re-implementation** of the agora provider-router (agora:80, ratified in
+`../../koine/decisions/ADR-0004`). It supersedes the Python router in `../provider-router/`
+(agora:50) while preserving its external contract byte-for-byte — the OpenAI-compatible HTTP
+surface, the KCB capability manifest, the `budget_units` spend ceilings (KCB §5), and the
+always-completes / ZERO-SPEND invariant.
+
+Language is internal (ADR-0001): this is a service over the wire, never shared as
+cross-language source — which is why a third toolchain costs nothing to any caller.
+
+**This is now the canonical provider-router.** `../provider-router/` stays in the tree as the
+executable specification: `test/apr_conformance_SUITE.erl` replays a corpus captured from it
+and asserts every answer is the same bytes (see "Conformance" below). The cutover path is in
+the root `README.md` under "The provider-router supersession".
+
+## Layout (grows per story)
+
+```
+src/
+  apr.erl                       constants — version, kcb_version, identity (mirrors __init__.py)
+  apr_json.erl                  JSON codec — ORDERED objects for responses, sorted for digests
+  apr_config.erl                AGORA_PROVIDER_* settings; secrets never reach describe/1
+  apr_ladder.erl                the sacred ladder — tier order, AGORA_<MODALITY>_LADDER
+  apr_backends.erl              tier -> a dialable backend, or why not
+  apr_cost.erl                  the agora:50 price table + the budget_units ceiling (KCB §5)
+  apr_placeholder.erl           the deterministic terminal tier
+  apr_manifest.erl              the KCB capability manifest / A2A AgentCard (KCB §2, §6)
+  apr_router.erl                resolution, the ladder walk, and the routing report
+  apr_ladder_sup.erl            one modality subtree per modality
+  apr_modality_sup.erl          a modality's rung workers + its permanent placeholder worker
+  apr_rung_worker.erl           one gen_server per (modality, tier) — prices, then dials
+  apr_placeholder_worker.erl    the terminal worker: offline, free, never refusable
+  apr_grant.erl                 capability grants — verb + scope + spend ceiling (KCB §5)
+  apr_bus.erl                   the subscribe registry and the fan-out (KCB §4)
+  apr_subscriber.erl            one process per consumer — seen set, ledger, delivery
+  apr_subscriber_sup.erl        the dynamic (temporary) tree of live subscriptions
+  apr_events.erl                what a completed generation announces on the bus
+  apr_assets.erl                the content-addressed store behind the fetch verb
+  apr_translate.erl             the supervised port program over the Rust translator (agora:60)
+  apr_health.erl                the byte-identical /health body
+  apr_*_handler.erl             cowboy handlers: health, doctor, models, providers, manifest,
+                                redirect, generate, subscribe (SSE), fetch
+  agora_provider_router_app.erl OTP application — boots the cowboy listener
+  agora_provider_router_sup.erl top supervisor, over the ladder tree and the bus
+test/
+  apr_routes_tests.erl          eunit: route table == app.py surface; /health byte-identical
+  apr_ladder_tests.erl          eunit: the ladder, ported from test_ladder.py
+  apr_cost_tests.erl            eunit: the price table + the two safety rules (test_cost.py)
+  apr_config_tests.erl          eunit: the env file — env beats file, and a key on disk is 0600
+  apr_grant_tests.erl           eunit: grants, topics, event identity, asset ids (KCB §4/§5)
+  apr_http_SUITE.erl            common_test: boots the app over HTTP and drives the surface
+  apr_zero_spend_SUITE.erl      common_test: ZERO-SPEND / always-completes (test_zero_spend.py)
+  apr_budget_SUITE.erl          common_test: the ceiling, the routing report, the manifest
+  apr_subscribe_SUITE.erl       common_test: the subscribe fan-out, grants, fetch, isolation
+  apr_translate_tests.erl       eunit: which vendors this node can dial, resolved not dialed
+  apr_translate_SUITE.erl       common_test: a native vendor dialed through the translator
+  apr_conformance_SUITE.erl     common_test: the whole surface, byte-identical to the Python
+                                router; the console's session capture; the KCB version pin;
+                                no key on any surface
+  apr_testpaths.erl             finding console/ and schemas/ from a test run (skip if absent)
+```
+
+## Conformance
+
+The supersession gate. `apr_conformance_SUITE` drives a request corpus over real HTTP against
+the running application and asserts the answers are **the same bytes** the Python router
+returns — not merely equivalent JSON. Key order, float spelling and separators are contract: a
+relayed upstream body must survive the round trip unchanged, and a digest is taken over bytes.
+
+- `test/apr_conformance_SUITE_data/python-surface.json` is the corpus, captured from the Python
+  app by `capture_python_surface.py` in the same directory (which carries its own regenerate
+  command). Two environments — **bare**, where every modality falls to the placeholder, and
+  **keyed**, where a ceiling of zero refuses the paid rung without dialing it — across the five
+  generation routes, the five reads, the 308 off the legacy manifest path and the refusal of an
+  unreadable ceiling. Nothing in the capture opens a socket to a vendor, so it is reproducible
+  and free.
+- `console/src/fixtures/provider-router.session.json` is pinned separately: it is a *third*
+  party's copy of the same exchange, replayed by the conformance console instead of opening a
+  socket. The Erlang router has to satisfy the identical fixture, or the console's scenario has
+  stopped being a capture of the router it claims to describe.
+- `schemas/src/versions.ts` pins `kcb_version`, exactly as `test_skeleton.py` pins the Python
+  constant — a spec bump turns this gate red too.
+- No secret reaches any surface: keys are redacted from `/doctor`, `/health`, the model and
+  vendor lists, the manifest, and from a failed rung's `reason` (`router.py::_reason`).
+
+Both cross-area files are optional — this directory must stay extractable on its own, so an
+absent `console/` or `schemas/` **skips** its case (reporting the skip) rather than failing it.
+
+## The capability bus (KCB §4)
+
+`subscribe` and `fetch` are verbs the spec defines for every KCB provider; the Python router
+surfaced neither, so they arrive here as **additions beside** the mirrored contract, never as
+edits to it (`apr_routes:contract_paths/0` vs `bus_paths/0` — the first set is what US-6's
+conformance fixture pins byte-for-byte, and the AgentCard is left exactly as it was).
+
+- `POST /v1/subscribe` opens a `text/event-stream` for a `world/<world>` or
+  `capability/<name>` topic. Registration needs a grant covering `subscribe` on the topic's
+  scope (§5), and the grant's `budget_units` ceiling is checked twice — once against what one
+  event on a capability topic is projected to cost, so a grant that could never afford a
+  delivery is refused outright, and then event by event on the stream.
+- `GET /v1/assets/<digest>` is the `fetch` verb, gated by a `fetch:asset` grant. An asset that
+  has not propagated yet is a `404` carrying `"pending": true` — "not yet" and "never" are
+  different answers, and delta L says a reference is *allowed* to outrun its bytes.
+
+Each subscription is its own process under a `temporary` `simple_one_for_one` tree, so a
+consumer that cannot keep up costs only itself: publishing is a cast per subscriber and never
+blocks the ladder. Events carry content-addressed ids, which is what lets the fan-out be
+at-least-once — a redelivery is dropped by the subscriber, and nothing anywhere inspects
+arrival order.
+
+## Native-wire vendors and the Rust translator (agora:60)
+
+Seven paid vendors do not speak OpenAI's wire format — `backends.py` marks them
+`wire = "native"`: anthropic, gemini, replicate, elevenlabs, runway, luma, minimax. The Python
+router recognises them and resolves them to `pending-adapter`: reported, never dialed. Here
+they are dialable, through `translation/crates/wire` — the OpenAI ↔ vendor codec in the
+translation engine — reached as an **external port program**, `apr_translate`.
+
+A port, not a NIF, and that is the whole argument. The ladder's invariant is that no rung can
+take down the node; a NIF would put third-party wire-format handling inside the BEAM's address
+space, where "fail-safe" would be a claim about the Rust rather than a property of the design.
+An OS process cannot do that. The worst case costs one pipe: the port dies, the next
+conversion reopens it, and in the meantime the rung is an attempt like any other.
+
+Everything about the binding is optional, and absent is a supported deployment:
+
+- `build-translator.sh` builds the binary into `priv/` as a rebar3 compile hook, **best-effort**
+  — no cargo, or no sibling `translation/`, and the gate is still green.
+- With no binary, `apr_translate:enabled()` is `false`, every native vendor stays
+  `pending-adapter`, and the router behaves exactly as the Python one it mirrors.
+- `AGORA_TRANSLATOR=off` says the same thing deliberately; `AGORA_TRANSLATOR_BIN` names a
+  specific build.
+- A refused conversion is an attempt with `dialed: false` (nothing was contacted, so nothing
+  could have been billed); an unreadable *response* is `dialed: true` (the vendor answered and
+  may well have charged for it). ZERO-SPEND and always-completes hold in every case.
+
+The translator owns the vendor's **path** as well as its body — where a request goes is as much
+a part of a wire format as what it looks like — so a converted request carries that path back on
+the backend it is dispatched with (`apr_backends:backend_url/1`).
+
+## The manifest paths
+
+`app.py` serves the A2A AgentCard — the KCB manifest folded onto it as a named extension
+(capability-bus.md §2/§6) — at `/.well-known/agent-card.json`, and answers the pre-0.3.0
+`/.well-known/kcb-manifest.json` with a **308** onto it. Both are registered here, with the
+same statuses and the same bodies: a 0.2.0 crawler must land on the authoritative document
+rather than a dead address, and byte-for-byte conformance (US-6) is judged against the card.
+
+## Gate
+
+`make check-router-erl` from the repo root runs `rebar3 compile`, `rebar3 dialyzer`,
+`rebar3 eunit`, and `rebar3 ct`. It is wired into `make check` and is **the router's gate**
+(`make check-provider-router` gates the superseded Python one). Following agora's
+native-optional convention (`check-path-index`, `check-translation`), the gate **skips
+cleanly** on a host without the Erlang toolchain (`rebar3` not on `PATH`) so a Rust/TS-only
+checkout still passes `make check`; install Erlang/OTP (≥26) + rebar3 to run it for real.

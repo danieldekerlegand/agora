@@ -14,6 +14,7 @@ crates/core      translation-core   — the one implementation (embeddable, no f
 crates/wasm      translation-wasm    — wasm-bindgen facade for TypeScript consumers (US-4)
 crates/py        translation-py      — PyO3 facade for Python consumers (US-5)
 crates/service   translation-service — a thin HTTP transform leaf (US-6)
+crates/wire      translation-wire    — OpenAI <-> native-vendor wire, + an Erlang port program
 ```
 
 There is **one core and several facades**. WASM, PyO3, and the HTTP service each add only
@@ -39,6 +40,24 @@ caller. It **never** relays or transforms another service's inter-platform traff
 holds no peer routing table and advertises only its own `transform` capability.
 `describe_transform().proxies_traffic` is always `false`, asserted in the tests — a
 statement about what this service *is*, not a toggle.
+
+## The vendor-wire codec (`crates/wire`)
+
+The one facade that is not over the canonical graph. agora's provider-router speaks OpenAI's
+dialect down every rung of its ladder; seven paid vendors (anthropic, gemini, replicate,
+elevenlabs, runway, luma, minimax) publish their own request and response shapes, so before
+this crate the router recognised them and fell through. `translation_wire::to_native` /
+`from_native` are that adapter — pure serde, no clock, no network, called once out and once
+back per generation.
+
+The Erlang router (agora:80) embeds it the only way the BEAM can: `agora-translation-port`, a
+`{packet, 4}` port program over the same functions. Not a NIF, deliberately — the router's
+invariant is that no rung can take down the node, and an OS process is a structural guarantee
+of that where a NIF would be a promise about the Rust. See `provider-router-erl/README.md`.
+
+Every rendered document goes out as an ordered JSON *string* serialized from a typed struct, so
+the OpenAI envelope keeps the key order a client sees from OpenAI itself; `serde_json::Value`
+sorts its keys and would quietly reorder a relayed response.
 
 ## The transform service
 

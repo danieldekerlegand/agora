@@ -1,0 +1,415 @@
+{
+  "captured_from": "the Python provider-router (agora:50), via fastapi.testclient",
+  "regenerate": "uv --project provider-router run python provider-router-erl/test/apr_conformance_SUITE_data/capture_python_surface.py > provider-router-erl/test/apr_conformance_SUITE_data/python-surface.json",
+  "environments": [
+    {
+      "name": "bare",
+      "env": {
+        "AGORA_ENV_FILE": "/nonexistent/agora-conformance/.env"
+      },
+      "exchanges": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"status\":\"ok\",\"identity\":\"agora:agent:provider-router\",\"version\":\"0.1.0\",\"kcb_version\":\"0.2.0\"}"
+        },
+        {
+          "method": "GET",
+          "path": "/doctor",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"identity\":\"agora:agent:provider-router\",\"version\":\"0.1.0\",\"modalities\":{\"text\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"unconfigured\",\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"base_url\":null}},\"image\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"unconfigured\",\"reason\":\"no API key for any image vendor (openai, replicate)\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama serves no image model\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-image\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-image\",\"base_url\":null}},\"speech\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"unconfigured\",\"reason\":\"no API key for any speech vendor (elevenlabs, openai)\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama serves no speech model\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-speech\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-speech\",\"base_url\":null}},\"music\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"unconfigured\",\"reason\":\"no API key for any music vendor (replicate)\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama serves no music model\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-music\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-music\",\"base_url\":null}},\"video\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"unconfigured\",\"reason\":\"no API key for any video vendor (runway, luma, minimax)\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama serves no video model\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-video\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-video\",\"base_url\":null}}},\"ladders\":{\"text\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false},\"image\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false},\"speech\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false},\"music\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false},\"video\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false}},\"config\":{\"providers\":[],\"env_file\":{\"path\":\"/nonexistent/agora-conformance/.env\",\"exists\":false,\"tightened\":false,\"error\":null}}}"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/models",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"object\":\"list\",\"data\":[{\"id\":\"placeholder-text\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\"}},{\"id\":\"placeholder-image\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"image\",\"tier\":\"placeholder\"}},{\"id\":\"placeholder-speech\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"speech\",\"tier\":\"placeholder\"}},{\"id\":\"placeholder-music\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"music\",\"tier\":\"placeholder\"}},{\"id\":\"placeholder-video\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"video\",\"tier\":\"placeholder\"}}]}"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/providers",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"modalities\":{\"text\":[\"openai\",\"anthropic\",\"groq\",\"gemini\"],\"image\":[\"openai\",\"replicate\"],\"speech\":[\"elevenlabs\",\"openai\"],\"music\":[\"replicate\"],\"video\":[\"runway\",\"luma\",\"minimax\"]},\"vendors\":[{\"name\":\"anthropic\",\"wire\":\"native\",\"base_url\":\"https://api.anthropic.com/v1\"},{\"name\":\"elevenlabs\",\"wire\":\"native\",\"base_url\":\"https://api.elevenlabs.io/v1\"},{\"name\":\"gemini\",\"wire\":\"native\",\"base_url\":\"https://generativelanguage.googleapis.com/v1beta\"},{\"name\":\"groq\",\"wire\":\"openai\",\"base_url\":\"https://api.groq.com/openai/v1\"},{\"name\":\"luma\",\"wire\":\"native\",\"base_url\":\"https://api.lumalabs.ai/dream-machine/v1\"},{\"name\":\"minimax\",\"wire\":\"native\",\"base_url\":\"https://api.minimax.chat/v1\"},{\"name\":\"openai\",\"wire\":\"openai\",\"base_url\":\"https://api.openai.com/v1\"},{\"name\":\"replicate\",\"wire\":\"native\",\"base_url\":\"https://api.replicate.com/v1\"},{\"name\":\"runway\",\"wire\":\"native\",\"base_url\":\"https://api.dev.runwayml.com/v1\"}],\"keyless\":[\"mlx-serve\",\"ollama\"]}"
+        },
+        {
+          "method": "GET",
+          "path": "/.well-known/agent-card.json",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"name\":\"agora:agent:provider-router\",\"capabilities\":{\"extensions\":[{\"uri\":\"https://koine.dev/kcb/manifest/0.3\",\"description\":\"KCB capability manifest (koine capability-bus.md \u00a72).\",\"required\":false,\"params\":{\"kcb_version\":\"0.2.0\",\"identity\":\"agora:agent:provider-router\",\"version\":\"0.1.0\",\"endpoints\":{\"openai\":\"http://127.0.0.1:8000/v1\",\"doctor\":\"http://127.0.0.1:8000/doctor\",\"manifest\":\"http://127.0.0.1:8000/.well-known/agent-card.json\"},\"produces\":[{\"plane\":\"knowledge\",\"shape\":\"completion-text\"},{\"plane\":\"media\",\"media_types\":[\"image/png\"],\"world_pattern\":\"*\"},{\"plane\":\"media\",\"media_types\":[\"audio/wav\"],\"world_pattern\":\"*\"},{\"plane\":\"media\",\"media_types\":[\"video/mp4\"],\"world_pattern\":\"*\"}],\"consumes\":[{\"plane\":\"knowledge\",\"shape\":\"chat-messages\"},{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"capabilities\":[{\"name\":\"generate.text\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"chat-messages\"}],\"outputs\":[{\"plane\":\"knowledge\",\"shape\":\"completion-text\"}],\"cost\":{\"tier\":\"placeholder\",\"est_units\":0.0,\"unit\":\"token\",\"quantity\":1000.0,\"basis\":\"1000 completion tokens\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/chat/completions\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\"},{\"name\":\"generate.image\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"outputs\":[{\"plane\":\"media\",\"media_types\":[\"image/png\"],\"world_pattern\":\"*\"}],\"cost\":{\"tier\":\"placeholder\",\"est_units\":0.0,\"unit\":\"image\",\"quantity\":1.0,\"basis\":\"one image\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/images/generations\",\"provider\":\"placeholder\",\"model\":\"placeholder-image\"},{\"name\":\"generate.speech\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"outputs\":[{\"plane\":\"media\",\"media_types\":[\"audio/wav\"],\"world_pattern\":\"*\"}],\"cost\":{\"tier\":\"placeholder\",\"est_units\":0.0,\"unit\":\"character\",\"quantity\":1000.0,\"basis\":\"1000 characters of narration\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/audio/speech\",\"provider\":\"placeholder\",\"model\":\"placeholder-speech\"},{\"name\":\"generate.music\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"outputs\":[{\"plane\":\"media\",\"media_types\":[\"audio/wav\"],\"world_pattern\":\"*\"}],\"cost\":{\"tier\":\"placeholder\",\"est_units\":0.0,\"unit\":\"generation\",\"quantity\":1.0,\"basis\":\"one generation\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/audio/music-generations\",\"provider\":\"placeholder\",\"model\":\"placeholder-music\"},{\"name\":\"generate.video\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"outputs\":[{\"plane\":\"media\",\"media_types\":[\"video/mp4\"],\"world_pattern\":\"*\"}],\"cost\":{\"tier\":\"placeholder\",\"est_units\":0.0,\"unit\":\"second\",\"quantity\":5.0,\"basis\":\"5 seconds of video\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/video/generations\",\"provider\":\"placeholder\",\"model\":\"placeholder-video\"}],\"auth\":{\"scheme\":\"capability-token\",\"grants_required\":[\"invoke:generate.text\",\"invoke:generate.image\",\"invoke:generate.speech\",\"invoke:generate.music\",\"invoke:generate.video\"],\"budget_units\":{\"supported\":true,\"currency\":\"budget_units\",\"request_key\":\"budget_units\",\"header\":\"X-Agora-Budget-Units\"}}}}]}}"
+        },
+        {
+          "method": "GET",
+          "path": "/.well-known/kcb-manifest.json",
+          "headers": {},
+          "request": null,
+          "status": 308,
+          "response_headers": {
+            "location": "/.well-known/agent-card.json"
+          },
+          "body": ""
+        },
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "headers": {},
+          "request": {
+            "model": "placeholder-text",
+            "messages": [
+              {
+                "role": "user",
+                "content": "In one sentence, what is the agora commons?"
+              }
+            ],
+            "max_tokens": 64
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-text",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"chatcmpl-placeholder-306e8897ee53a2ac\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"placeholder-text\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 306e8897ee53.\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0},\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/images/generations",
+          "headers": {},
+          "request": {
+            "model": "placeholder-image",
+            "prompt": "a clay tablet",
+            "n": 1,
+            "size": "512x512"
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-image",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"gen-placeholder-50c1611e8022b726\",\"object\":\"image.generation\",\"created\":0,\"model\":\"placeholder-image\",\"data\":[{\"b64_json\":\"CTejxhT9PZmcuWGOv0kVnonatjxIMPrvefg6xwmzUO4JN6PGFP09mZy5YY6/SRWeidq2PEgw+u95+DrHCbNQ7gk3o8YU/T2ZnLlhjr9JFZ6J2rY8SDD673n4OscJs1DuCTejxhT9PZmcuWGOv0kVnonatjxIMPrvefg6xwmzUO4JN6PGFP09mZy5YY6/SRWeidq2PEgw+u95+DrHCbNQ7gk3o8YU/T2ZnLlhjr9JFZ6J2rY8SDD673n4OscJs1DuCTejxhT9PZmcuWGOv0kVnonatjxIMPrvefg6xwmzUO4JN6PGFP09mZy5YY6/SRWeidq2PEgw+u95+DrHCbNQ7g==\",\"media_type\":\"image/png\",\"placeholder\":true,\"digest\":\"50c1611e8022b7263b5258997734ac1215b6c610e12f1af540cdf9d093cfcf5e\"}],\"agora\":{\"modality\":\"image\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-image\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any image vendor (openai, replicate)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama serves no image model\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"image\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"image\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/audio/speech",
+          "headers": {},
+          "request": {
+            "model": "placeholder-speech",
+            "input": "the agora commons",
+            "voice": "alloy"
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-speech",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"gen-placeholder-38f387ed3bdde0de\",\"object\":\"speech.generation\",\"created\":0,\"model\":\"placeholder-speech\",\"data\":[{\"b64_json\":\"/6HsnHG5LwyxJ8CyhlSCTDS0xSDomJoOXnlg2m5jc0j/oeyccbkvDLEnwLKGVIJMNLTFIOiYmg5eeWDabmNzSP+h7JxxuS8MsSfAsoZUgkw0tMUg6JiaDl55YNpuY3NI/6HsnHG5LwyxJ8CyhlSCTDS0xSDomJoOXnlg2m5jc0j/oeyccbkvDLEnwLKGVIJMNLTFIOiYmg5eeWDabmNzSP+h7JxxuS8MsSfAsoZUgkw0tMUg6JiaDl55YNpuY3NI/6HsnHG5LwyxJ8CyhlSCTDS0xSDomJoOXnlg2m5jc0j/oeyccbkvDLEnwLKGVIJMNLTFIOiYmg5eeWDabmNzSA==\",\"media_type\":\"audio/wav\",\"placeholder\":true,\"digest\":\"38f387ed3bdde0de88ec4b4adbdd92fa108d9afd360a7b1b92f9517c6bef83b1\"}],\"agora\":{\"modality\":\"speech\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-speech\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any speech vendor (elevenlabs, openai)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama serves no speech model\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"character\",\"quantity\":17.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"character\",\"quantity\":17.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/audio/music-generations",
+          "headers": {},
+          "request": {
+            "model": "placeholder-music",
+            "prompt": "a lyre",
+            "duration": 8
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-music",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"gen-placeholder-7f49c34eafc3ff8c\",\"object\":\"music.generation\",\"created\":0,\"model\":\"placeholder-music\",\"data\":[{\"b64_json\":\"/c1qy5gYbLWmVdpGZClItcke0b8wjW1khcBlVsXcHDz9zWrLmBhstaZV2kZkKUi1yR7RvzCNbWSFwGVWxdwcPP3NasuYGGy1plXaRmQpSLXJHtG/MI1tZIXAZVbF3Bw8/c1qy5gYbLWmVdpGZClItcke0b8wjW1khcBlVsXcHDz9zWrLmBhstaZV2kZkKUi1yR7RvzCNbWSFwGVWxdwcPP3NasuYGGy1plXaRmQpSLXJHtG/MI1tZIXAZVbF3Bw8/c1qy5gYbLWmVdpGZClItcke0b8wjW1khcBlVsXcHDz9zWrLmBhstaZV2kZkKUi1yR7RvzCNbWSFwGVWxdwcPA==\",\"media_type\":\"audio/wav\",\"placeholder\":true,\"digest\":\"7f49c34eafc3ff8cc3d8238de8ca9d7c6dde4f8e447912dcc1b5b5c6986e99b5\"}],\"agora\":{\"modality\":\"music\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-music\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any music vendor (replicate)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama serves no music model\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"generation\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"generation\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/video/generations",
+          "headers": {},
+          "request": {
+            "model": "placeholder-video",
+            "prompt": "a marketplace at dawn",
+            "seconds": 4
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-video",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"gen-placeholder-cade709653a35ff7\",\"object\":\"video.generation\",\"created\":0,\"model\":\"placeholder-video\",\"data\":[{\"b64_json\":\"HlMmueFm0VwVYJtHBLO2O/pGT/P1/GDoFUxltyK4C6EeUya54WbRXBVgm0cEs7Y7+kZP8/X8YOgVTGW3IrgLoR5TJrnhZtFcFWCbRwSztjv6Rk/z9fxg6BVMZbciuAuhHlMmueFm0VwVYJtHBLO2O/pGT/P1/GDoFUxltyK4C6EeUya54WbRXBVgm0cEs7Y7+kZP8/X8YOgVTGW3IrgLoR5TJrnhZtFcFWCbRwSztjv6Rk/z9fxg6BVMZbciuAuhHlMmueFm0VwVYJtHBLO2O/pGT/P1/GDoFUxltyK4C6EeUya54WbRXBVgm0cEs7Y7+kZP8/X8YOgVTGW3IrgLoQ==\",\"media_type\":\"video/mp4\",\"placeholder\":true,\"digest\":\"cade709653a35ff727c141c122923f7aae15a03124b13c5707495392c0683cb0\"}],\"agora\":{\"modality\":\"video\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-video\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any video vendor (runway, luma, minimax)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama serves no video model\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"second\",\"quantity\":4.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"second\",\"quantity\":4.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "headers": {},
+          "request": {
+            "model": "placeholder-text",
+            "messages": [
+              {
+                "role": "user",
+                "content": "In one sentence, what is the agora commons?"
+              }
+            ],
+            "max_tokens": 64,
+            "budget_units": 0
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-text",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"chatcmpl-placeholder-306e8897ee53a2ac\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"placeholder-text\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 306e8897ee53.\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0},\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "headers": {
+            "X-Agora-Budget-Units": "0"
+          },
+          "request": {
+            "model": "placeholder-text",
+            "messages": [
+              {
+                "role": "user",
+                "content": "In one sentence, what is the agora commons?"
+              }
+            ],
+            "max_tokens": 64
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-text",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"chatcmpl-placeholder-306e8897ee53a2ac\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"placeholder-text\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 306e8897ee53.\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0},\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "headers": {},
+          "request": {
+            "model": "placeholder-text",
+            "messages": [
+              {
+                "role": "user",
+                "content": "In one sentence, what is the agora commons?"
+              }
+            ],
+            "max_tokens": 64,
+            "budget_units": "abc"
+          },
+          "status": 422,
+          "response_headers": {},
+          "body": "{\"detail\":\"budget_units must be a number of budget units, got 'abc'\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "headers": {},
+          "request": {
+            "model": "placeholder-text",
+            "messages": [
+              {
+                "role": "user",
+                "content": "In one sentence, what is the agora commons?"
+              }
+            ],
+            "max_tokens": 64,
+            "budget_units": -5
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-text",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"chatcmpl-placeholder-306e8897ee53a2ac\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"placeholder-text\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 306e8897ee53.\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0},\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        }
+      ]
+    },
+    {
+      "name": "keyed",
+      "env": {
+        "AGORA_ENV_FILE": "/nonexistent/agora-conformance/.env",
+        "AGORA_PROVIDER_OPENAI_API_KEY": "sk-super-secret-not-a-real-key"
+      },
+      "exchanges": [
+        {
+          "method": "GET",
+          "path": "/health",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"status\":\"ok\",\"identity\":\"agora:agent:provider-router\",\"version\":\"0.1.0\",\"kcb_version\":\"0.2.0\"}"
+        },
+        {
+          "method": "GET",
+          "path": "/doctor",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"identity\":\"agora:agent:provider-router\",\"version\":\"0.1.0\",\"modalities\":{\"text\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"ready\",\"provider\":\"openai\",\"model\":\"gpt-4o-mini\",\"base_url\":\"https://api.openai.com/v1\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"paid\",\"provider\":\"openai\",\"model\":\"gpt-4o-mini\",\"base_url\":\"https://api.openai.com/v1\"}},\"image\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"ready\",\"provider\":\"openai\",\"model\":\"gpt-image-1\",\"base_url\":\"https://api.openai.com/v1\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama serves no image model\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-image\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"paid\",\"provider\":\"openai\",\"model\":\"gpt-image-1\",\"base_url\":\"https://api.openai.com/v1\"}},\"speech\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"ready\",\"provider\":\"openai\",\"model\":\"gpt-4o-mini-tts\",\"base_url\":\"https://api.openai.com/v1\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama serves no speech model\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-speech\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"paid\",\"provider\":\"openai\",\"model\":\"gpt-4o-mini-tts\",\"base_url\":\"https://api.openai.com/v1\"}},\"music\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"unconfigured\",\"reason\":\"no API key for any music vendor (replicate)\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama serves no music model\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-music\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-music\",\"base_url\":null}},\"video\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"tiers\":[{\"tier\":\"paid\",\"status\":\"unconfigured\",\"reason\":\"no API key for any video vendor (runway, luma, minimax)\"},{\"tier\":\"mlx\",\"status\":\"unconfigured\",\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"status\":\"unconfigured\",\"reason\":\"ollama serves no video model\"},{\"tier\":\"placeholder\",\"status\":\"ready\",\"provider\":\"placeholder\",\"model\":\"placeholder-video\",\"base_url\":null}],\"resolves_to\":{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-video\",\"base_url\":null}}},\"ladders\":{\"text\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false},\"image\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false},\"speech\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false},\"music\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false},\"video\":{\"ladder\":[\"paid\",\"mlx\",\"local\",\"placeholder\"],\"source\":\"default\",\"prefer_local\":false}},\"config\":{\"providers\":[{\"name\":\"openai\",\"has_key\":true,\"key_source\":\"AGORA_PROVIDER\",\"base_url\":null,\"model\":null,\"enabled\":null,\"usable\":true}],\"env_file\":{\"path\":\"/nonexistent/agora-conformance/.env\",\"exists\":false,\"tightened\":false,\"error\":null}}}"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/models",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"object\":\"list\",\"data\":[{\"id\":\"gpt-4o-mini\",\"object\":\"model\",\"created\":0,\"owned_by\":\"openai\",\"agora\":{\"modality\":\"text\",\"tier\":\"paid\"}},{\"id\":\"placeholder-text\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\"}},{\"id\":\"gpt-image-1\",\"object\":\"model\",\"created\":0,\"owned_by\":\"openai\",\"agora\":{\"modality\":\"image\",\"tier\":\"paid\"}},{\"id\":\"placeholder-image\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"image\",\"tier\":\"placeholder\"}},{\"id\":\"gpt-4o-mini-tts\",\"object\":\"model\",\"created\":0,\"owned_by\":\"openai\",\"agora\":{\"modality\":\"speech\",\"tier\":\"paid\"}},{\"id\":\"placeholder-speech\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"speech\",\"tier\":\"placeholder\"}},{\"id\":\"placeholder-music\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"music\",\"tier\":\"placeholder\"}},{\"id\":\"placeholder-video\",\"object\":\"model\",\"created\":0,\"owned_by\":\"placeholder\",\"agora\":{\"modality\":\"video\",\"tier\":\"placeholder\"}}]}"
+        },
+        {
+          "method": "GET",
+          "path": "/v1/providers",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"modalities\":{\"text\":[\"openai\",\"anthropic\",\"groq\",\"gemini\"],\"image\":[\"openai\",\"replicate\"],\"speech\":[\"elevenlabs\",\"openai\"],\"music\":[\"replicate\"],\"video\":[\"runway\",\"luma\",\"minimax\"]},\"vendors\":[{\"name\":\"anthropic\",\"wire\":\"native\",\"base_url\":\"https://api.anthropic.com/v1\"},{\"name\":\"elevenlabs\",\"wire\":\"native\",\"base_url\":\"https://api.elevenlabs.io/v1\"},{\"name\":\"gemini\",\"wire\":\"native\",\"base_url\":\"https://generativelanguage.googleapis.com/v1beta\"},{\"name\":\"groq\",\"wire\":\"openai\",\"base_url\":\"https://api.groq.com/openai/v1\"},{\"name\":\"luma\",\"wire\":\"native\",\"base_url\":\"https://api.lumalabs.ai/dream-machine/v1\"},{\"name\":\"minimax\",\"wire\":\"native\",\"base_url\":\"https://api.minimax.chat/v1\"},{\"name\":\"openai\",\"wire\":\"openai\",\"base_url\":\"https://api.openai.com/v1\"},{\"name\":\"replicate\",\"wire\":\"native\",\"base_url\":\"https://api.replicate.com/v1\"},{\"name\":\"runway\",\"wire\":\"native\",\"base_url\":\"https://api.dev.runwayml.com/v1\"}],\"keyless\":[\"mlx-serve\",\"ollama\"]}"
+        },
+        {
+          "method": "GET",
+          "path": "/.well-known/agent-card.json",
+          "headers": {},
+          "request": null,
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"name\":\"agora:agent:provider-router\",\"capabilities\":{\"extensions\":[{\"uri\":\"https://koine.dev/kcb/manifest/0.3\",\"description\":\"KCB capability manifest (koine capability-bus.md \u00a72).\",\"required\":false,\"params\":{\"kcb_version\":\"0.2.0\",\"identity\":\"agora:agent:provider-router\",\"version\":\"0.1.0\",\"endpoints\":{\"openai\":\"http://127.0.0.1:8000/v1\",\"doctor\":\"http://127.0.0.1:8000/doctor\",\"manifest\":\"http://127.0.0.1:8000/.well-known/agent-card.json\"},\"produces\":[{\"plane\":\"knowledge\",\"shape\":\"completion-text\"},{\"plane\":\"media\",\"media_types\":[\"image/png\"],\"world_pattern\":\"*\"},{\"plane\":\"media\",\"media_types\":[\"audio/wav\"],\"world_pattern\":\"*\"},{\"plane\":\"media\",\"media_types\":[\"video/mp4\"],\"world_pattern\":\"*\"}],\"consumes\":[{\"plane\":\"knowledge\",\"shape\":\"chat-messages\"},{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"capabilities\":[{\"name\":\"generate.text\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"chat-messages\"}],\"outputs\":[{\"plane\":\"knowledge\",\"shape\":\"completion-text\"}],\"cost\":{\"tier\":\"paid\",\"est_units\":60.0,\"unit\":\"token\",\"quantity\":1000.0,\"basis\":\"1000 completion tokens\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/chat/completions\",\"provider\":\"openai\",\"model\":\"gpt-4o-mini\"},{\"name\":\"generate.image\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"outputs\":[{\"plane\":\"media\",\"media_types\":[\"image/png\"],\"world_pattern\":\"*\"}],\"cost\":{\"tier\":\"paid\",\"est_units\":8000.0,\"unit\":\"image\",\"quantity\":1.0,\"basis\":\"one image\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/images/generations\",\"provider\":\"openai\",\"model\":\"gpt-image-1\"},{\"name\":\"generate.speech\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"outputs\":[{\"plane\":\"media\",\"media_types\":[\"audio/wav\"],\"world_pattern\":\"*\"}],\"cost\":{\"tier\":\"paid\",\"est_units\":1500.0,\"unit\":\"character\",\"quantity\":1000.0,\"basis\":\"1000 characters of narration\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/audio/speech\",\"provider\":\"openai\",\"model\":\"gpt-4o-mini-tts\"},{\"name\":\"generate.music\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"outputs\":[{\"plane\":\"media\",\"media_types\":[\"audio/wav\"],\"world_pattern\":\"*\"}],\"cost\":{\"tier\":\"placeholder\",\"est_units\":0.0,\"unit\":\"generation\",\"quantity\":1.0,\"basis\":\"one generation\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/audio/music-generations\",\"provider\":\"placeholder\",\"model\":\"placeholder-music\"},{\"name\":\"generate.video\",\"inputs\":[{\"plane\":\"knowledge\",\"shape\":\"prompt-text\"}],\"outputs\":[{\"plane\":\"media\",\"media_types\":[\"video/mp4\"],\"world_pattern\":\"*\"}],\"cost\":{\"tier\":\"placeholder\",\"est_units\":0.0,\"unit\":\"second\",\"quantity\":5.0,\"basis\":\"5 seconds of video\",\"unpriced\":false},\"endpoint\":\"http://127.0.0.1:8000/v1/video/generations\",\"provider\":\"placeholder\",\"model\":\"placeholder-video\"}],\"auth\":{\"scheme\":\"capability-token\",\"grants_required\":[\"invoke:generate.text\",\"invoke:generate.image\",\"invoke:generate.speech\",\"invoke:generate.music\",\"invoke:generate.video\"],\"budget_units\":{\"supported\":true,\"currency\":\"budget_units\",\"request_key\":\"budget_units\",\"header\":\"X-Agora-Budget-Units\"}}}}]}}"
+        },
+        {
+          "method": "GET",
+          "path": "/.well-known/kcb-manifest.json",
+          "headers": {},
+          "request": null,
+          "status": 308,
+          "response_headers": {
+            "location": "/.well-known/agent-card.json"
+          },
+          "body": ""
+        },
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "headers": {},
+          "request": {
+            "model": "placeholder-text",
+            "messages": [
+              {
+                "role": "user",
+                "content": "In one sentence, what is the agora commons?"
+              }
+            ],
+            "max_tokens": 64,
+            "budget_units": 0
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-text",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"chatcmpl-placeholder-306e8897ee53a2ac\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"placeholder-text\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 306e8897ee53.\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0},\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"openai\",\"ok\":false,\"dialed\":false,\"reason\":\"projected 4.57714 budget units (76.2857 token @ 0.06) exceeds the 0-unit ceiling\",\"projected\":{\"units\":4.577143,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.06,\"unpriced\":false,\"estimate\":true}},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "headers": {
+            "X-Agora-Budget-Units": "0"
+          },
+          "request": {
+            "model": "placeholder-text",
+            "messages": [
+              {
+                "role": "user",
+                "content": "In one sentence, what is the agora commons?"
+              }
+            ],
+            "max_tokens": 64
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-text",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"chatcmpl-placeholder-306e8897ee53a2ac\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"placeholder-text\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 306e8897ee53.\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0},\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"openai\",\"ok\":false,\"dialed\":false,\"reason\":\"projected 4.57714 budget units (76.2857 token @ 0.06) exceeds the 0-unit ceiling\",\"projected\":{\"units\":4.577143,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.06,\"unpriced\":false,\"estimate\":true}},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "headers": {},
+          "request": {
+            "model": "placeholder-text",
+            "messages": [
+              {
+                "role": "user",
+                "content": "In one sentence, what is the agora commons?"
+              }
+            ],
+            "max_tokens": 64,
+            "budget_units": "abc"
+          },
+          "status": 422,
+          "response_headers": {},
+          "body": "{\"detail\":\"budget_units must be a number of budget units, got 'abc'\"}"
+        },
+        {
+          "method": "POST",
+          "path": "/v1/chat/completions",
+          "headers": {},
+          "request": {
+            "model": "placeholder-text",
+            "messages": [
+              {
+                "role": "user",
+                "content": "In one sentence, what is the agora commons?"
+              }
+            ],
+            "max_tokens": 64,
+            "budget_units": -5
+          },
+          "status": 200,
+          "response_headers": {
+            "x-agora-tier": "placeholder",
+            "x-agora-provider": "placeholder",
+            "x-agora-model": "placeholder-text",
+            "x-agora-cost-units": "0"
+          },
+          "body": "{\"id\":\"chatcmpl-placeholder-306e8897ee53a2ac\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"placeholder-text\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 306e8897ee53.\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0},\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"openai\",\"ok\":false,\"dialed\":false,\"reason\":\"projected 4.57714 budget units (76.2857 token @ 0.06) exceeds the 0-unit ceiling\",\"projected\":{\"units\":4.577143,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.06,\"unpriced\":false,\"estimate\":true}},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        }
+      ]
+    }
+  ]
+}
