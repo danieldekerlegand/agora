@@ -12,6 +12,12 @@
 %%% ultimately zero-cost — rung having spent nothing. `dialed => false' on the attempt is what
 %%% a budget audit reads to tell "refused on price" from "contacted and did not answer".
 %%%
+%%% A rung whose vendor does not speak OpenAI's wire format is dialed through the Rust
+%%% translator ({@link apr_translate}) — converted out, dispatched, converted back — so a
+%%% caller cannot tell from the envelope which vendor answered. The translator is treated as
+%%% one more thing that can be missing: an absent, crashed or refusing translator makes that
+%%% rung an attempt, not a failed request.
+%%%
 %%% The worker does NOT catch a transport that raises: a crashing rung takes down only this
 %%% process, its supervisor restarts it, and {@link apr_router} — which called it with a
 %%% monitored `gen_server:call' — records the crash as a failed attempt and walks on. That is
@@ -78,16 +84,54 @@ serve(#{status := Status, reason := Reason}, Tier, _Modality, _Payload, _Ceiling
     {skip, #{tier => Tier, provider => <<"-">>, ok => false, dialed => false,
              reason => skip_reason(Reason, Status)}}.
 
-dial(Backend, Tier, Provider, Payload, Projected, Transport) ->
-    case Transport(Backend, dial_payload(Backend, Payload)) of
-        {ok, Response} ->
-            {ok, Response, Backend,
-             #{tier => Tier, provider => Provider, ok => true, dialed => true,
-               projected => Projected}};
+%% A native-wire vendor is dialed *through the translator* ({@link apr_translate}): out to its
+%% own request shape, back into the OpenAI envelope, so the caller's contract — the relayed
+%% body and the `agora' routing report over it — is the same whichever vendor answered.
+%%
+%% The translator is one more thing that can be missing, and it is treated like every other
+%% one. A conversion that cannot be made out is an attempt with `dialed => false': nothing was
+%% contacted, so nothing could have been spent, and the walk continues to a cheaper rung. A
+%% response that cannot be converted back IS a dial — the vendor answered and may well have
+%% billed — so it is recorded as one. Either way the request completes.
+dial(#{wire := native} = Backend, Tier, Provider, Payload, Projected, Transport) ->
+    Modality = maps:get(modality, Backend),
+    Model = maps:get(model, Backend),
+    case apr_translate:to_native(Provider, Modality, Model, dial_payload(Backend, Payload)) of
         {error, Reason} ->
-            {failed, #{tier => Tier, provider => Provider, ok => false, dialed => true,
-                       reason => redact(to_binary(Reason), Backend), projected => Projected}}
+            {failed, #{tier => Tier, provider => Provider, ok => false, dialed => false,
+                       reason => translator_reason(Reason, Backend), projected => Projected}};
+        {ok, Path, Native} ->
+            translated(Backend#{path := Path}, Tier, Provider, Modality, Model, Native,
+                       Projected, Transport)
+    end;
+dial(Backend, Tier, Provider, Payload, Projected, Transport) ->
+    answered(Transport(Backend, dial_payload(Backend, Payload)), Backend, Tier, Provider,
+             Projected).
+
+translated(Backend, Tier, Provider, Modality, Model, Native, Projected, Transport) ->
+    case answered(Transport(Backend, Native), Backend, Tier, Provider, Projected) of
+        {ok, Response, _Backend, Attempt} ->
+            case apr_translate:from_native(Provider, Modality, Model, Response) of
+                {ok, Translated} ->
+                    {ok, Translated, Backend, Attempt};
+                {error, Reason} ->
+                    {failed, #{tier => Tier, provider => Provider, ok => false, dialed => true,
+                               reason => translator_reason(Reason, Backend),
+                               projected => Projected}}
+            end;
+        Failed ->
+            Failed
     end.
+
+answered({ok, Response}, Backend, Tier, Provider, Projected) ->
+    {ok, Response, Backend,
+     #{tier => Tier, provider => Provider, ok => true, dialed => true, projected => Projected}};
+answered({error, Reason}, Backend, Tier, Provider, Projected) ->
+    {failed, #{tier => Tier, provider => Provider, ok => false, dialed => true,
+               reason => redact(to_binary(Reason), Backend), projected => Projected}}.
+
+translator_reason(Reason, Backend) ->
+    redact(<<"translator: ", (to_binary(Reason))/binary>>, Backend).
 
 dial_payload(Backend, Payload) ->
     apr_json:put_front(<<"model">>, maps:get(model, Backend), Payload).

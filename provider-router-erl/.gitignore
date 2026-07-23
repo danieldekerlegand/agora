@@ -1,5 +1,7 @@
 /_build/
 *.beam
+# The agora:60 translation port program, built into priv/ by build-translator.sh.
+/priv/agora-translation-port
 erl_crash.dump
 /doc/
 rebar3.crashdump

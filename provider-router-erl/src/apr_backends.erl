@@ -1,27 +1,32 @@
 %%% @doc Tier -> concrete backend: what a ladder rung actually dials, and why it might not.
 %%% The Erlang mirror of `backends.py'.
 %%%
-%%% Every dispatchable backend speaks the OpenAI wire format, so one dispatch path serves all
-%%% tiers. Vendors whose HTTP surface is not OpenAI-shaped are declared `wire => native':
-%%% recognised and reported, but resolved to `pending-adapter' rather than dialed with a wire
-%%% format they do not speak. The per-vendor adapter (via the Rust translator) is agora:80
-%%% US-5.
+%%% Every dispatchable backend speaks the OpenAI wire format — or is made to. Vendors whose
+%%% HTTP surface is not OpenAI-shaped are declared `wire => native'; a native rung is dialable
+%%% only where the Rust translator (agora:60, bound by {@link apr_translate}) can convert for
+%%% it, and stays `pending-adapter' otherwise. A backend therefore carries its `wire', and —
+%%% once the translator has converted a request — the vendor-relative `path' that request goes
+%%% to, since where a request goes is as much a part of a wire format as what it looks like.
 %%%
-%%% Nothing here dials: availability is a *configuration* question. Whether a configured
-%%% backend actually answers is a dispatch-time question handled in {@link apr_rung_worker}.
+%%% Nothing here dials: availability is a *configuration* question, and so is whether this
+%%% node was built with a translator ({@link apr_translate:enabled/0} is a switch and a stat,
+%%% not a process). Whether a configured backend actually answers is a dispatch-time question
+%%% handled in {@link apr_rung_worker}.
 -module(apr_backends).
 
 -export([paid_providers/1, endpoints/1, mlx_provider/0, local_provider/0,
-         paid_vendors/0,
+         paid_vendors/0, native_providers/0,
          placeholder_backend/1, resolve_tier/3, resolve_tier/4,
          backend_url/1, backend_describe/1, resolution_describe/1]).
 
 -type modality() :: atom().
 -type tier() :: paid | mlx | local | placeholder.
 -type dialable_tier() :: paid | mlx | local.
+-type wire() :: openai | native.
 -type backend() :: #{tier := tier(), provider := binary(), modality := modality(),
                     model := binary(), base_url := binary() | undefined,
-                    api_key := binary() | undefined}.
+                    api_key := binary() | undefined, wire := wire(),
+                    path := binary() | undefined}.
 -type status() :: ready | unconfigured | 'pending-adapter'.
 -type resolution() :: #{tier := tier(), status := status(),
                        backend := backend() | undefined,
@@ -60,15 +65,30 @@ paid_vendors() ->
                                     speech => <<"gpt-4o-mini-tts">>}},
       <<"groq">> => #{wire => openai, base_url => <<"https://api.groq.com/openai/v1">>,
                       models => #{text => <<"llama-3.3-70b-versatile">>}},
-      <<"anthropic">> => native_vendor(),
-      <<"gemini">> => native_vendor(),
-      <<"replicate">> => native_vendor(),
-      <<"elevenlabs">> => native_vendor(),
-      <<"runway">> => native_vendor(),
-      <<"luma">> => native_vendor(),
-      <<"minimax">> => native_vendor()}.
+      <<"anthropic">> => native_vendor(<<"https://api.anthropic.com/v1">>,
+                                       #{text => <<"claude-haiku-4-5-20251001">>}),
+      <<"gemini">> => native_vendor(<<"https://generativelanguage.googleapis.com/v1beta">>,
+                                    #{text => <<"gemini-2.5-flash">>}),
+      <<"replicate">> => native_vendor(<<"https://api.replicate.com/v1">>,
+                                       #{image => <<"black-forest-labs/flux-schnell">>,
+                                         music => <<"meta/musicgen">>}),
+      <<"elevenlabs">> => native_vendor(<<"https://api.elevenlabs.io/v1">>,
+                                        #{speech => <<"eleven_multilingual_v2">>}),
+      <<"runway">> => native_vendor(<<"https://api.dev.runwayml.com/v1">>,
+                                    #{video => <<"gen3a_turbo">>}),
+      <<"luma">> => native_vendor(<<"https://api.lumalabs.ai/dream-machine/v1">>,
+                                  #{video => <<"ray-2">>}),
+      <<"minimax">> => native_vendor(<<"https://api.minimax.chat/v1">>,
+                                     #{video => <<"video-01">>})}.
 
-native_vendor() -> #{wire => native, base_url => undefined, models => #{}}.
+native_vendor(BaseUrl, Models) -> #{wire => native, base_url => BaseUrl, models => Models}.
+
+%% @doc The vendors whose HTTP surface is not OpenAI-shaped — the ones a rung can only dial
+%% through the translator. Named rather than derived so a test can pin the set.
+-spec native_providers() -> [binary()].
+native_providers() ->
+    lists:sort([Name || {Name, Vendor} <- maps:to_list(paid_vendors()),
+                        maps:get(wire, Vendor) =:= native]).
 
 mlx_models() ->
     #{text => <<"mlx-community/Qwen3-8B-4bit">>,
@@ -84,7 +104,7 @@ ollama_models() -> #{text => <<"llama3.2">>}.
 placeholder_backend(Modality) ->
     #{tier => placeholder, provider => <<"placeholder">>, modality => Modality,
       model => <<"placeholder-", (atom_to_binary(Modality, utf8))/binary>>,
-      base_url => undefined, api_key => undefined}.
+      base_url => undefined, api_key => undefined, wire => openai, path => undefined}.
 
 %% @doc Resolve one rung for one modality against the configuration, without a cost rank.
 -spec resolve_tier(dialable_tier(), modality(), apr_config:config()) -> resolution().
@@ -124,23 +144,28 @@ resolve_paid(Modality, Config, Rank) ->
             resolution(paid, unconfigured, undefined, unconfigured_reason(Modality, Vendors))
     end.
 
+%% A vendor is ready when it serves the modality AND this node speaks its wire: OpenAI's
+%% natively, a native one only through the translator. Anything else falls to `pending' —
+%% recognised, reported, and left for the next rung.
 classify_vendor(Name, Modality, Settings, ReadyAcc, PendingAcc) ->
     Vendor = maps:get(Name, paid_vendors()),
-    case maps:get(wire, Vendor) of
-        native ->
+    Wire = maps:get(wire, Vendor),
+    Model = vendor_model(Modality, Settings, Vendor),
+    case Model =/= undefined andalso dialable_wire(Wire) of
+        false ->
             {ReadyAcc, [Name | PendingAcc]};
-        openai ->
-            case vendor_model(Modality, Settings, Vendor) of
-                undefined -> {ReadyAcc, [Name | PendingAcc]};
-                Model ->
-                    Backend = #{tier => paid, provider => Name, modality => Modality,
-                                model => Model,
-                                base_url => coalesce(maps:get(base_url, Settings),
-                                                     maps:get(base_url, Vendor)),
-                                api_key => maps:get(api_key, Settings)},
-                    {[Backend | ReadyAcc], PendingAcc}
-            end
+        true ->
+            Backend = #{tier => paid, provider => Name, modality => Modality,
+                        model => Model,
+                        base_url => coalesce(maps:get(base_url, Settings),
+                                             maps:get(base_url, Vendor)),
+                        api_key => maps:get(api_key, Settings),
+                        wire => Wire, path => undefined},
+            {[Backend | ReadyAcc], PendingAcc}
     end.
+
+dialable_wire(openai) -> true;
+dialable_wire(native) -> apr_translate:enabled().
 
 vendor_model(Modality, Settings, Vendor) ->
     case maps:get(model, Settings) of
@@ -170,7 +195,8 @@ resolve_keyless(Tier, Provider, Models, Modality, Config) ->
                        <<Provider/binary, " explicitly disabled">>);
         true ->
             Backend = #{tier => Tier, provider => Provider, modality => Modality,
-                        model => Model, base_url => BaseUrl, api_key => undefined},
+                        model => Model, base_url => BaseUrl, api_key => undefined,
+                        wire => openai, path => undefined},
             resolution(Tier, ready, Backend, undefined)
     end.
 
@@ -209,11 +235,17 @@ coalesce(undefined, Fallback) -> Fallback;
 coalesce(<<>>, Fallback) -> Fallback;
 coalesce(Value, _Fallback) -> Value.
 
-%% @doc The full endpoint URL for a backend's modality.
+%% @doc The full endpoint URL for a backend. An OpenAI-wire backend goes to its modality's
+%% route; a translated one goes wherever the translator said, which is why a converted request
+%% carries its `path' back on the backend it is dispatched with.
 -spec backend_url(backend()) -> binary().
+backend_url(#{path := Path} = Backend) when is_binary(Path) ->
+    <<(base(Backend))/binary, Path/binary>>;
 backend_url(#{modality := Modality} = Backend) ->
-    Base = strip_trailing_slash(coalesce(maps:get(base_url, Backend), <<>>)),
-    <<Base/binary, (endpoints(Modality))/binary>>.
+    <<(base(Backend))/binary, (endpoints(Modality))/binary>>.
+
+base(Backend) ->
+    strip_trailing_slash(coalesce(maps:get(base_url, Backend), <<>>)).
 
 strip_trailing_slash(Bin) ->
     case Bin of

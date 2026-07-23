@@ -33,6 +33,7 @@ src/
   apr_subscriber_sup.erl        the dynamic (temporary) tree of live subscriptions
   apr_events.erl                what a completed generation announces on the bus
   apr_assets.erl                the content-addressed store behind the fetch verb
+  apr_translate.erl             the supervised port program over the Rust translator (agora:60)
   apr_health.erl                the byte-identical /health body
   apr_*_handler.erl             cowboy handlers: health, doctor, manifest, redirect, generate,
                                 subscribe (SSE), fetch
@@ -48,6 +49,8 @@ test/
   apr_zero_spend_SUITE.erl      common_test: ZERO-SPEND / always-completes (test_zero_spend.py)
   apr_budget_SUITE.erl          common_test: the ceiling, the routing report, the manifest
   apr_subscribe_SUITE.erl       common_test: the subscribe fan-out, grants, fetch, isolation
+  apr_translate_tests.erl       eunit: which vendors this node can dial, resolved not dialed
+  apr_translate_SUITE.erl       common_test: a native vendor dialed through the translator
 ```
 
 ## The capability bus (KCB §4)
@@ -71,6 +74,36 @@ consumer that cannot keep up costs only itself: publishing is a cast per subscri
 blocks the ladder. Events carry content-addressed ids, which is what lets the fan-out be
 at-least-once — a redelivery is dropped by the subscriber, and nothing anywhere inspects
 arrival order.
+
+## Native-wire vendors and the Rust translator (agora:60)
+
+Seven paid vendors do not speak OpenAI's wire format — `backends.py` marks them
+`wire = "native"`: anthropic, gemini, replicate, elevenlabs, runway, luma, minimax. The Python
+router recognises them and resolves them to `pending-adapter`: reported, never dialed. Here
+they are dialable, through `translation/crates/wire` — the OpenAI ↔ vendor codec in the
+translation engine — reached as an **external port program**, `apr_translate`.
+
+A port, not a NIF, and that is the whole argument. The ladder's invariant is that no rung can
+take down the node; a NIF would put third-party wire-format handling inside the BEAM's address
+space, where "fail-safe" would be a claim about the Rust rather than a property of the design.
+An OS process cannot do that. The worst case costs one pipe: the port dies, the next
+conversion reopens it, and in the meantime the rung is an attempt like any other.
+
+Everything about the binding is optional, and absent is a supported deployment:
+
+- `build-translator.sh` builds the binary into `priv/` as a rebar3 compile hook, **best-effort**
+  — no cargo, or no sibling `translation/`, and the gate is still green.
+- With no binary, `apr_translate:enabled()` is `false`, every native vendor stays
+  `pending-adapter`, and the router behaves exactly as the Python one it mirrors.
+- `AGORA_TRANSLATOR=off` says the same thing deliberately; `AGORA_TRANSLATOR_BIN` names a
+  specific build.
+- A refused conversion is an attempt with `dialed: false` (nothing was contacted, so nothing
+  could have been billed); an unreadable *response* is `dialed: true` (the vendor answered and
+  may well have charged for it). ZERO-SPEND and always-completes hold in every case.
+
+The translator owns the vendor's **path** as well as its body — where a request goes is as much
+a part of a wire format as what it looks like — so a converted request carries that path back on
+the backend it is dispatched with (`apr_backends:backend_url/1`).
 
 ## The manifest paths
 

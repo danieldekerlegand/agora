@@ -8,11 +8,15 @@ export default tseslint.config(
     // `**/crates/wasm/pkg/**` is wasm-bindgen build output (emitted by `make check-translation`
     // into a git-ignored dir): generated CommonJS glue, not authored source, so it must not be
     // linted — otherwise `make check` goes red whenever the wasm pkg has been built.
+    // `provider-router-erl/_build/**` is the same story for the Erlang area: rebar3 puts its
+    // deps there and common_test writes its HTML report with a bundled jQuery, and
+    // `make check` runs check-router-erl BEFORE check-ts.
     ignores: [
       '**/dist/**',
       '**/node_modules/**',
       '**/coverage/**',
       'provider-router/**',
+      'provider-router-erl/_build/**',
       '**/crates/wasm/pkg/**',
     ],
   },
