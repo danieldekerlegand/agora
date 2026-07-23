@@ -45,9 +45,34 @@ training-telemetry over the same request:
   finetuned-model id + weight/export asset ids. Where no GPU / LLaMA-Factory is present the
   adapter replays a **recorded run** (real per-step logs), never a fabricated loss curve.
 
-Still to come: the egress-gated SkyPilot placement + spend gating (US-3), the multimodal adapter
-+ model/weight artifacts with lineage & inheritance (US-4), and multi-provider registry routing
-(US-5).
+## Egress-gated placement & spend gating (US-3)
+
+Admission does more than check the payload — before any compute is committed it computes the
+NORMATIVE KFT §4.2 egress gate and the §7 spend ceiling over the job's *resolved* inputs:
+
+- **Effective egress** (§4.2, FT-B) is the *most-restrictive* class across `{all training data
+  records/assets ∪ the base-model entity}`. One `local-only` input — data **or** base — pins the
+  whole run `local-only`. `compute.egress` steers it: `derived` uses the computed class,
+  `local-only` pins, and `exportable` is an *assertion* the provider verifies against the data and
+  rejects on violation (an `egress-assertion` reject) — never honored blindly.
+- **SkyPilot placement** is then contract-governed, not an operator setting. A `local-only` run
+  MUST stay on local / in-tier compute; naming a cross-boundary `compute.class` (a rented/cloud
+  GPU) is **rejected** (`egress-cross-boundary`), never silently downgraded. An all-`exportable`
+  corpus MAY burst to a cloud GPU of the requested class. A `local-only` job the local tier
+  **cannot run** (e.g. video-diffusion on an under-provisioned tier) is a **rejection at
+  admission** (`egress-unsatisfiable`, FT-J) — never a hang, never a silent cloud placement.
+- **Spend ceiling** (§7, FT-E): the static `cost.est_units` can't gate a variable-size job, so the
+  trainer computes a per-job `gpu-seconds` estimate **after** resolving dataset cardinality
+  (fetching KMI/KGP metadata as needed — the offline stand-in resolves nominal facts, a deployment
+  injects the real `fetch:asset` path) and rejects a run whose estimate exceeds the grant's
+  `budget_units` (`budget`) **before** provisioning. The ceiling rides the `X-Agora-Budget-Units`
+  header on `invoke` (the signed `invoke:finetune` grant token is Orchestrator governance, US-6).
+
+Every rejection is the same structured report + exit-code semantics as US-2 (0 / 1 / 2 over the
+CLI, 200 / 422 / 400 over HTTP).
+
+Still to come: the multimodal adapter + model/weight artifacts with lineage & inheritance (US-4),
+and multi-provider registry routing (US-5).
 
 ## Run it
 

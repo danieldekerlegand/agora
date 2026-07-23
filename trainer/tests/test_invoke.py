@@ -78,3 +78,17 @@ class TestRejected:
         response = client.post("/invoke", json=job)
         assert response.status_code == 501
         assert response.json()["status"] == "unsupported"
+
+    def test_a_local_only_cloud_placement_is_422(self) -> None:
+        job = valid_text_job(compute={"class": "single-gpu-a100-80gb", "egress": "local-only"})
+        response = client.post("/invoke", json=job)
+        assert response.status_code == 422
+        assert any(p["code"] == "egress-cross-boundary" for p in response.json()["problems"])
+
+    def test_an_over_ceiling_grant_header_is_422(self) -> None:
+        # The X-Agora-Budget-Units header carries the §7 ceiling; a run over it is rejected (FT-E).
+        response = client.post(
+            "/invoke", json=valid_text_job(), headers={"X-Agora-Budget-Units": "1"}
+        )
+        assert response.status_code == 422
+        assert any(p["code"] == "budget" for p in response.json()["problems"])

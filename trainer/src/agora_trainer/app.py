@@ -22,14 +22,19 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from . import KCB_VERSION, KFT_VERSION, __version__
 from .config import TrainerConfig
 from .engine import UnsupportedJob
+from .grant import Grant
 from .manifest import AGENT_CARD_PATH, MANIFEST_PATH, agent_card, capability_manifest
-from .runner import run
-from .validate import Problem, Report, Status, validate_job
+from .runner import RunRejected, run
+from .validate import Problem, Report, Status
 
 app = FastAPI(title="agora trainer", version=__version__)
 
 #: The §6 telemetry stream's content type — newline-delimited JSON, one event per line.
 TELEMETRY_MEDIA_TYPE = "application/x-ndjson"
+
+#: The header carrying the `invoke:finetune` grant's gpu-seconds ceiling (KFT §7). Absent → an
+#: ungated grant (the signed grant token is Orchestrator governance, US-6); a value gates spend.
+BUDGET_HEADER = "X-Agora-Budget-Units"
 
 #: The admission verdict → HTTP status, the transport twin of the CLI exit codes
 #: (0 ok / 1 invalid / 2 usage): a valid job streams (200), a schema/semantic failure is
@@ -78,22 +83,23 @@ def kcb_manifest(config: ConfigDep) -> dict[str, Any]:
 async def invoke(request: Request) -> Response:
     """`invoke` the `finetune` capability (KCB §4) — admit the job, then stream §6 telemetry.
 
-    Admission (KFT §3.1, FT-F) runs first: an unreadable body is a usage error (400), a
-    schema/semantic failure is unprocessable (422) with the structured report as the body — the
-    HTTP twin of the validator's exit codes. A valid job is run and its training-telemetry
-    stream (§6) is returned as newline-delimited JSON: one event per step in monotonic order,
-    then the terminal event carrying the finetuned-model id + weight asset ids. A modality that
-    is compatible but has no wired engine yet (US-4) is a distinct 501, not a rejection.
+    Admission (KFT §3/§4.2/§7) runs first, over the full gate: an unreadable body is a usage
+    error (400), and any admission failure — a schema/semantic reject (FT-F), an egress-gate or
+    placement reject (§4.2/FT-J), or an over-ceiling spend reject (FT-E) — is unprocessable (422)
+    with the structured report as the body, the HTTP twin of the validator's exit codes. The §7
+    grant ceiling rides the ``X-Agora-Budget-Units`` header. A valid job is run and its
+    training-telemetry stream (§6) is returned as newline-delimited JSON: one event per step in
+    monotonic order, then the terminal event carrying the finetuned-model id + weight asset ids.
+    A modality that is compatible but has no wired engine yet (US-4) is a distinct 501.
     """
     try:
         payload = await request.json()
     except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
         return _reject(_usage_report("request body is not valid JSON"))
-    report = validate_job(payload)
-    if not report.ok:
-        return _reject(report)
     try:
-        events = run(payload)
+        events = run(payload, grant=_grant_from(request))
+    except RunRejected as exc:
+        return _reject(exc.report)
     except UnsupportedJob as exc:
         return JSONResponse(
             status_code=501,
@@ -115,6 +121,21 @@ async def invoke(request: Request) -> Response:
         media_type=TELEMETRY_MEDIA_TYPE,
         headers={"X-Agora-Job": str(payload["job"])},
     )
+
+
+def _grant_from(request: Request) -> Grant:
+    """Build the §7 grant from the ``X-Agora-Budget-Units`` header — absent/unparseable → ungated.
+
+    A real grant is a signed ``invoke:finetune`` token (KCB §5, US-6); until that lands the header
+    carries just its load-bearing field, the ``budget_units`` ceiling.
+    """
+    raw = request.headers.get(BUDGET_HEADER)
+    if raw is None:
+        return Grant()
+    try:
+        return Grant(budget_units=float(raw))
+    except ValueError:
+        return Grant()
 
 
 def _reject(report: Report) -> JSONResponse:

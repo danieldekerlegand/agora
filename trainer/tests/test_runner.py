@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from agora_trainer.engine import StepRecord, UnsupportedJob
+from agora_trainer.grant import Grant
 from agora_trainer.llama_factory import LlamaFactoryAdapter
 from agora_trainer.runner import RunRejected, run
 from agora_trainer.telemetry import TelemetryEvent
@@ -83,3 +84,14 @@ class TestAdmissionGuards:
                     },
                 )
             )
+
+    def test_a_local_only_cloud_placement_is_rejected_before_the_engine(self) -> None:
+        job = valid_text_job(compute={"class": "single-gpu-a100-80gb", "egress": "local-only"})
+        with pytest.raises(RunRejected) as caught:
+            run(job)
+        assert any(p.code == "egress-cross-boundary" for p in caught.value.report.problems)
+
+    def test_an_over_ceiling_run_is_rejected_before_the_engine(self) -> None:
+        with pytest.raises(RunRejected) as caught:
+            run(valid_text_job(), grant=Grant(budget_units=1))
+        assert any(p.code == "budget" for p in caught.value.report.problems)

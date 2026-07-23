@@ -2,11 +2,12 @@
 
 This is the one place the four-step adapter lifecycle (prepare_data → launch → emit_telemetry →
 export) is sequenced, written against the :mod:`~agora_trainer.engine` interface so it is
-engine-agnostic. It composes the pieces US-2 builds:
+engine-agnostic. It composes the pieces US-2 / US-3 build:
 
-1. **Admit** — :func:`~agora_trainer.validate.validate_job` (schema + modality×method, FT-F).
-   A rejected job raises :class:`RunRejected` carrying the structured report, *before* any
-   engine is selected or any compute is committed (KFT §3.1).
+1. **Admit** — :func:`~agora_trainer.admission.admit` runs *every* admission check (shape +
+   modality×method, FT-F; the §4.2 egress gate + SkyPilot placement, FT-B/FT-J; the §7 spend
+   ceiling, FT-E). A rejected job raises :class:`RunRejected` carrying the structured report,
+   *before* any engine is selected or any compute is committed (KFT §3/§4.2/§7).
 2. **Select** — :func:`~agora_trainer.engine.select_adapter` picks the engine from
    ``modality`` + ``method`` (§9); a compatible-but-unwired pair raises
    :class:`~agora_trainer.engine.UnsupportedJob`.
@@ -23,10 +24,13 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator
 from typing import Any
 
+from .admission import admit
 from .engine import EngineAdapter, select_adapter
+from .grant import UNGATED, Grant
 from .llama_factory import LlamaFactoryAdapter
+from .resolve import Resolver, default_resolver
 from .telemetry import TelemetryEvent
-from .validate import Report, validate_job
+from .validate import Report
 
 #: The §9 engine ladder in preference order. US-2 wires the LLaMA-Factory rung; US-4 appends the
 #: diffusers rung for the text-to-image / -video modalities.
@@ -34,7 +38,7 @@ LADDER: tuple[EngineAdapter, ...] = (LlamaFactoryAdapter(),)
 
 
 class RunRejected(Exception):
-    """A job failed admission (KFT §3.1) — carries the structured :class:`Report`."""
+    """A job failed admission (KFT §3/§4.2/§7) — carries the structured :class:`Report`."""
 
     def __init__(self, report: Report) -> None:
         self.report = report
@@ -56,17 +60,22 @@ def _terminal(job: dict[str, Any], last_step: int, result: Any) -> TelemetryEven
 
 
 def run(
-    job: dict[str, Any], *, ladder: Iterable[EngineAdapter] = LADDER
+    job: dict[str, Any],
+    *,
+    ladder: Iterable[EngineAdapter] = LADDER,
+    grant: Grant = UNGATED,
+    resolver: Resolver = default_resolver,
 ) -> Iterator[TelemetryEvent]:
     """Admit + run ``job``, returning the §6 telemetry stream as a generator.
 
-    Raises :class:`RunRejected` (admission) or
-    :class:`~agora_trainer.engine.UnsupportedJob` (no engine) eagerly; iterating the result
-    only streams events.
+    ``grant`` is the §7 spend ceiling and ``resolver`` the §4.2/§7 input-facts resolver (both
+    default to the offline stand-ins). Raises :class:`RunRejected` (any admission failure —
+    shape, egress, placement, or budget) or :class:`~agora_trainer.engine.UnsupportedJob` (no
+    engine) eagerly; iterating the result only streams events.
     """
-    report = validate_job(job)
-    if not report.ok:
-        raise RunRejected(report)
+    admission = admit(job, grant=grant, resolver=resolver)
+    if not admission.ok:
+        raise RunRejected(admission.report)
     adapter = select_adapter(str(job["modality"]), str(job["method"]), ladder)
     prepared = adapter.prepare_data(job)
 
