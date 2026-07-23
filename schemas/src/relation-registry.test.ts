@@ -5,8 +5,10 @@ import { RELATION_REGISTRY } from './relation-registry.ts';
 describe('RELATION_REGISTRY', () => {
   it('pins the registryVersion of the koine registry this build speaks', () => {
     // 0.3.0 = the split of `portabilityClasses` into `dialect` + `egress` (KGP §5 / §7.2);
-    // 0.4.0 = the insimul bridge mappings, added additively alongside analyzer.
-    expect(RELATION_REGISTRY.version).toBe('0.4.0');
+    // 0.4.0 = the insimul bridge mappings, added additively alongside analyzer; 0.4.1/0.4.2 =
+    // additive bridge-mapping deltas only (the `_name/2` seeds and the Bridge-2 pending-flag
+    // landings — no bridged project added, no relation signature moved).
+    expect(RELATION_REGISTRY.version).toBe('0.4.2');
   });
 
   it('covers both bridged projects, and does not count the canonical one among them', () => {

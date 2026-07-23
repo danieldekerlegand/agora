@@ -8,6 +8,14 @@ export default tseslint.config(
     ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', 'provider-router/**'],
   },
   js.configs.recommended,
+  {
+    // Build/tooling scripts are plain Node ESM, not part of the TS library surface: give them
+    // the Node globals so `no-undef` does not flag `process` / `console` / `Buffer`.
+    files: ['**/*.mjs', '**/scripts/**/*.js'],
+    languageOptions: {
+      globals: { process: 'readonly', console: 'readonly', Buffer: 'readonly', URL: 'readonly' },
+    },
+  },
   ...tseslint.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],

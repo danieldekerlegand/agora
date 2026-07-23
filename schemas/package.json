@@ -10,6 +10,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "regen:koine-fixture": "node scripts/regen-koine-fixture.mjs",
+    "regen:koine-fixture:check": "node scripts/regen-koine-fixture.mjs --check"
   }
 }

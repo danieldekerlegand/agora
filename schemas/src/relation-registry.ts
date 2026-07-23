@@ -44,9 +44,14 @@ export const RELATION_REGISTRY = {
    * `registryVersion` of the canonical registry (koine). 0.3.0 split the old
    * `portabilityClasses` key into the two axes `axes.ts` models — a registry at 0.2.0 still
    * says `portability: [...]` and cannot be read by this build. 0.4.0 added the insimul
-   * bridge mappings (additive: no analyzer entry changed, no signature moved).
+   * bridge mappings (additive: no analyzer entry changed, no signature moved). 0.4.1/0.4.2 are
+   * further additive bridge-mapping changes only — 0.4.1 added the Bridge-1 `_name/2` seed
+   * predicates (country_name/2, settlement_name/2, item_name/2), and 0.4.2 landed the insimul
+   * Bridge-2 mappings (their `pending` flags flipped to false, the pending-schema lists
+   * emptied). No bridged project was added and no relation signature moved, so the vocabulary
+   * and `bridgedProjects` are unchanged.
    */
-  version: '0.4.0',
+  version: '0.4.2',
   /** The repo that holds the authoritative copy. There is exactly one. */
   repo: 'koine',
   /**
