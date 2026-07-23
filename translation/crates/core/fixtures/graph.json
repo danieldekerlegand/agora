@@ -1,0 +1,83 @@
+{
+  "_note": "Shared canonical fixture for the translation matrix. Rows are intentionally out of sort order and exercise the lossless TSV escape (backslash, TAB, CR, LF), multi-value :LABEL/aliases with an escaped ';', typed :int/:float dimensions, and the required provenance columns. Goldens under fixtures/golden/ are captured from culture-scrape by tools/gen_golden.py.",
+  "nodes": [
+    {
+      "csid": "cs:language:Q150",
+      ":LABEL": ["Language"],
+      "name": "French",
+      "lang": "en",
+      "wikidata_qid": "Q150",
+      "aliases": ["français", "langue d'oïl"],
+      "description": "A Romance language.",
+      "time_start": "842",
+      "lat": "48.8566",
+      "lon": "2.3522",
+      "language_code": "fr",
+      "source": "wikidata",
+      "source_url": "https://www.wikidata.org/wiki/Q150",
+      "retrieved_at": "2026-07-01T00:00:00Z",
+      "confidence": "0.95",
+      "license": "CC0"
+    },
+    {
+      "csid": "cs:dish:Q42",
+      ":LABEL": ["Cuisine", "Ingredient"],
+      "name": "Ceviche\twith\ttabs",
+      "aliases": ["seviche", "a;b", "back\\slash"],
+      "description": "Line one\nline two",
+      "time_start": "-1200",
+      "confidence": "1.0",
+      "source": "",
+      "source_url": "",
+      "retrieved_at": "",
+      "license": "unknown"
+    },
+    {
+      "csid": "cs:place:Q90",
+      ":LABEL": ["Place"],
+      "name": "Paris",
+      "wikidata_qid": "Q90",
+      "lat": "48.8566",
+      "lon": "2.3522",
+      "place_qid": "Q90",
+      "source": "wikidata",
+      "source_url": "https://www.wikidata.org/wiki/Q90",
+      "retrieved_at": "2026-07-01T00:00:00Z",
+      "confidence": "0.9",
+      "license": "CC0"
+    }
+  ],
+  "edges": [
+    {
+      ":START_ID": "cs:language:Q150",
+      ":END_ID": "cs:place:Q90",
+      ":TYPE": "SPOKEN_IN",
+      "weight": "0.8",
+      "source": "wikidata",
+      "source_url": "https://www.wikidata.org/wiki/Q150",
+      "retrieved_at": "2026-07-01T00:00:00Z",
+      "confidence": "0.9",
+      "license": "CC0"
+    },
+    {
+      ":START_ID": "cs:dish:Q42",
+      ":END_ID": "cs:place:Q90",
+      ":TYPE": "DERIVED_FROM",
+      "source": "editorial",
+      "source_url": "",
+      "retrieved_at": "2026-07-01T00:00:00Z",
+      "confidence": "0.5",
+      "license": "CC-BY"
+    },
+    {
+      ":START_ID": "cs:language:Q150",
+      ":END_ID": "cs:place:Q90",
+      ":TYPE": "LOCATED_IN",
+      "source": "wikidata",
+      "source_url": "https://www.wikidata.org/wiki/Q150",
+      "retrieved_at": "2026-07-01T00:00:00Z",
+      "confidence": "0.7",
+      "license": "CC0"
+    }
+  ]
+}

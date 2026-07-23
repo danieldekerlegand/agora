@@ -23,7 +23,7 @@ FIXTURES  := $(CURDIR)/schemas/src/conformance/fixtures
 
 .PHONY: help install install-py install-ts check check-provider-router check-ts \
         check-schemas check-clients check-registry check-resolver check-console \
-        check-conformance build fmt clean
+        check-conformance check-translation build fmt clean
 
 help:  ## List the available targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN{FS=":.*?## "}{printf "  %-24s %s\n", $$1, $$2}'
@@ -36,7 +36,7 @@ install-py:  ## Install the provider-router's Python deps
 install-ts:  ## Install the TypeScript workspace deps
 	npm install
 
-check: check-provider-router check-ts check-conformance  ## Run every area's gate (what CI runs)
+check: check-provider-router check-ts check-conformance check-translation  ## Run every area's gate (what CI runs)
 
 # --- provider-router (Python / uv) ---
 check-provider-router: install-py  ## Gate: lint + typecheck + test the provider-router
@@ -93,6 +93,12 @@ check-resolver:  ## Gate: the resolver only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/resolver
 check-console:  ## Gate: the console only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/console
+
+# --- translation (Rust — cargo workspace) ---
+# The native core (US-1), plus the wasm (US-4) and PyO3 (US-5) binding steps, which
+# skip cleanly until their crates land. Needs the Rust toolchain (cargo); no install-*.
+check-translation:  ## Gate: build + clippy + test the Rust translation engine
+	translation/check.sh
 
 .PHONY: ts-area
 ts-area: install-ts
