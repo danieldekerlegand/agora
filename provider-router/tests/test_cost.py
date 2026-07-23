@@ -6,6 +6,8 @@ Pure-function tests. The behavioural half — what the *router* does with these 
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from agora_provider_router.cost import (
@@ -13,6 +15,7 @@ from agora_provider_router.cost import (
     DEFAULT_COMPLETION_TOKENS,
     DEFAULT_SPEECH_CHARS,
     DEFAULT_VIDEO_SECONDS,
+    PRICE_TABLE_ENV,
     Cost,
     measure,
     parse_ceiling,
@@ -53,6 +56,29 @@ class TestRates:
         for bad in ("banana", "-5", "inf", ""):
             env = {price_env_var("video", "runway"): bad}
             assert rate_for("video", "runway", env) == rate_for("video", "runway")
+
+    def test_a_replacement_table_file_replaces_and_extends_rates(self, tmp_path: Path) -> None:
+        sheet = tmp_path / "prices.toml"
+        sheet.write_text("[rates.video]\nrunway = 99.0\nnewvendor = 42.0\n", encoding="utf-8")
+        env = {PRICE_TABLE_ENV: str(sheet)}
+        # a replaced rate wins over the shipped default...
+        assert rate_for("video", "runway", env) == (99.0, False)
+        assert project("video", "runway", {"duration": 2}, env).units == pytest.approx(198.0)
+        # ...an added provider becomes priced (no longer unpriced)...
+        assert rate_for("video", "newvendor", env) == (42.0, False)
+        assert project("video", "newvendor", {"duration": 2}, env).units == pytest.approx(84.0)
+        # ...and a per-rate override still wins over the replacement file.
+        env[price_env_var("video", "runway")] = "1.0"
+        assert rate_for("video", "runway", env) == (1.0, False)
+
+    def test_a_missing_replacement_file_leaves_the_shipped_rate_standing(self) -> None:
+        env = {PRICE_TABLE_ENV: "/no/such/prices.toml"}
+        assert rate_for("video", "runway", env) == rate_for("video", "runway")
+
+    def test_a_json_replacement_table_is_also_accepted(self, tmp_path: Path) -> None:
+        sheet = tmp_path / "prices.json"
+        sheet.write_text('{"rates": {"video": {"runway": 7.0}}}', encoding="utf-8")
+        assert rate_for("video", "runway", {PRICE_TABLE_ENV: str(sheet)}) == (7.0, False)
 
 
 class TestMeasure:

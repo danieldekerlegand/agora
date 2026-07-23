@@ -103,6 +103,28 @@ def test_the_kcb_manifest_is_served_for_the_registry_to_crawl(zero_spend: TestCl
     assert [c["name"] for c in manifest["capabilities"]] == [f"generate.{m}" for m in MODALITIES]
 
 
+def test_a_bare_deployment_prices_every_capability_at_the_placeholder(
+    zero_spend: TestClient,
+) -> None:
+    """The deployable image's ZERO-SPEND contract, seen over the wire (US-5).
+
+    A bare artifact — no keys, no local servers, exactly what the Dockerfile runs by
+    default — must answer ``/doctor`` and the KCB manifest with every modality resolved
+    to the placeholder tier at ``est_units`` 0. This is the always-completes invariant
+    (`tests/test_zero_spend.py`) as a deployer observes it, not just as the router resolves
+    it internally.
+    """
+    doctor = zero_spend.get("/doctor").json()
+    for modality in MODALITIES:
+        assert doctor["modalities"][modality]["resolves_to"]["tier"] == PLACEHOLDER
+
+    manifest = zero_spend.get(MANIFEST_PATH).json()
+    assert [c["name"] for c in manifest["capabilities"]] == [f"generate.{m}" for m in MODALITIES]
+    for capability in manifest["capabilities"]:
+        assert capability["cost"]["tier"] == PLACEHOLDER
+        assert capability["cost"]["est_units"] == 0
+
+
 def test_every_response_reports_what_it_cost(zero_spend: TestClient) -> None:
     response = zero_spend.post("/v1/chat/completions", json={"messages": []})
     cost = response.json()["agora"]["cost"]

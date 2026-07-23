@@ -1,0 +1,47 @@
+# The provider-router price sheet — modality → provider budget-unit rates.
+#
+# Costs are denominated in KCB **budget units**, not currency, so a grant's ceiling can
+# travel between projects that do not share a billing account. The table is anchored at
+# **1 unit = US$0.00001** (so $0.05/second of video = 5000 units/second), which keeps whole
+# numbers for media and sub-unit rates for tokens.
+#
+# All rates are conservative ESTIMATES, not quotes — output-side rates where a vendor bills
+# input and output differently. Replace or extend this whole sheet by pointing
+# ``AGORA_PRICE_TABLE`` at your own TOML or JSON file; per-rate ``AGORA_PRICE_<MODALITY>_<PROVIDER>``
+# env overrides still win over both this sheet and any replacement.
+#
+# The zero-spend tiers (mlx-serve, ollama, placeholder) are NOT listed here: they are held
+# in code as FREE_PROVIDERS so a custom sheet can never accidentally price the
+# always-completes ladder, and any provider absent from the merged table prices as
+# ``unpriced`` — "we don't know" is never treated as "free".
+
+#: What one unit of ``quantity`` is, per modality — the thing a rate is charged against.
+[unit_of]
+text = "token"
+image = "image"
+speech = "character"
+music = "generation"
+video = "second"
+
+#: modality → provider → budget units per the [unit_of] unit above.
+[rates.text]
+openai = 0.06
+anthropic = 1.5
+groq = 0.06
+gemini = 0.03
+
+[rates.image]
+openai = 8000.0
+replicate = 4000.0
+
+[rates.speech]
+elevenlabs = 30.0
+openai = 1.5
+
+[rates.music]
+replicate = 5000.0
+
+[rates.video]
+runway = 5000.0
+luma = 5000.0
+minimax = 4300.0

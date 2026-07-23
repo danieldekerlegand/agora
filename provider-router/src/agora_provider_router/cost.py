@@ -7,20 +7,25 @@ for the ladder: it prices a request **before** dispatch so the router can refuse
 would exceed the caller's ceiling, and prices it again **after** so the response reports what
 was actually spent.
 
-Everything here is **pure** — no network, no clock, no process env. Rates come from the
-table below, overridable per ``(modality, provider)`` from the ``AGORA_*`` mapping the
-config already keeps (:mod:`agora_provider_router.config`).
+Everything here is **pure** in the value sense — no network, no clock, no process env. The
+default rates ship as data (``prices.toml`` beside this module, loaded once at import), and
+are overridable two ways from the ``AGORA_*`` mapping the config already keeps
+(:mod:`agora_provider_router.config`): a deployer can replace or extend the *whole* sheet by
+pointing ``AGORA_PRICE_TABLE`` at their own TOML/JSON file, or nudge a single rate with a
+per-``(modality, provider)`` ``AGORA_PRICE_<MODALITY>_<PROVIDER>`` var. The per-rate override
+wins over both the replacement file and the shipped defaults.
 
 The unit
 --------
 Costs are denominated in KCB **budget units**, not currency: a grant's ceiling travels
 between projects that do not share a billing account, so the bus needs one comparable
 scalar. The table is anchored at **1 unit = US$0.00001** (so $0.05/second of video = 5000
-units/second), which keeps whole numbers for media and sub-unit rates for tokens.
+units/second), which keeps whole numbers for media and sub-unit rates for tokens. That
+anchor is restated at the top of ``prices.toml`` so the shipped numbers stay self-explaining.
 
 **All rates are conservative estimates, not quotes.** Provider pricing changes constantly;
 every :class:`Cost` carries the inputs it was computed from (``quantity`` × ``rate``) so a
-caller can check the arithmetic rather than trust the total. Override any rate with
+caller can check the arithmetic rather than trust the total. Override any single rate with
 ``AGORA_PRICE_<MODALITY>_<PROVIDER>`` (e.g. ``AGORA_PRICE_VIDEO_RUNWAY=4000``); the
 provider part uppercases with non-alphanumerics replaced by ``_``.
 
@@ -37,9 +42,14 @@ The two safety rules
 
 from __future__ import annotations
 
+import json
 import math
+import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
+from functools import cache
+from importlib import resources
+from pathlib import Path
 from typing import Any
 
 from .backends import LOCAL_PROVIDER, MLX_PROVIDER
@@ -48,28 +58,59 @@ from .ladder import PLACEHOLDER
 #: Prefix of a per-``(modality, provider)`` rate override, read from the ``AGORA_*`` env.
 PRICE_ENV_PREFIX = "AGORA_PRICE_"
 
+#: Env var pointing at a replacement price sheet (TOML or JSON) that supplants/extends the
+#: shipped :data:`RATES`. Read from the ``AGORA_*`` mapping, not the process env.
+PRICE_TABLE_ENV = "AGORA_PRICE_TABLE"
+
+#: The shipped default price sheet, packaged beside this module.
+PRICE_SHEET_FILE = "prices.toml"
+
 #: The request-body key and header carrying a per-request spend ceiling (KCB §5).
 BUDGET_KEY = "budget_units"
 BUDGET_HEADER = "X-Agora-Budget-Units"
 
+
+def _parse_price_sheet(
+    text: str, *, is_json: bool
+) -> tuple[dict[str, str], dict[str, dict[str, float]]]:
+    """``(unit_of, rates)`` parsed from a TOML or JSON price sheet.
+
+    A sheet is ``{"unit_of": {modality: unit}, "rates": {modality: {provider: rate}}}``. Both
+    sections are optional so a replacement file may carry only the rates it wants to change.
+    """
+    data = json.loads(text) if is_json else tomllib.loads(text)
+    unit_of = {str(k): str(v) for k, v in dict(data.get("unit_of", {})).items()}
+    rates: dict[str, dict[str, float]] = {
+        str(modality): {str(provider): float(rate) for provider, rate in dict(providers).items()}
+        for modality, providers in dict(data.get("rates", {})).items()
+    }
+    return unit_of, rates
+
+
+@cache
+def _load_price_sheet(path: str) -> tuple[dict[str, str], dict[str, dict[str, float]]]:
+    """Parse the price sheet at ``path``, cached by path so a lookup does not re-read it."""
+    p = Path(path)
+    return _parse_price_sheet(p.read_text(encoding="utf-8"), is_json=p.suffix.lower() == ".json")
+
+
+def _load_shipped_sheet() -> tuple[dict[str, str], dict[str, dict[str, float]]]:
+    """The default sheet packaged as :data:`PRICE_SHEET_FILE` beside this module."""
+    text = resources.files(__package__).joinpath(PRICE_SHEET_FILE).read_text(encoding="utf-8")
+    return _parse_price_sheet(text, is_json=False)
+
+
+_UNIT_OF, _RATES = _load_shipped_sheet()
+
 #: What one unit of ``quantity`` is, per modality — the thing a rate is charged against.
-UNIT_OF: dict[str, str] = {
-    "text": "token",
-    "image": "image",
-    "speech": "character",
-    "music": "generation",
-    "video": "second",
-}
+#: Loaded from the shipped :data:`PRICE_SHEET_FILE` at import.
+UNIT_OF: dict[str, str] = _UNIT_OF
 
 #: modality → provider → budget units per :data:`UNIT_OF` unit. Conservative ESTIMATES
-#: (output-side rates where a vendor bills input and output differently).
-RATES: dict[str, dict[str, float]] = {
-    "text": {"openai": 0.06, "anthropic": 1.5, "groq": 0.06, "gemini": 0.03},
-    "image": {"openai": 8000.0, "replicate": 4000.0},
-    "speech": {"elevenlabs": 30.0, "openai": 1.5},
-    "music": {"replicate": 5000.0},
-    "video": {"runway": 5000.0, "luma": 5000.0, "minimax": 4300.0},
-}
+#: (output-side rates where a vendor bills input and output differently). Loaded from the
+#: shipped :data:`PRICE_SHEET_FILE` at import; a deployer replaces/extends it wholesale via
+#: :data:`PRICE_TABLE_ENV`, or one rate at a time via :func:`price_env_var`.
+RATES: dict[str, dict[str, float]] = _RATES
 
 #: Providers that genuinely cost nothing — priced ``0.0`` and NOT flagged unpriced. These
 #: are the zero-spend tiers the always-completes invariant rests on: self-hosted compute and
@@ -129,7 +170,8 @@ def rate_for(
     ``0.0`` **flagged unpriced** — see the module docstring for why that flag matters. A
     malformed override is ignored so the table rate still stands.
     """
-    raw = (env or {}).get(price_env_var(modality, provider))
+    env = env or {}
+    raw = env.get(price_env_var(modality, provider))
     if raw and raw.strip():
         try:
             override = float(raw)
@@ -139,10 +181,28 @@ def rate_for(
             return override, False
     if provider in FREE_PROVIDERS:
         return 0.0, False
-    table = RATES.get(modality, {})
+    table = _merged_rates(modality, env)
     if provider in table:
         return table[provider], False
     return 0.0, True
+
+
+def _merged_rates(modality: str, env: Mapping[str, str]) -> dict[str, float]:
+    """The rates for ``modality``: the shipped :data:`RATES` with a replacement sheet
+    (:data:`PRICE_TABLE_ENV`) layered on top, so an added rate appears and a replaced one wins.
+
+    A missing or unreadable replacement file is ignored so the shipped rate still stands — a
+    typo'd path must never silently un-price a rung and let it read as affordable.
+    """
+    shipped = RATES.get(modality, {})
+    path = env.get(PRICE_TABLE_ENV)
+    if not (path and path.strip()):
+        return shipped
+    try:
+        _, replacement = _load_price_sheet(path.strip())
+    except (OSError, ValueError, tomllib.TOMLDecodeError):
+        return shipped
+    return {**shipped, **replacement.get(modality, {})}
 
 
 def measure(modality: str, payload: Mapping[str, Any]) -> float:

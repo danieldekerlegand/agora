@@ -18,10 +18,57 @@ the placeholder, that nothing is dialed, and that no call raises.
 
 ## Run it
 
+Standalone — no repo-root Makefile, no sibling areas. Install the package and launch the
+console entry point (or the module runner); both boot the FastAPI app under uvicorn, reading
+`AGORA_HOST` (default `0.0.0.0`) and `AGORA_PORT` (default `8000`) from the environment:
+
 ```sh
-uv run uvicorn agora_provider_router.app:app --reload    # from provider-router/
-curl localhost:8000/doctor                               # the resolved ladder per modality
+pip install agora-provider-router          # or: uv pip install agora-provider-router
+agora-provider-router                       # the [project.scripts] console entry point
+# equivalently:
+python -m agora_provider_router
 ```
+
+**A fresh install is safe to run immediately.** With no API keys and no local servers
+configured, every modality resolves to the deterministic placeholder tier — the
+always-completes / ZERO-SPEND default. It answers requests and spends nothing; add a key
+(below) only when you want a paid tier.
+
+From a checkout, uv runs it against the source tree instead:
+
+```sh
+uv run agora-provider-router                             # from provider-router/
+# or the app directly under uvicorn with reload:
+uv run uvicorn agora_provider_router.app:app --reload
+curl localhost:8000/doctor                               # the resolved ladder per modality
+curl localhost:8000/health                               # liveness + identity + kcb_version
+```
+
+### Build the wheel
+
+```sh
+uv build                                                 # from provider-router/ → dist/*.whl
+```
+
+The shipped price sheet (`prices.toml`) is packaged as data, so a wheel installed into a
+clean venv prices the ladder without reaching back into the repo.
+
+### Docker
+
+`Dockerfile` is self-contained: its build context is `provider-router/` alone, so it depends on
+neither the sibling TS areas (`schemas/`, `console/`, `registry/`) nor the repo-root Makefile. It
+builds the wheel and runs the console entry point.
+
+```sh
+docker build -t agora-provider-router provider-router/
+docker run -p 8000:8000 agora-provider-router
+curl localhost:8000/doctor                               # every modality → placeholder, est 0
+```
+
+The container binds `AGORA_HOST=0.0.0.0` / `AGORA_PORT=8000` (override with `-e`). A bare run —
+no keys, no local servers — resolves every modality to the placeholder tier: it answers `/doctor`
+and the KCB manifest and spends nothing. Pass provider settings (below) with `-e` or `--env-file`
+to opt into a paid or local tier.
 
 ## Surface
 
@@ -91,25 +138,41 @@ No endpoint is advertised that is not served — MCP and A2A addresses are absen
 because a manifest address is a promise the registry hands to peers who then dial it **directly**
 (ADR-0001 decision 3), and a dead one is worse than an absent one.
 
-## Configuration
+## Deploy contract — the standalone config surface
 
-Provider settings use the ecosystem's `CUNEIFORM_PROVIDER_<NAME>_<FIELD>` shape (`API_KEY`,
-`BASE_URL`, `MODEL`, `ENABLED`), so an `.env` written by a Orchestrator/Analyzer console configures
-this router unchanged. The common non-namespaced spellings (`OPENAI_API_KEY`,
-`MLX_SERVE_BASE_URL`, `OLLAMA_HOST`, …) are accepted; the namespaced form wins. Settings are
-read from the process environment and, under it, `$CUNEIFORM_ENV_FILE` (default `./.env`) — an
+Everything below is read from the process environment (no repo, no Makefile). **With none of
+it set the router runs zero-spend:** no keys and no local servers means every modality resolves
+to the deterministic placeholder tier — it answers requests and spends nothing, so a fresh
+deployment is safe to start immediately. Add a variable only to opt *into* a paid or local tier.
+
+**Provider settings** use the package-neutral `AGORA_PROVIDER_<NAME>_<FIELD>` shape (`FIELD` is
+`API_KEY`, `BASE_URL`, `MODEL`, or `ENABLED`). The ecosystem's historical
+`CUNEIFORM_PROVIDER_<NAME>_<FIELD>` spelling is retained as a documented **legacy alias**, so an
+`.env` written by a Orchestrator/Analyzer console configures this router unchanged; the neutral
+spelling wins when both name the same field. The common non-namespaced spellings
+(`OPENAI_API_KEY`, `MLX_SERVE_BASE_URL`, `OLLAMA_HOST`, …) are accepted as fallbacks, and either
+namespaced form beats them. Settings are read from the process environment and, under it, the
+env file named by `AGORA_ENV_FILE` (legacy alias `CUNEIFORM_ENV_FILE`, default `./.env`) — an
 explicit `export` beats the file.
 
 | Variable | Effect |
 |---|---|
-| `CUNEIFORM_PROVIDER_OPENAI_API_KEY` | enables the paid tier for the modalities OpenAI serves |
+| `AGORA_PROVIDER_OPENAI_API_KEY` | enables the paid tier for the modalities OpenAI serves (legacy: `CUNEIFORM_PROVIDER_OPENAI_API_KEY`) |
 | `MLX_SERVE_BASE_URL` | enables the mlx-serve tier |
 | `OLLAMA_BASE_URL` / `OLLAMA_HOST` | enables the local tier |
 | `AGORA_<MODALITY>_LADDER` | narrows/reorders that modality's tiers, e.g. `local,mlx` |
 | `AGORA_PREFER_LOCAL=1` | fronts the zero-spend tiers everywhere |
-| `AGORA_PRICE_<MODALITY>_<PROVIDER>` | overrides a rate, in budget units per unit |
+| `AGORA_PRICE_TABLE` | path to a replacement price sheet (TOML/JSON) — swaps the whole shipped rate table |
+| `AGORA_PRICE_<MODALITY>_<PROVIDER>` | overrides a single rate, in budget units per unit — wins over the file and the shipped defaults |
+| `AGORA_ROUTER_IDENTITY` | overrides the KINP identity `/health` and the KCB manifest report (default `agora:agent:provider-router`) |
 | `AGORA_PUBLIC_BASE_URL` | the address the KCB manifest publishes for itself |
-| `CUNEIFORM_ENV_FILE` | the env file to read provider settings from |
+| `AGORA_ENV_FILE` | the env file to read provider settings from (legacy: `CUNEIFORM_ENV_FILE`) |
+| `AGORA_HOST` / `AGORA_PORT` | the uvicorn bind address for the entry point (default `0.0.0.0:8000`) |
+
+The price sheet (`AGORA_PRICE_TABLE`) and the per-rate overrides layer: a replacement file swaps
+the shipped table wholesale, then any `AGORA_PRICE_<MODALITY>_<PROVIDER>` wins over both. Neither
+can un-free the zero-spend ladder — mlx-serve, Ollama and the placeholder are priced 0.0 ahead of
+any table — and an unpriceable rung still never passes a ceiling (see **Budget ceilings**).
 
 Three rules the code enforces rather than documents:
 
@@ -145,6 +208,21 @@ uv run ruff check .
 uv run mypy
 uv run pytest -q
 ```
+
+### Standalone (no sibling areas)
+
+Three tests are cross-language pins that reach up to sibling TS areas — the KCB version
+against `schemas/`, and the captured session/manifest fixtures the `console/` and
+`registry/` gates replay. In the full monorepo they RUN and hold those guards; in an
+extracted checkout that contains only `provider-router/` they **skip cleanly** (they never
+error or fail) because the sibling paths are absent. To prove the package suite is green on
+its own — built, installed into a clean venv, and run with no sibling area present:
+
+```sh
+provider-router/scripts/standalone-test.sh    # builds the wheel, installs it, runs pytest
+```
+
+It reports `... passed, 4 skipped` — the four cross-repo guards are the skips.
 
 ## Status
 

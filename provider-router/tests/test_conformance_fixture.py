@@ -19,6 +19,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 from agora_provider_router.app import app, get_router
@@ -75,6 +76,10 @@ def captured_session() -> dict[str, Any]:
 
 
 class TestTheConsoleFixture:
+    @pytest.mark.skipif(
+        not FIXTURE.exists(),
+        reason=f"standalone checkout: {FIXTURE} (the console fixture) is absent",
+    )
     def test_the_captured_session_still_matches_what_the_router_answers(self) -> None:
         captured = json.loads(FIXTURE.read_text(encoding="utf-8"))
         assert captured == captured_session(), (
