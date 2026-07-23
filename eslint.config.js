@@ -5,7 +5,16 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', 'provider-router/**'],
+    // `**/crates/wasm/pkg/**` is wasm-bindgen build output (emitted by `make check-translation`
+    // into a git-ignored dir): generated CommonJS glue, not authored source, so it must not be
+    // linted — otherwise `make check` goes red whenever the wasm pkg has been built.
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      'provider-router/**',
+      '**/crates/wasm/pkg/**',
+    ],
   },
   js.configs.recommended,
   {
@@ -24,6 +33,20 @@ export default tseslint.config(
       // local is dead code. Argument-side `_` prefixes stay legal for interface stubs.
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/consistent-type-imports': 'error',
+    },
+  },
+  {
+    // The translation wasm bindings' test harness is a Node CommonJS script (run by its
+    // own test.sh, `require`-ing the wasm-bindgen CJS module) — not part of the TS library
+    // surface. Treat it as CommonJS so `no-undef` doesn't flag require/__dirname/console,
+    // and allow its require() loads (the module it loads is emitted as CJS, not ESM).
+    files: ['**/crates/wasm/test.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { require: 'readonly', module: 'readonly', __dirname: 'readonly', console: 'readonly' },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
 );

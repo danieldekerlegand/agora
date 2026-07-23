@@ -1,0 +1,71 @@
+// culture-scrape — Soufflé Datalog program
+// =========================================
+// Auto-generated from the canonical TSV graph (docs/data-model.md); a derived,
+// mechanical projection — do not edit by hand.
+//
+// Layout
+// ------
+//   This .dl declares each predicate (.decl) and marks it .input (rows are
+//   loaded from <predicate>.facts at start-up) and .output (running the program
+//   materialises it). The rows live in the sibling <predicate>.facts files,
+//   tab-separated in Soufflé's native format.
+//
+// Attribute types
+// ---------------
+//   symbol  — a string constant (csids like cs:dish:Q42, names, type labels)
+//   number  — a signed integer (e.g. a year; negative = BCE)
+//   float   — a coordinate or edge weight/confidence
+//
+// Run:  souffle graph.dl -F <dir-holding-the-.facts> -D <output-dir>
+
+.decl derived_from(x0: symbol, x1: symbol)
+.input derived_from
+.output derived_from
+
+.decl instance_of(x0: symbol, x1: symbol)
+.input instance_of
+.output instance_of
+
+.decl language_code(x0: symbol, x1: symbol)
+.input language_code
+.output language_code
+
+.decl located_at(x0: symbol, x1: float, x2: float)
+.input located_at
+.output located_at
+
+.decl located_in(x0: symbol, x1: symbol)
+.input located_in
+.output located_in
+
+.decl node(x0: symbol, x1: symbol, x2: symbol)
+.input node
+.output node
+
+.decl place_qid(x0: symbol, x1: symbol)
+.input place_qid
+.output place_qid
+
+.decl rel(x0: symbol, x1: symbol, x2: symbol)
+.input rel
+.output rel
+
+.decl rel_conf(x0: symbol, x1: symbol, x2: symbol, x3: float)
+.input rel_conf
+.output rel_conf
+
+.decl rel_source(x0: symbol, x1: symbol, x2: symbol, x3: symbol)
+.input rel_source
+.output rel_source
+
+.decl source(x0: symbol, x1: symbol)
+.input source
+.output source
+
+.decl spoken_in(x0: symbol, x1: symbol)
+.input spoken_in
+.output spoken_in
+
+.decl time_start(x0: symbol, x1: number)
+.input time_start
+.output time_start

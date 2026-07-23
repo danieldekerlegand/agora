@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/wasm", "crates/py", "crates/service"]
+# crates/py (the PyO3 extension) is a member for a unified Cargo.lock but NOT a default
+# member: a plain `cargo build`/`clippy`/`test` (the native gate steps) must not try to
+# link it, since a bare cargo build has no Python interpreter to build the extension
+# against. maturin builds and tests it on its own in `crates/py/test.sh`.
+# crates/service (US-6, the thin HTTP transform leaf) IS a default member — it is pure
+# native Rust over translation-core, so the native gate steps build/clippy/test it.
+default-members = ["crates/core", "crates/wasm", "crates/service"]
+
+# agora's data-translation engine — a native Rust core (embeddable-first) that ports
+# pinakes's culture-scrape exporters over the koine canonical node/edge graph. WASM
+# (US-4) and PyO3 (US-5) facades are workspace members; the thin HTTP transform service
+# (US-6, crates/service) is a directly-dialed KCB leaf for the boundary an embed cannot
+# cross.
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+opt-level = 3

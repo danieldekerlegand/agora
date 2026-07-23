@@ -3,6 +3,8 @@
 node_modules/
 dist/
 *.tsbuildinfo
+# Rust (translation engine)
+target/
 # Python
 __pycache__/
 *.pyc

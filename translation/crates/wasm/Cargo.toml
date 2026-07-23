@@ -1,0 +1,17 @@
+[package]
+name = "translation-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "WASM (wasm-bindgen) bindings for agora's translation core — the full canonical-graph translation matrix in-process for TypeScript consumers, zero network hop."
+
+[lib]
+name = "translation_wasm"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+translation-core = { path = "../core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+wasm-bindgen = "0.2.126"

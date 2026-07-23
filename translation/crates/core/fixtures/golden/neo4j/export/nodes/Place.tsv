@@ -1,0 +1,2 @@
+csid:ID	:LABEL	name	lang	wikidata_qid	getty_id	aliases	description	pinakes_id	time_start:int	time_end:int	time_start_iso	period	lat:float	lon:float	place_qid	tgn_id	pleiades_id	language_code	script	etymology	derived_from_csid	source	source_url	source_query	retrieved_at	confidence:float	license
+cs:place:Q90	Place	Paris		Q90									48.8566	2.3522	Q90							wikidata	https://www.wikidata.org/wiki/Q90		2026-07-01T00:00:00Z	0.9	CC0

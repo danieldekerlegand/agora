@@ -1,0 +1,21 @@
+[package]
+name = "translation-py"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "PyO3 bindings for agora's translation core — the full canonical-graph translation matrix in-process for Python consumers (pinakes/analyzer), zero network hop."
+
+[lib]
+name = "translation_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+translation-core = { path = "../core" }
+# abi3 (the stable ABI) so one built extension runs across CPython versions; the
+# extension-module feature keeps it from linking libpython (maturin sets the macOS
+# `-undefined dynamic_lookup` linker flag). Kept out of the workspace's default
+# `cargo build`/`clippy`/`test` (see translation/Cargo.toml `default-members`) — it is
+# built and tested only through maturin in `crates/py/test.sh`, which has a Python
+# interpreter to build against.
+pyo3 = { version = "0.29", features = ["extension-module", "abi3-py39"] }
