@@ -103,6 +103,7 @@ export {
   isCompatibleKcbVersion,
   ManifestError,
   parseManifest,
+  parseManifestBody,
   type Capability,
   type CapabilityCost,
   type CapabilityManifest,

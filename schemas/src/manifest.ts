@@ -3,13 +3,20 @@
  *
  * The manifest is what a provider publishes about itself and what the registry (§3)
  * indexes. Wire keys are `snake_case` exactly as the spec writes them: these objects
- * arrive verbatim from another process (the provider-router publishes one at
- * `/.well-known/kcb-manifest.json` from Python), so renaming them here would make the
- * TypeScript side a translation layer rather than a reader of the contract.
+ * arrive verbatim from another process (the provider-router publishes it from Python), so
+ * renaming them here would make the TypeScript side a translation layer rather than a
+ * reader of the contract.
  *
- * `parseManifest` validates and *narrows* — it does not rebuild. A provider's manifest is
- * authoritative (§3); anything in it this version does not model must survive being read.
+ * Post-0.3.0 the manifest is no longer a standalone document: it rides as the `params` of a
+ * single {@link KCB_MANIFEST_EXTENSION_URI} extension on the provider's A2A AgentCard (§2,
+ * see `agent-card.ts`). {@link parseManifest} takes the whole card and narrows that extension
+ * out of it; {@link parseManifestBody} narrows a bare `params` body on its own.
+ *
+ * Both validate and *narrow* — they do not rebuild. A provider's manifest is authoritative
+ * (§3); anything this version does not model — inside the `params` body or on the surrounding
+ * card — must survive being read.
  */
+import { KCB_MANIFEST_EXTENSION_URI } from './agent-card.ts';
 import { parseKinpId } from './identity.ts';
 import { isPlane } from './planes.ts';
 import { SPEC_VERSIONS } from './versions.ts';
@@ -119,8 +126,62 @@ export function isCompatibleKcbVersion(version: string): boolean {
   return ours[0] !== '0' || theirs[1] === ours[1];
 }
 
-/** Validate `value` as a capability manifest, narrowing it in place. Throws on junk. */
+/**
+ * Validate an A2A AgentCard and narrow the KCB manifest out of its extension in place.
+ *
+ * Locates the single `capabilities.extensions[]` entry whose `uri` is
+ * {@link KCB_MANIFEST_EXTENSION_URI} and validates its `params` as a {@link CapabilityManifest}
+ * via {@link parseManifestBody}. The card itself is never rebuilt, so fields this version does
+ * not model — on the card or inside the extension `params` — survive (§3). Throws
+ * {@link ManifestError} naming the offending path if the extension is missing, duplicated, or
+ * carries params that fail validation.
+ */
 export function parseManifest(value: unknown): CapabilityManifest {
+  return parseManifestBody(kcbExtensionParams(value));
+}
+
+/** Narrow the KCB extension's `params` out of an AgentCard, or throw naming the path. */
+function kcbExtensionParams(value: unknown): Record<string, unknown> {
+  const card = object(value, 'agent_card');
+  const capabilities = card.capabilities;
+  const extensions =
+    typeof capabilities === 'object' && capabilities !== null && !Array.isArray(capabilities)
+      ? (capabilities as Record<string, unknown>).extensions
+      : undefined;
+  const list = Array.isArray(extensions) ? extensions : [];
+  const matches = list.filter(isKcbExtension);
+  if (matches.length === 0) {
+    throw new ManifestError(
+      `agent_card.capabilities.extensions must carry the KCB manifest extension ` +
+        `(uri ${KCB_MANIFEST_EXTENSION_URI}), found none`,
+    );
+  }
+  if (matches.length > 1) {
+    throw new ManifestError(
+      `agent_card.capabilities.extensions carries ${matches.length} KCB manifest extensions ` +
+        `(uri ${KCB_MANIFEST_EXTENSION_URI}), expected exactly one`,
+    );
+  }
+  const index = list.indexOf(matches[0]);
+  const extension = object(matches[0], `agent_card.capabilities.extensions[${index}]`);
+  return object(extension.params, `agent_card.capabilities.extensions[${index}].params`);
+}
+
+function isKcbExtension(entry: unknown): boolean {
+  return (
+    typeof entry === 'object' &&
+    entry !== null &&
+    !Array.isArray(entry) &&
+    (entry as Record<string, unknown>).uri === KCB_MANIFEST_EXTENSION_URI
+  );
+}
+
+/**
+ * Validate a bare KCB manifest `params` body — the payload of the AgentCard extension, on its
+ * own — narrowing it in place. This is what {@link parseManifest} runs on the extracted
+ * extension; callers holding a body directly (or a pre-card provider fixture) use it too.
+ */
+export function parseManifestBody(value: unknown): CapabilityManifest {
   const manifest = object(value, 'manifest');
   const version = string(manifest.kcb_version, 'manifest.kcb_version');
   if (!isCompatibleKcbVersion(version)) {
@@ -140,7 +201,10 @@ export function parseManifest(value: unknown): CapabilityManifest {
   return manifest as unknown as CapabilityManifest;
 }
 
-/** Narrowing guard over {@link parseManifest}, for callers that prefer a boolean. */
+/**
+ * Narrowing guard over {@link parseManifest}, for callers that prefer a boolean. True only for
+ * a full AgentCard carrying a readable KCB manifest extension — not for a bare `params` body.
+ */
 export function isCapabilityManifest(value: unknown): value is CapabilityManifest {
   try {
     parseManifest(value);
