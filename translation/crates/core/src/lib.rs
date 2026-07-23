@@ -13,9 +13,11 @@
 
 #![deny(clippy::all)]
 
+mod csv;
 pub mod datalog;
 mod error;
 mod graph;
+pub mod neo4j;
 mod schema;
 mod tsv;
 
@@ -26,8 +28,17 @@ pub use datalog::{
     write_problog_program, write_program, write_souffle_facts, AnnotatedFact, Atom, Dialect, Fact,
     Relation, PROBLOG_PROGRAM_NAME, PROLOG_PROGRAM_NAME, SOUFFLE_PROGRAM_NAME,
 };
+pub use csv::{
+    edges_to_csv, graph_from_csv, nodes_to_csv, read_csv, write_csv_edge_rows, write_csv_node_rows,
+    write_csv_rows,
+};
 pub use error::Error;
 pub use graph::{Cell, Graph, Row};
+pub use neo4j::{
+    build_statements, edge_cypher, export_to_tsv, graph_to_load_script, node_cypher,
+    render_load_script, CypherStatement, ExportResult, GraphCursor, Neo4jEdge, Neo4jNode, PropValue,
+    EDGE_QUERY, ENTITY_LABEL, NODE_QUERY,
+};
 pub use schema::{
     parse_column, CanonicalSchema, Column, EdgeType, NodeType, PropertyType, DELIMITER,
 };

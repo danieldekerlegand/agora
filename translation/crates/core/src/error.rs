@@ -13,6 +13,9 @@ pub enum Error {
     /// A fact or atom could not be projected/rendered to a logic program
     /// (`DatalogError` / `ProblogError` in culture-scrape).
     Datalog(String),
+    /// Graph data could not be mapped back to canonical TSV on a Neo4j cursor
+    /// export (`Neo4jExportError` in culture-scrape).
+    Neo4j(String),
     /// An underlying IO failure while writing to a sink.
     Io(std::io::Error),
 }
@@ -23,6 +26,7 @@ impl fmt::Display for Error {
             Error::Tsv(msg) => write!(f, "tsv error: {msg}"),
             Error::Schema(msg) => write!(f, "schema error: {msg}"),
             Error::Datalog(msg) => write!(f, "datalog error: {msg}"),
+            Error::Neo4j(msg) => write!(f, "neo4j error: {msg}"),
             Error::Io(err) => write!(f, "io error: {err}"),
         }
     }

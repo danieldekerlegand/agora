@@ -31,6 +31,7 @@ from pathlib import Path
 
 from culturescrape.datalog.export import Engine, export_dataset
 from culturescrape.datalog.souffle import SOUFFLE_PROGRAM_NAME
+from culturescrape.neo4j.load_csv import edge_cypher, node_cypher
 from culturescrape.schema.headers import (
     EdgeSchema,
     NodeSchema,
@@ -44,6 +45,7 @@ SCHEMA_JSON = CORE / "canonical-schema.json"
 FIXTURE = CORE / "fixtures" / "graph.json"
 GOLDEN = CORE / "fixtures" / "golden"
 DATALOG_GOLDEN = GOLDEN / "datalog"
+NEO4J_GOLDEN = GOLDEN / "neo4j"
 
 
 def _columns(spec: dict) -> tuple:
@@ -101,11 +103,33 @@ def _write_datalog_goldens(schema: dict, graph: dict) -> None:
         print(f"export_dataset projected {result.fact_count} facts")
 
 
+def _write_neo4j_goldens(schema: dict) -> None:
+    """Capture the idempotent LOAD CSV Cypher `load_csv.py` emits for the canonical
+    node/edge headers (US-3).
+
+    ``node_cypher`` / ``edge_cypher`` are pure functions of the schema (they read each
+    row through the ``$file`` parameter, so they do not depend on any dataset), so the
+    goldens are byte-stable and the Rust port asserts equality against them.
+    """
+    node_schema = NodeSchema(_columns(schema["node"]))
+    edge_schema = EdgeSchema(_columns(schema["edge"]))
+
+    NEO4J_GOLDEN.mkdir(parents=True, exist_ok=True)
+    (NEO4J_GOLDEN / "node_load.cypher").write_text(
+        node_cypher(node_schema), encoding="utf-8"
+    )
+    (NEO4J_GOLDEN / "edge_load.cypher").write_text(
+        edge_cypher(edge_schema), encoding="utf-8"
+    )
+    print(f"wrote node/edge LOAD CSV cypher -> {NEO4J_GOLDEN}")
+
+
 def main() -> None:
     schema = json.loads(SCHEMA_JSON.read_text(encoding="utf-8"))
     graph = json.loads(FIXTURE.read_text(encoding="utf-8"))
     _write_tsv_goldens(schema, graph)
     _write_datalog_goldens(schema, graph)
+    _write_neo4j_goldens(schema)
 
 
 if __name__ == "__main__":
