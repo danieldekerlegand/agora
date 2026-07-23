@@ -13,11 +13,19 @@
 
 #![deny(clippy::all)]
 
+pub mod datalog;
 mod error;
 mod graph;
 mod schema;
 mod tsv;
 
+pub use datalog::{
+    annotate_edge_group, edge_facts, facts_for_graph, node_facts, predicate_for_type,
+    problog_facts_for_graph, render_annotated_fact, render_atom, render_fact,
+    render_problog_program, render_program, render_souffle_program, souffle_facts,
+    write_problog_program, write_program, write_souffle_facts, AnnotatedFact, Atom, Dialect, Fact,
+    Relation, PROBLOG_PROGRAM_NAME, PROLOG_PROGRAM_NAME, SOUFFLE_PROGRAM_NAME,
+};
 pub use error::Error;
 pub use graph::{Cell, Graph, Row};
 pub use schema::{
@@ -27,6 +35,8 @@ pub use tsv::{
     decode_value, decode_values, encode_value, encode_values, read_rows, write_edge_rows,
     write_node_rows, write_rows, MULTI_VALUE_KEYS,
 };
+
+use std::collections::BTreeMap;
 
 /// Render a graph's nodes to canonical TSV (sorted by the id column).
 pub fn nodes_to_tsv(schema: &CanonicalSchema, graph: &Graph) -> Result<String, Error> {
@@ -41,4 +51,33 @@ pub fn edges_to_tsv(schema: &CanonicalSchema, graph: &Graph) -> Result<String, E
     let mut buf: Vec<u8> = Vec::new();
     write_edge_rows(&mut buf, &schema.edge_columns, &graph.edges)?;
     Ok(String::from_utf8(buf).expect("TSV output is UTF-8"))
+}
+
+/// Render a graph to a loadable SWI-Prolog program (`graph.pl`).
+pub fn graph_to_prolog(schema: &CanonicalSchema, graph: &Graph) -> Result<String, Error> {
+    render_program(&facts_for_graph(schema, graph)?)
+}
+
+/// Render a graph to a ProbLog probabilistic program (`graph.problog.pl`).
+pub fn graph_to_problog(schema: &CanonicalSchema, graph: &Graph) -> Result<String, Error> {
+    render_problog_program(&problog_facts_for_graph(schema, graph)?)
+}
+
+/// A rendered Soufflé program: the `.dl` source plus one `<predicate>.facts` body
+/// per relation (keyed by predicate).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SouffleProgram {
+    /// The `graph.dl` source (declarations + I/O directives).
+    pub program: String,
+    /// One `<predicate>.facts` file body per relation.
+    pub facts: BTreeMap<String, String>,
+}
+
+/// Render a graph to a runnable Soufflé program (`graph.dl` + its `.facts` files).
+pub fn graph_to_souffle(schema: &CanonicalSchema, graph: &Graph) -> Result<SouffleProgram, Error> {
+    let facts = facts_for_graph(schema, graph)?;
+    Ok(SouffleProgram {
+        program: render_souffle_program(&facts)?,
+        facts: souffle_facts(&facts)?,
+    })
 }

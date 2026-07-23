@@ -214,7 +214,10 @@ fn sort_key(row: &Row, keys: &[&str]) -> Result<Vec<String>, Error> {
 }
 
 /// Sort `rows` by `keys` with a stable order, mirroring Python's `sorted`.
-fn sorted_by<'a>(rows: &'a [Row], keys: &[&str]) -> Result<Vec<&'a Row>, Error> {
+///
+/// Shared with the datalog projection (US-2), whose fact stream must visit rows in
+/// the same canonical order the TSV writers emit.
+pub(crate) fn sorted_by<'a>(rows: &'a [Row], keys: &[&str]) -> Result<Vec<&'a Row>, Error> {
     let mut indexed: Vec<(Vec<String>, usize)> = Vec::with_capacity(rows.len());
     for (i, row) in rows.iter().enumerate() {
         indexed.push((sort_key(row, keys)?, i));

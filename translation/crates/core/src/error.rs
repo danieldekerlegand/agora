@@ -10,6 +10,9 @@ pub enum Error {
     Tsv(String),
     /// A header row or schema violated the data model (`SchemaError`).
     Schema(String),
+    /// A fact or atom could not be projected/rendered to a logic program
+    /// (`DatalogError` / `ProblogError` in culture-scrape).
+    Datalog(String),
     /// An underlying IO failure while writing to a sink.
     Io(std::io::Error),
 }
@@ -19,6 +22,7 @@ impl fmt::Display for Error {
         match self {
             Error::Tsv(msg) => write!(f, "tsv error: {msg}"),
             Error::Schema(msg) => write!(f, "schema error: {msg}"),
+            Error::Datalog(msg) => write!(f, "datalog error: {msg}"),
             Error::Io(err) => write!(f, "io error: {err}"),
         }
     }
