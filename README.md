@@ -37,6 +37,7 @@ Each directory is a **buildable unit with its own gate**:
 |---|---|---|
 | `provider-router-erl/` | Erlang/OTP (rebar3) | **the** model-backend gateway — the sacred ladder as a supervision tree (agora:80, ADR-0004) |
 | `provider-router/` | Python (uv) | the same gateway, superseded — the contract of record it was extracted from (agora:50) |
+| `trainer/` | Python (uv) | the general KFT `finetune` capability — GPU fine-tuning jobs (separate from the provider-router, ADR-0001 §1) |
 | `registry/` | TypeScript | the thin KCB discovery registry |
 | `resolver/` | TypeScript | the KINP resolver reference implementation |
 | `console/` | TypeScript + React | the conformance console (scenario runner + UI) |
@@ -217,6 +218,7 @@ Per area, when a change touches only one:
 |---|---|
 | `provider-router-erl/` | `make check-router-erl` — `rebar3 compile` + `dialyzer` + `eunit` + `ct`. **The router's gate** (agora:80 / ADR-0004), including the byte-for-byte conformance suite; skips cleanly when the Erlang toolchain is absent |
 | `provider-router/` | `make check-provider-router` — `ruff check` + `ruff format --check` + `mypy` + `pytest` (the superseded Python router, kept green until the cutover completes) |
+| `trainer/` | `make check-trainer` — `ruff check` + `ruff format --check` + `mypy` + `pytest` |
 | `schemas/` | `make check-schemas` |
 | `clients/*` | `make check-clients` |
 | `registry/` | `make check-registry` |

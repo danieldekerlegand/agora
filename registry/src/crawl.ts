@@ -20,6 +20,13 @@ export const PROVIDER_ROUTER_IDENTITY = 'agora:agent:provider-router';
 /** The router's own default bind address (`manifest.DEFAULT_BASE_URL` on the Python side). */
 export const PROVIDER_ROUTER_BASE_URL = 'http://127.0.0.1:8000';
 
+/** KINP identity of the general finetune trainer (`agora_trainer.TRAINER_IDENTITY`). */
+export const TRAINER_IDENTITY = 'agora:agent:trainer';
+
+/** The trainer's own default bind address (`config.DEFAULT_BASE_URL` on the Python side) —
+ * one port above the router's, because it is a distinct service (ADR-0001 decision 1). */
+export const TRAINER_BASE_URL = 'http://127.0.0.1:8001';
+
 /** The slice of `fetch` a crawl needs — structural, so a test can pass three lines. */
 export type ManifestFetch = (
   url: string,
@@ -80,6 +87,29 @@ export async function registerProviderRouter(
     registry.remove(registration.identity);
     throw new CrawlError(
       `expected ${PROVIDER_ROUTER_IDENTITY} at this address, got ${registration.identity}`,
+      manifestUrl(baseUrl),
+    );
+  }
+  return registration;
+}
+
+/**
+ * Index the general finetune trainer — agora's KFT `finetune` provider (US-1 publishes the
+ * manifest this reads), a **distinct** leaf capability from the provider-router (ADR-0001
+ * decision 1). The same crawl, the same authoritative-manifest rule, and the same
+ * identity check: a manifest fetched from the trainer's address that claims to be someone
+ * else is a misconfiguration, and indexing it would publish a wrong address to every peer.
+ */
+export async function registerTrainer(
+  registry: CapabilityRegistry,
+  baseUrl: string = TRAINER_BASE_URL,
+  options: CrawlOptions = {},
+): Promise<Registration> {
+  const registration = await registerFromWellKnown(registry, baseUrl, options);
+  if (registration.identity !== TRAINER_IDENTITY) {
+    registry.remove(registration.identity);
+    throw new CrawlError(
+      `expected ${TRAINER_IDENTITY} at this address, got ${registration.identity}`,
       manifestUrl(baseUrl),
     );
   }

@@ -46,6 +46,9 @@ export {
   PROVIDER_ROUTER_IDENTITY,
   registerFromWellKnown,
   registerProviderRouter,
+  registerTrainer,
+  TRAINER_BASE_URL,
+  TRAINER_IDENTITY,
   type CrawlOptions,
   type ManifestFetch,
 } from './crawl.ts';
