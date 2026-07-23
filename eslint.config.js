@@ -26,4 +26,18 @@ export default tseslint.config(
       '@typescript-eslint/consistent-type-imports': 'error',
     },
   },
+  {
+    // The translation wasm bindings' test harness is a Node CommonJS script (run by its
+    // own test.sh, `require`-ing the wasm-bindgen CJS module) — not part of the TS library
+    // surface. Treat it as CommonJS so `no-undef` doesn't flag require/__dirname/console,
+    // and allow its require() loads (the module it loads is emitted as CJS, not ESM).
+    files: ['**/crates/wasm/test.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { require: 'readonly', module: 'readonly', __dirname: 'readonly', console: 'readonly' },
+    },
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
 );
