@@ -31,6 +31,7 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+from .pairing import PairedSample
 from .telemetry import TelemetryEvent
 
 
@@ -40,10 +41,13 @@ class PreparedData:
 
     #: The KGP GroundingPack ids (text/knowledge data) this run trains on.
     knowledge: tuple[str, ...] = ()
-    #: The KMI asset ids (multimodal data), `fetch`ed lazily by the engine (US-4).
+    #: The KMI asset ids (multimodal data), `fetch`ed lazily by the engine (KMI §7).
     media: tuple[str, ...] = ()
     #: Resolved sample cardinality once known — the load-bearing input to the §7 estimate (US-3).
     cardinality: int | None = None
+    #: The paired multimodal training samples (asset id + text per row) read from the
+    #: dataset-jsonl-header training records — the FT-I join, NOT the corpus arrays (KFT §4.1).
+    samples: tuple[PairedSample, ...] = ()
 
 
 @dataclass(frozen=True)

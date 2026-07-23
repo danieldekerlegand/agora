@@ -32,6 +32,19 @@ class TestAdmitted:
         assert events[-1]["model"].startswith("agora:model:ft-")
         assert events[-1]["weights"]
 
+    def test_a_multimodal_job_streams_now_that_its_engine_is_wired(self) -> None:
+        """image-text-to-text (VLM) is wired in US-4 — it streams 200, no longer a 501."""
+        job = valid_text_job(
+            modality="image-text-to-text",
+            method="qlora",
+            dataset={"knowledge": ["kgp:pack:sha256-7b1e"], "media": ["analyzer:asset:blake3-aa"]},
+        )
+        response = client.post("/invoke", json=job)
+        assert response.status_code == 200
+        events = _stream(response)
+        assert events[-1]["terminal"] is True
+        assert events[-1]["model"].startswith("agora:model:ft-")
+
     def test_every_event_carries_its_idempotency_key(self) -> None:
         events = _stream(client.post("/invoke", json=valid_text_job()))
         assert all(e["id"].startswith("ft-event:sha256-") for e in events)
@@ -67,17 +80,6 @@ class TestRejected:
         response = client.post("/invoke", json=["not", "a", "job"])
         assert response.status_code == 400
         assert response.json()["status"] == "usage"
-
-    def test_a_compatible_but_unwired_modality_is_501(self) -> None:
-        """image-text-to-text is admissible (FT-F) but has no US-2 engine — a 501, not a 422."""
-        job = valid_text_job(
-            modality="image-text-to-text",
-            method="qlora",
-            dataset={"knowledge": ["kgp:pack:sha256-7b1e"], "media": ["analyzer:asset:blake3-aa"]},
-        )
-        response = client.post("/invoke", json=job)
-        assert response.status_code == 501
-        assert response.json()["status"] == "unsupported"
 
     def test_a_local_only_cloud_placement_is_422(self) -> None:
         job = valid_text_job(compute={"class": "single-gpu-a100-80gb", "egress": "local-only"})

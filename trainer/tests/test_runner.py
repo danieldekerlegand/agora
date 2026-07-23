@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from agora_trainer.engine import StepRecord, UnsupportedJob
+from agora_trainer.engine import StepRecord
 from agora_trainer.grant import Grant
 from agora_trainer.llama_factory import LlamaFactoryAdapter
 from agora_trainer.runner import RunRejected, run
@@ -43,6 +43,38 @@ class TestHappyPath:
         assert other[-1].model != _events()[-1].model
 
 
+class TestMultimodalRun:
+    def _t2i_job(self, **overrides: object) -> dict[str, object]:
+        job: dict[str, object] = valid_text_job(
+            modality="text-to-image",
+            method="lora",
+            dataset={"media": ["analyzer:asset:blake3-corpus"]},
+            export=["safetensors-adapter", "onnx"],
+        )
+        job.update(overrides)
+        return job
+
+    def test_a_text_to_image_job_runs_through_the_diffusers_rung(self) -> None:
+        """The media-plane modalities are wired (US-4): they stream telemetry to a terminal."""
+        events = list(run(self._t2i_job()))
+        assert events[-1].terminal
+        assert events[-1].model is not None and events[-1].model.startswith("agora:model:ft-")
+        assert events[-1].weights
+
+    def test_the_terminal_event_carries_the_full_lineage_bundle(self) -> None:
+        """The §5 artifact bundle rides the terminal event — model entity + PROV + weight assets."""
+        bundle = list(run(self._t2i_job()))[-1].artifacts
+        assert bundle is not None
+        # §5.1 the model links to its base; §5.2 the run activity generated the model + weights.
+        assert bundle.model.based_on == "pinakes:model:qwen2.5-3b-instruct"
+        assert bundle.model.derived_from == "pinakes:model:qwen2.5-3b-instruct"
+        assert bundle.model.id in bundle.activity.generated
+        assert set(bundle.weight_ids) <= set(bundle.activity.generated)
+        # §5.3 the primary weights derive_from the base; each export is a variant_of the primary.
+        assert bundle.weights[0].lineage[0].relation == "media:derived_from"
+        assert all(w.lineage for w in bundle.weights)
+
+
 class TestIdempotency:
     def test_redelivered_events_are_content_addressed_and_converge(self) -> None:
         """The same run re-emitted yields identical event ids per (job, step) (KFT §6)."""
@@ -71,19 +103,6 @@ class TestAdmissionGuards:
         with pytest.raises(RunRejected) as caught:
             run(job)
         assert not caught.value.report.ok
-
-    def test_a_compatible_but_unwired_modality_is_unsupported_not_rejected(self) -> None:
-        with pytest.raises(UnsupportedJob):
-            run(
-                valid_text_job(
-                    modality="image-text-to-text",
-                    method="qlora",
-                    dataset={
-                        "knowledge": ["kgp:pack:sha256-7b1e"],
-                        "media": ["analyzer:asset:blake3-aa"],
-                    },
-                )
-            )
 
     def test_a_local_only_cloud_placement_is_rejected_before_the_engine(self) -> None:
         job = valid_text_job(compute={"class": "single-gpu-a100-80gb", "egress": "local-only"})

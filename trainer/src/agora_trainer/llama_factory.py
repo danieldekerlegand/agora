@@ -1,8 +1,9 @@
-"""The LLaMA-Factory engine adapter — text-generation SFT / LoRA / QLoRA (KFT §9).
+"""The LLaMA-Factory engine adapter — text-generation + VLM (KFT §9).
 
-The first rung of the §9 engine ladder. LLaMA-Factory is the general text-generation (and, in
-US-4, VLM) trainer; this adapter wraps it behind the :class:`~agora_trainer.engine.EngineAdapter`
-interface so the runner drives it exactly as it will drive Unsloth / Axolotl / diffusers.
+The first rung of the §9 engine ladder. LLaMA-Factory is the general text-generation trainer and,
+for the vision/video-language modalities (`image-text-to-text`, `video-text-to-text`), the general
+**VLM** trainer; this adapter wraps it behind the :class:`~agora_trainer.engine.EngineAdapter`
+interface so the runner drives it exactly as it drives the diffusers rung.
 
 **Where the training actually runs.** On a GPU-equipped deployment :meth:`launch` shells out to
 LLaMA-Factory with a config derived from the job's ``hyperparams`` and streams its per-step
@@ -13,51 +14,55 @@ backend. The telemetry the runner emits is therefore real recorded training data
 synthesized loss curve (KFT §6). A live run is injected by constructing the adapter with a
 ``run_source``; the default replays the fixture.
 
-Outputs are **minted from the run's reproducibility anchor** (§5.2, FT-C): the finetuned-model
-entity id and its weight/export asset ids are deterministic in the job activity id + ``seed`` +
-``config_hash``, so re-reading the same run yields the same ids while a *different* run mints new
-ones. The §5.3 lineage graph and the §5.4 egress/license inheritance those assets carry are
-US-4's concern; here the terminal event simply announces the ids.
+**Multimodal data (FT-I).** For the VLM modalities the paired samples — which image/clip goes with
+which text — are read from the **dataset-jsonl-header training records** (asset id + text per row),
+not the ``dataset.media[]`` corpus array (KFT §4.1, FT-I); the media assets are `fetch`ed lazily
+via the KMI ``fetch:asset`` seam (:mod:`agora_trainer.pairing`). Outputs — the finetuned-model
+entity and its weight/export assets with §5.3 lineage and §5.4 egress/license inheritance — are
+minted through the shared :mod:`agora_trainer.lineage` authority.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from importlib import resources
 from typing import Any
 
+from . import lineage
 from .engine import PreparedData, RunResult, StepRecord
+from .modality import BY_NAME
+from .pairing import AssetFetch, default_fetch, fetch_all, paired_samples
 from .telemetry import TelemetryEvent
 
 #: The engine name, surfaced in telemetry / provenance.
 ENGINE_NAME = "llama-factory"
 
-#: The modality this rung serves, and the methods it serves for it (KFT §3.1 text-generation
-#: row, narrowed to what LLaMA-Factory drives here). ``full`` / ``dpo`` are general-surface
-#: methods (advertised in the manifest) whose engine wiring is out of US-2's scope; admission
-#: still accepts the *pair* (FT-F) but no US-2 rung runs it — an honest, distinct outcome.
-SERVES_MODALITY = "text-generation"
-SERVES_METHODS: frozenset[str] = frozenset({"sft", "lora", "qlora"})
+#: The modalities this rung serves, and the methods for each (KFT §3.1). ``text-generation`` is the
+#: LLM path; the vision/video-language rows are the VLM path (US-4). ``full`` / ``dpo`` are
+#: general-surface methods (advertised in the manifest) whose engine wiring is out of scope;
+#: admission still accepts the *pair* (FT-F) but no rung here runs it — an honest, distinct outcome.
+SERVES: dict[str, frozenset[str]] = {
+    "text-generation": frozenset({"sft", "lora", "qlora"}),
+    "image-text-to-text": frozenset({"lora", "qlora"}),
+    "video-text-to-text": frozenset({"lora", "qlora"}),
+}
 
 #: The package holding the vendored fixtures, and the recorded run replayed when no live
 #: LLaMA-Factory is present.
 _FIXTURES_DIR = "fixtures"
 _RUN_FIXTURE = "llama_factory_text_run.json"
 
-#: The primary weight artifact every run produces — the LoRA adapter (§5.3, table row 1). Each
-#: requested ``export`` becomes an additional asset alongside it.
-PRIMARY_ARTIFACT = "safetensors-adapter"
+
+def _load_fixture(name: str) -> dict[str, Any]:
+    anchor = resources.files("agora_trainer").joinpath(_FIXTURES_DIR).joinpath(name)
+    doc: dict[str, Any] = json.loads(anchor.read_text(encoding="utf-8"))
+    return doc
 
 
-def recorded_text_run() -> list[StepRecord]:
-    """The captured LLaMA-Factory run replayed by :meth:`LlamaFactoryAdapter.launch`."""
-    anchor = resources.files("agora_trainer").joinpath(_FIXTURES_DIR).joinpath(_RUN_FIXTURE)
-    raw = anchor.read_text(encoding="utf-8")
-    doc: dict[str, Any] = json.loads(raw)
+def _records_of(doc: dict[str, Any]) -> tuple[StepRecord, ...]:
     records: list[StepRecord] = []
-    for entry in doc["steps"]:
+    for entry in doc.get("steps", ()):
         records.append(
             StepRecord(
                 step=int(entry["step"]),
@@ -67,27 +72,68 @@ def recorded_text_run() -> list[StepRecord]:
                 samples=tuple(entry.get("samples", ())),
             )
         )
-    return records
+    return tuple(records)
+
+
+def recorded_text_run() -> list[StepRecord]:
+    """The captured LLaMA-Factory run replayed by :meth:`LlamaFactoryAdapter.launch`."""
+    return list(_records_of(_load_fixture(_RUN_FIXTURE)))
+
+
+def _consumes_media(modality: str) -> bool:
+    record = BY_NAME.get(modality)
+    return record is not None and record.consumes_media
 
 
 class LlamaFactoryAdapter:
-    """LLaMA-Factory for ``text-generation`` × {sft, lora, qlora} (KFT §9)."""
+    """LLaMA-Factory for ``text-generation`` + the VLM modalities (KFT §9)."""
 
     name = ENGINE_NAME
 
-    def __init__(self, run_source: Iterable[StepRecord] | None = None) -> None:
+    def __init__(
+        self,
+        run_source: Iterable[StepRecord] | None = None,
+        *,
+        records_source: Iterable[Mapping[str, Any]] | None = None,
+        fetch: AssetFetch = default_fetch,
+    ) -> None:
         #: An injected live run (a real LLaMA-Factory launch); ``None`` replays the fixture.
         self._run_source = run_source
+        #: Injected dataset-jsonl-header training records (the FT-I join); ``None`` → the fixture.
+        self._records_source = records_source
+        #: The KMI ``fetch:asset`` seam for lazy media pulls (KMI §7).
+        self._fetch = fetch
 
     def supports(self, modality: str, method: str) -> bool:
-        return modality == SERVES_MODALITY and method in SERVES_METHODS
+        return method in SERVES.get(modality, frozenset())
 
     def prepare_data(self, job: dict[str, Any]) -> PreparedData:
-        """Resolve the job's dataset refs (KFT §4.1) — knowledge for text; media stays lazy."""
-        dataset = job.get("dataset", {})
+        """Resolve the job's dataset refs (KFT §4.1) — knowledge for text; paired samples for VLM.
+
+        For a VLM modality the paired ``(asset, text)`` samples are read from the training records
+        (FT-I), NOT ``dataset.media[]`` (that array is the fetch/egress manifest), and each media
+        asset is `fetch`ed lazily via ``fetch:asset`` (KMI §7).
+        """
+        dataset = job.get("dataset", {}) or {}
         knowledge = tuple(dataset.get("knowledge", ()))
-        media = tuple(dataset.get("media", ()))
-        return PreparedData(knowledge=knowledge, media=media)
+        modality = str(job.get("modality", ""))
+        if not _consumes_media(modality):
+            return PreparedData(knowledge=knowledge, media=tuple(dataset.get("media", ())))
+        records = self._records_source
+        if records is None:
+            records = self._load_records()
+        samples = paired_samples(records)
+        fetch_all(samples, self._fetch)  # lazy KMI fetch:asset per referenced asset (KMI §7)
+        media = tuple(dict.fromkeys(s.asset for s in samples))
+        return PreparedData(
+            knowledge=knowledge, media=media, samples=samples, cardinality=len(samples)
+        )
+
+    @staticmethod
+    def _load_records() -> tuple[Mapping[str, Any], ...]:
+        """The offline VLM training records replayed when none are injected (FT-I)."""
+        doc = _load_fixture(_RUN_FIXTURE)
+        return tuple(doc.get("records", ()))
 
     def launch(self, job: dict[str, Any], prepared: PreparedData) -> Iterator[StepRecord]:
         """Yield the run's step records in monotonic order.
@@ -117,46 +163,14 @@ class LlamaFactoryAdapter:
 
         The ids are deterministic in the run's reproducibility anchor (§5.2, FT-C) — the job
         activity id, ``seed``, and ``config_hash`` — so the same run mints the same model while
-        a re-train (a new ``job`` id) mints a distinct one, never a silent collision.
+        a re-train (a new ``job`` id) mints a distinct one, never a silent collision. The full
+        §5.3 lineage + §5.4 egress/license inheritance are built by the runner via
+        :mod:`agora_trainer.lineage` (it holds the resolved ``{data ∪ base}`` facts).
         """
         step_list = list(records)
-        model = self._mint_model_id(job)
-        artifacts = self._artifacts(job)
-        weights = tuple(self._mint_asset_id(model, artifact) for artifact in artifacts)
+        model = lineage.mint_model_id(job)
+        weights = tuple(
+            lineage.mint_asset_id(model, artifact) for artifact in lineage.planned_artifacts(job)
+        )
         ts = step_list[-1].ts if step_list else ""
         return RunResult(model=model, weights=weights, spent_units=None, ts=ts)
-
-    # --- minting -----------------------------------------------------------------
-
-    @staticmethod
-    def _anchor(job: dict[str, Any]) -> str:
-        """The reproducibility anchor string (§5.2) the outputs are minted from."""
-        return "\x00".join(
-            (
-                str(job.get("job", "")),
-                str(job.get("seed", "")),
-                str(job.get("config_hash", "")),
-                str(job.get("base_model", "")),
-                str(job.get("modality", "")),
-                str(job.get("method", "")),
-            )
-        )
-
-    def _mint_model_id(self, job: dict[str, Any]) -> str:
-        digest = hashlib.sha256(self._anchor(job).encode()).hexdigest()[:16]
-        return f"agora:model:ft-{digest}"
-
-    @staticmethod
-    def _artifacts(job: dict[str, Any]) -> tuple[str, ...]:
-        """The primary adapter plus each requested export, de-duplicated, order-stable (§5.3)."""
-        artifacts = [PRIMARY_ARTIFACT]
-        for export in job.get("export", ()):
-            token = str(export)
-            if token not in artifacts:
-                artifacts.append(token)
-        return tuple(artifacts)
-
-    @staticmethod
-    def _mint_asset_id(model: str, artifact: str) -> str:
-        digest = hashlib.sha256(f"{model}\x00{artifact}".encode()).hexdigest()
-        return f"sha256:{digest}"

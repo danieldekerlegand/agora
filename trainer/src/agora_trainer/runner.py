@@ -24,7 +24,9 @@ from __future__ import annotations
 from collections.abc import Iterable, Iterator
 from typing import Any
 
-from .admission import admit
+from . import KFT_VERSION, lineage
+from .admission import AdmissionPlan, admit
+from .diffusers import DiffusersAdapter
 from .engine import EngineAdapter, select_adapter
 from .grant import UNGATED, Grant
 from .llama_factory import LlamaFactoryAdapter
@@ -32,9 +34,9 @@ from .resolve import Resolver, default_resolver
 from .telemetry import TelemetryEvent
 from .validate import Report
 
-#: The §9 engine ladder in preference order. US-2 wires the LLaMA-Factory rung; US-4 appends the
-#: diffusers rung for the text-to-image / -video modalities.
-LADDER: tuple[EngineAdapter, ...] = (LlamaFactoryAdapter(),)
+#: The §9 engine ladder in preference order: the LLaMA-Factory rung (text-generation + VLM) and the
+#: diffusers rung (text-to-image / -video). Selection is by ``modality`` × ``method`` (KFT §9).
+LADDER: tuple[EngineAdapter, ...] = (LlamaFactoryAdapter(), DiffusersAdapter())
 
 
 class RunRejected(Exception):
@@ -45,17 +47,41 @@ class RunRejected(Exception):
         super().__init__(f"job rejected at admission ({report.status.name.lower()})")
 
 
-def _terminal(job: dict[str, Any], last_step: int, result: Any) -> TelemetryEvent:
-    """The single completion event that closes the stream (KFT §6)."""
+def _terminal(
+    job: dict[str, Any], last_step: int, result: Any, bundle: lineage.ArtifactBundle
+) -> TelemetryEvent:
+    """The single completion event that closes the stream (KFT §6).
+
+    Its wire shape stays id-only (the finetuned-model id + weight asset ids); the full §5 artifact
+    ``bundle`` — lineage (§5.3) + egress/license inheritance (§5.4) — rides on the event for the
+    provider to register (§8) / persist, out of band from the telemetry wire.
+    """
     return TelemetryEvent(
         job=str(job["job"]),
         step=last_step + 1,  # one past the last training step — monotonic, distinct event id
         ts=result.ts,
         metrics={},
         terminal=True,
-        model=result.model,
-        weights=result.weights,
+        model=bundle.model.id,
+        weights=bundle.weight_ids,
         spent_units=result.spent_units,
+        artifacts=bundle,
+    )
+
+
+def _build_bundle(job: dict[str, Any], plan: AdmissionPlan, result: Any) -> lineage.ArtifactBundle:
+    """The run's complete §5 artifact bundle, built from the resolved ``{data ∪ base}`` facts.
+
+    Engine-agnostic: minting (§5.2 anchor), the §5.3 lineage graph, and the §5.4 egress/license
+    inheritance are the same for every rung, so they live here rather than in each adapter — the
+    adapter only decides *which* weight/export formats it produced. ``kft_version`` is pinned from
+    the job so the model records the profile it was trained under (KFT §11).
+    """
+    return lineage.mint_artifacts(
+        job,
+        plan.resolved,
+        spent_units=result.spent_units,
+        kft_version=str(job.get("kft_version") or KFT_VERSION),
     )
 
 
@@ -74,8 +100,9 @@ def run(
     engine) eagerly; iterating the result only streams events.
     """
     admission = admit(job, grant=grant, resolver=resolver)
-    if not admission.ok:
+    if not admission.ok or admission.plan is None:
         raise RunRejected(admission.report)
+    plan = admission.plan
     adapter = select_adapter(str(job["modality"]), str(job["method"]), ladder)
     prepared = adapter.prepare_data(job)
 
@@ -90,6 +117,7 @@ def run(
             records.append(record)
             yield adapter.emit_telemetry(job, record)
         result = adapter.export(job, prepared, records)
-        yield _terminal(job, last_step, result)
+        bundle = _build_bundle(job, plan, result)
+        yield _terminal(job, last_step, result, bundle)
 
     return _events()

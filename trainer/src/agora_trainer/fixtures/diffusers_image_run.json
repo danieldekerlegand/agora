@@ -1,0 +1,16 @@
+{
+  "engine": "diffusers",
+  "modality": "text-to-image",
+  "note": "A recorded diffusers (ai-toolkit/SimpleTuner) text-to-image LoRA run — its per-step logs, replayed by the adapter where no GPU/diffusers is installed. Monotonic step, decreasing train_loss; FT-L preview-grid asset ids ride the `samples` field. `records` are the dataset-jsonl-header training records (the FT-I join): a KMI asset id + its caption per row, NOT the dataset.media[] corpus array.",
+  "steps": [
+    { "step": 50, "ts": "2026-07-23T19:00:12.000Z", "metrics": { "train_loss": 0.412, "lr": 0.0001 } },
+    { "step": 100, "ts": "2026-07-23T19:01:30.000Z", "metrics": { "train_loss": 0.318, "lr": 0.00009 }, "samples": ["analyzer:asset:blake3-pv100grid"] },
+    { "step": 150, "ts": "2026-07-23T19:02:48.000Z", "metrics": { "train_loss": 0.271, "lr": 0.00007 } },
+    { "step": 200, "ts": "2026-07-23T19:04:06.000Z", "metrics": { "train_loss": 0.244, "lr": 0.00004 }, "checkpoint": "analyzer:asset:blake3-ck200i", "samples": ["analyzer:asset:blake3-pv200grid"] }
+  ],
+  "records": [
+    { "asset": "analyzer:asset:blake3-img0001", "text": "a watercolor fox curled under a birch tree" },
+    { "asset": "analyzer:asset:blake3-img0002", "text": "a watercolor heron wading at dawn" },
+    { "asset": "analyzer:asset:blake3-img0003", "text": "a watercolor stag in morning mist" }
+  ]
+}

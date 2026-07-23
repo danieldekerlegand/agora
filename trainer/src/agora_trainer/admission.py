@@ -43,6 +43,9 @@ class AdmissionPlan:
     estimate_units: float
     #: The resolved training-sample cardinality the estimate was sized from.
     cardinality: int
+    #: The resolved ``{base ∪ data}`` facts admission decided on — carried so the runner can build
+    #: the §5.4 output inheritance (egress + union license) without re-resolving (US-4).
+    resolved: ResolvedInputs
 
 
 @dataclass(frozen=True)
@@ -135,5 +138,6 @@ def admit(
         placement=placement,
         estimate_units=estimate,
         cardinality=resolved.cardinality,
+        resolved=resolved,
     )
     return Admission(report=Report(status=Status.OK), plan=plan)

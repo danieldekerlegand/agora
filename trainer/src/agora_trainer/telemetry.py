@@ -19,7 +19,10 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .lineage import ArtifactBundle
 
 
 def event_id(job: str, step: int) -> str:
@@ -52,6 +55,11 @@ class TelemetryEvent:
     weights: tuple[str, ...] = ()
     #: On the terminal event: gpu-seconds actually spent (§7).
     spent_units: float | None = None
+    #: On the terminal event: the run's complete §5 artifact bundle — the minted model entity with
+    #: its §5.1 lineage + §5.4 inheritance, the §5.2 PROV activity, and each §5.3 weight asset. The
+    #: §6 wire shape (:meth:`describe`) stays id-only; the bundle is the provider-internal record
+    #: the trainer then registers (§8) / persists to KMI, where §5.4 inheritance rides the envelope.
+    artifacts: ArtifactBundle | None = None
 
     @property
     def id(self) -> str:

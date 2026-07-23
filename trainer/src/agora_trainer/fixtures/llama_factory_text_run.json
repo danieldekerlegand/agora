@@ -9,5 +9,9 @@
     { "step": 40, "ts": "2026-07-23T18:01:43.000Z", "metrics": { "train_loss": 0.863, "lr": 0.000105, "grad_norm": 0.44 } },
     { "step": 50, "ts": "2026-07-23T18:02:14.000Z", "metrics": { "train_loss": 0.742, "eval_loss": 0.951, "lr": 0.00006, "grad_norm": 0.36 }, "checkpoint": "agora:asset:blake3-ck50a1b2" },
     { "step": 60, "ts": "2026-07-23T18:02:45.000Z", "metrics": { "train_loss": 0.681, "eval_loss": 0.918, "lr": 0.00002, "grad_norm": 0.31 }, "checkpoint": "agora:asset:blake3-ck60c3d4" }
+  ],
+  "records": [
+    { "asset": "analyzer:asset:blake3-vlm0001", "text": "Describe the diagram: a labeled water cycle." },
+    { "asset": "analyzer:asset:blake3-vlm0002", "text": "What is happening in this frame? A heron takes flight." }
   ]
 }

@@ -71,8 +71,34 @@ NORMATIVE KFT §4.2 egress gate and the §7 spend ceiling over the job's *resolv
 Every rejection is the same structured report + exit-code semantics as US-2 (0 / 1 / 2 over the
 CLI, 200 / 422 / 400 over HTTP).
 
-Still to come: the multimodal adapter + model/weight artifacts with lineage & inheritance (US-4),
-and multi-provider registry routing (US-5).
+## Multimodal adapter + artifacts with lineage & inheritance (US-4)
+
+The engine ladder gains its media-plane rung and the run gains its full KFT §5 output:
+
+- **diffusers rung** (`src/agora_trainer/diffusers.py`): diffusers + ai-toolkit / SimpleTuner for
+  `text-to-image` ({lora, full}) and `text-to-video` ({lora}); the **LLaMA-Factory** rung now also
+  covers the VLM modalities `image-text-to-text` / `video-text-to-text`. Every modality is wired —
+  a compatible-but-unwired 501 is now unreachable via a schema-valid job.
+- **Paired samples ride the records, not the arrays** (`pairing.py`, FT-I): the image↔caption join
+  is read from the dataset-jsonl-header **training records** (a KMI `asset` id + its `text` per
+  row), never `dataset.knowledge[]`/`dataset.media[]` (those are the fetch/egress manifest). Media
+  assets are `fetch`ed lazily via the KMI `fetch:asset` seam (KMI §7) — an injected, offline
+  stand-in here, the real grant-scoped fetch in a deployment.
+- **Artifacts, lineage & inheritance** (`lineage.py`): on completion the run mints the finetuned
+  model as a KINP `model` entity with a **minted** (not content-addressed) id anchored to the run
+  (§5.2, FT-C), a PROV activity carrying `used`/`generated` + `seed` + `config_hash`, and
+  `based_on`/`derived_from` links to the base (§5.1, FT-G); a re-train links via
+  `retrains`/`supersedes`. Weights + each requested export are KMI assets whose media types and
+  `media:derived_from`/`media:variant_of` lineage *are* the §5.3 export matrix. The model entity
+  **and every weight asset** inherit the most-restrictive egress + union license of `{data ∪ base}`
+  (§5.4, FT-A). The bundle rides the terminal telemetry event out of band from the id-only §6 wire.
+- **Output-egress enforcement at registration** (`registration.py`, §5.4/FT-A): a
+  `local-only`-inheriting model is **refused** a cross-boundary registration and reported
+  (`egress-output`) — the model-artifact twin of `schemas/axes.ts::assertPackEgress`, and the
+  trainer-side stand-in for the discovery registry's (§8) refusal. An in-tier registration admits
+  any class — `local-only` output stays in-tier, which is exactly what §5.4 permits.
+
+Still to come: multi-provider registry routing + scope handoffs (US-5).
 
 ## Run it
 

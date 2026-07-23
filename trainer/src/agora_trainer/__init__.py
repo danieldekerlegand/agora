@@ -18,7 +18,13 @@ it:
   provider serves
 * :mod:`~agora_trainer.config` — the ``AGORA_*`` settings the trainer reads
 * :mod:`~agora_trainer.manifest` — the KCB `finetune` capability manifest (KCB §2, KFT §2)
-* :mod:`~agora_trainer.app` — the HTTP surface (``/health``, the agent card, the manifest)
+* :mod:`~agora_trainer.engine` / :mod:`~agora_trainer.llama_factory` /
+  :mod:`~agora_trainer.diffusers` — the §9 engine ladder (text-generation + VLM, and
+  text-to-image / -video) behind one adapter interface
+* :mod:`~agora_trainer.pairing` — the FT-I paired-sample join + the KMI ``fetch:asset`` seam
+* :mod:`~agora_trainer.lineage` / :mod:`~agora_trainer.registration` — the §5 model/weight
+  artifacts (identity, lineage, egress/license inheritance) + the §5.4 cross-boundary refusal
+* :mod:`~agora_trainer.app` — the HTTP surface (``/health``, the agent card, the manifest, invoke)
 """
 
 import os
