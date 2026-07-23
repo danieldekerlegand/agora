@@ -41,4 +41,38 @@ describe('finetune-job structural validator (KFT §3)', () => {
     delete instance[field];
     expect(validate('finetune-job', instance).length).toBeGreaterThan(0);
   });
+
+  // US-2 (agora:41) — the STRUCTURAL negative twin: perturbations that draft-2020-12 catches
+  // on its own (bad enum, missing nested required, an unsatisfied anyOf). These stay firmly on
+  // the structural side of the SCOPE BOUNDARY: what is NOT tested here is the SEMANTIC admission
+  // KFT defines — modality×method compatibility (FT-F), egress feasibility / cross-boundary
+  // placement (§4.2), the admission-time cost ceiling (§7). Those are PROVIDER behavior enforced
+  // at invoke (agora:90-finetune-trainer, pinakes:90-finetune-provider), NOT schema shape, so a
+  // fixture like modality:text-to-image × method:dpo validates GREEN here by design — its absence
+  // is intentional, not a coverage gap.
+  it('rejects a bad modality enum value', () => {
+    const instance = loadFinetuneJob();
+    instance.modality = 'not-a-modality';
+    expect(validate('finetune-job', instance).length).toBeGreaterThan(0);
+  });
+
+  it('rejects a bad method enum value', () => {
+    const instance = loadFinetuneJob();
+    instance.method = 'not-a-method';
+    expect(validate('finetune-job', instance).length).toBeGreaterThan(0);
+  });
+
+  it('rejects a compute block missing class', () => {
+    const instance = loadFinetuneJob();
+    delete (instance.compute as Record<string, unknown>).class;
+    expect(validate('finetune-job', instance).length).toBeGreaterThan(0);
+  });
+
+  it('rejects a dataset with neither knowledge nor media (anyOf)', () => {
+    const instance = loadFinetuneJob();
+    const dataset = instance.dataset as Record<string, unknown>;
+    delete dataset.knowledge;
+    delete dataset.media;
+    expect(validate('finetune-job', instance).length).toBeGreaterThan(0);
+  });
 });
