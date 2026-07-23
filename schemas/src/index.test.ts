@@ -7,6 +7,7 @@ describe('@agora/schemas', () => {
     expect(SPEC_VERSIONS.kcb).toBe('0.2.0');
     expect(SPEC_VERSIONS.kinp).toBe('0.2.0');
     expect(SPEC_VERSIONS.kgp).toBe('0.4.0');
+    expect(SPEC_VERSIONS.kft).toBe('0.3.0');
   });
 
   it('re-exports the relation-registry pin', () => {

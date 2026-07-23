@@ -48,10 +48,11 @@ export function main(argv: string[]): number {
     for (const err of errors) console.log(`INVALID ${err}`);
     return 1;
   }
-  // grounding-pack stamps its version into `kgp_version` (KGP §2); the other four keep
-  // `contractVersion`. Show whichever the artifact carries.
+  // grounding-pack stamps its version into `kgp_version` (KGP §2), finetune-job into
+  // `kft_version` (KFT §3); the other four keep `contractVersion`. Show whichever the
+  // artifact carries — mirrors the Python CLI's version reader.
   const contract = isJsonObject(instance)
-    ? (instance.contractVersion ?? instance.kgp_version ?? '?')
+    ? (instance.contractVersion ?? instance.kgp_version ?? instance.kft_version ?? '?')
     : '?';
   console.log(`VALID ${artifactPath} against ${name} (contract ${String(contract)})`);
   return 0;

@@ -107,6 +107,17 @@ describe('grounding-pack contract version is pinned to SPEC_VERSIONS.kgp', () =>
   });
 });
 
+describe('finetune-job contract version is pinned to SPEC_VERSIONS.kft', () => {
+  // The KFT job manifest stamps the koine spec version into `kft_version`. Tie the golden fixture
+  // to agora's pinned `SPEC_VERSIONS.kft` (schemas/src/versions.ts) so a KFT bump that touches only
+  // one side goes red here — the fixture's KFT version and the koine spec version cannot diverge in
+  // silence, the same discipline as the KGP pin above and the versions.ts ↔ Python KCB cross-pin.
+  it('the golden fixture kft_version equals SPEC_VERSIONS.kft', () => {
+    const fixture = loadFixture('finetune-job');
+    expect(fixture.kft_version).toBe(SPEC_VERSIONS.kft);
+  });
+});
+
 describe('fixtures re-validate against the LIVE koine/schemas (not the snapshot)', () => {
   const liveAjv = buildAjv(koineSchemasDir());
 

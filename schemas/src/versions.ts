@@ -12,6 +12,8 @@ export const SPEC_VERSIONS = {
   kinp: '0.2.0',
   /** Grounding packs — `koine/specs/grounding-pack.md` (governs the relation registry) */
   kgp: '0.4.0',
+  /** Fine-tuning — `koine/specs/fine-tuning.md` (governs the finetune-job manifest) */
+  kft: '0.3.0',
   /** Conformance-scenario format — `koine/specs/conformance-scenario.md` */
   kcs: '0.2.0',
 } as const;
