@@ -161,6 +161,21 @@ describe('parseManifestBody vs parseManifest', () => {
   });
 });
 
+describe('the pre-11 shape migration is a hard break', () => {
+  it('rejects a bare pre-11 KCB manifest object (no capabilities.extensions)', () => {
+    // Before koine:11 the manifest WAS the served document: a bare KCB object with
+    // kcb_version + identity + endpoints at the top level. Post-11 it rides under
+    // `capabilities.extensions[].params`. Feeding the old shape to parseManifest must FAIL
+    // loudly — otherwise a stale pre-11 manifest would be silently mis-parsed as a card.
+    const preEleven = manifestBody();
+    expect((preEleven as Record<string, unknown>).capabilities).not.toHaveProperty('extensions');
+    expect(() => parseManifest(preEleven)).toThrow(ManifestError);
+    expect(() => parseManifest(preEleven)).toThrow(/KCB manifest extension/);
+    // The bare body only parses through the explicit pre-11-body path.
+    expect(parseManifestBody(preEleven).identity).toBe('orchestrator:agent:composer');
+  });
+});
+
 describe('emitting the KCB extension', () => {
   it('wraps a manifest as the single KCB extension, uri + required per §2', () => {
     const body = parseManifestBody(manifestBody());
