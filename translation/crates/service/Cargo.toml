@@ -1,0 +1,19 @@
+[package]
+name = "translation-service"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "A thin HTTP transform service over agora's translation core — a directly-dialed KCB leaf that translates on demand and NEVER relays another service's traffic (ADR-0001)."
+
+[lib]
+name = "translation_service"
+
+[[bin]]
+name = "translation-service"
+path = "src/main.rs"
+
+[dependencies]
+translation-core = { path = "../core" }
+serde = { workspace = true }
+serde_json = { workspace = true }

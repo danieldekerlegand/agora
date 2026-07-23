@@ -219,6 +219,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "translation-service"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "translation-core",
+]
+
+[[package]]
 name = "translation-wasm"
 version = "0.1.0"
 dependencies = [
