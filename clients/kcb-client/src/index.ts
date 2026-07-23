@@ -57,3 +57,47 @@ export function endpointFor(
 ): string | undefined {
   return capability?.endpoint ?? address.endpoints.mcp ?? address.endpoints.a2a;
 }
+
+/** The spec's named client transports — the protocol a wire opens against an address. */
+export type Transport = 'mcp' | 'a2a' | 'openai';
+
+/** The named transports a capability endpoint might be hosted on, checked in this order. */
+const NAMED_TRANSPORTS: readonly Transport[] = ['openai', 'mcp', 'a2a'];
+
+/**
+ * OVER WHAT the address {@link endpointFor} resolves is dialed — the companion projection so
+ * a caller learns both WHERE (the URL) and the transport, without re-implementing the
+ * console's `wireFor` selection. Address-only, like everything here: it names a protocol, it
+ * never opens one (ADR-0001 decisions 2-4).
+ *
+ * It honors `endpointFor`'s precedence: a capability's own `endpoint` first — named by the
+ * provider endpoint that hosts it (the same URL equal to, or under, `endpoints.openai`/`mcp`/
+ * `a2a`) — then `endpoints.mcp`, then `endpoints.a2a`. Returns `undefined` when the address
+ * resolves to nothing dialable, or to a capability endpoint no published transport hosts:
+ * the caller must not invent a transport any more than it invents an address.
+ */
+export function transportOf(
+  address: ProviderAddress,
+  capability?: Pick<Capability, 'endpoint'>,
+): Transport | undefined {
+  if (capability?.endpoint !== undefined) {
+    return transportHosting(address.endpoints, capability.endpoint);
+  }
+  if (address.endpoints.mcp !== undefined) return 'mcp';
+  if (address.endpoints.a2a !== undefined) return 'a2a';
+  return undefined;
+}
+
+/** Which named transport an absolute capability endpoint is served under, if any. */
+function transportHosting(
+  endpoints: ProviderEndpoints,
+  endpoint: string,
+): Transport | undefined {
+  for (const transport of NAMED_TRANSPORTS) {
+    const base = endpoints[transport];
+    if (base === undefined) continue;
+    const boundary = base.endsWith('/') ? base : `${base}/`;
+    if (endpoint === base || endpoint.startsWith(boundary)) return transport;
+  }
+  return undefined;
+}
