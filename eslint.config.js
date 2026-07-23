@@ -5,7 +5,16 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', 'provider-router/**'],
+    // `**/crates/wasm/pkg/**` is wasm-bindgen build output (emitted by `make check-translation`
+    // into a git-ignored dir): generated CommonJS glue, not authored source, so it must not be
+    // linted — otherwise `make check` goes red whenever the wasm pkg has been built.
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      'provider-router/**',
+      '**/crates/wasm/pkg/**',
+    ],
   },
   js.configs.recommended,
   {
