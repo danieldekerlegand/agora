@@ -1,7 +1,7 @@
 {
   "kcb_version": "0.2.0",
   "identity": "agora:agent:provider-router",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "endpoints": {
     "openai": "http://127.0.0.1:8000/v1",
     "doctor": "http://127.0.0.1:8000/doctor",

@@ -22,7 +22,7 @@ import os
 
 __all__ = ["KCB_VERSION", "ROUTER_IDENTITY", "ROUTER_IDENTITY_ENV_VAR", "__version__"]
 
-__version__ = "0.0.0"
+__version__ = "0.1.0"
 
 #: Env var overriding the router's KINP identity; unset keeps the historical default.
 ROUTER_IDENTITY_ENV_VAR = "AGORA_ROUTER_IDENTITY"

@@ -18,10 +18,40 @@ the placeholder, that nothing is dialed, and that no call raises.
 
 ## Run it
 
+Standalone — no repo-root Makefile, no sibling areas. Install the package and launch the
+console entry point (or the module runner); both boot the FastAPI app under uvicorn, reading
+`AGORA_HOST` (default `0.0.0.0`) and `AGORA_PORT` (default `8000`) from the environment:
+
 ```sh
-uv run uvicorn agora_provider_router.app:app --reload    # from provider-router/
-curl localhost:8000/doctor                               # the resolved ladder per modality
+pip install agora-provider-router          # or: uv pip install agora-provider-router
+agora-provider-router                       # the [project.scripts] console entry point
+# equivalently:
+python -m agora_provider_router
 ```
+
+**A fresh install is safe to run immediately.** With no API keys and no local servers
+configured, every modality resolves to the deterministic placeholder tier — the
+always-completes / ZERO-SPEND default. It answers requests and spends nothing; add a key
+(below) only when you want a paid tier.
+
+From a checkout, uv runs it against the source tree instead:
+
+```sh
+uv run agora-provider-router                             # from provider-router/
+# or the app directly under uvicorn with reload:
+uv run uvicorn agora_provider_router.app:app --reload
+curl localhost:8000/doctor                               # the resolved ladder per modality
+curl localhost:8000/health                               # liveness + identity + kcb_version
+```
+
+### Build the wheel
+
+```sh
+uv build                                                 # from provider-router/ → dist/*.whl
+```
+
+The shipped price sheet (`prices.toml`) is packaged as data, so a wheel installed into a
+clean venv prices the ladder without reaching back into the repo.
 
 ## Surface
 
