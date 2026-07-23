@@ -1,11 +1,15 @@
 """The router's provider configuration — one typed schema, read from the environment.
 
-The wire format is the ecosystem's existing ``CUNEIFORM_PROVIDER_<NAME>_<FIELD>`` shape
-(ported from Analyzer's ``console.env_store``), so an ``.env`` written by a Orchestrator/Analyzer
-console configures this router unchanged. ``FIELD`` is one of ``API_KEY``, ``BASE_URL``,
-``MODEL``, ``ENABLED``; the common non-namespaced spellings (``OPENAI_API_KEY``,
-``MLX_SERVE_BASE_URL``, ``OLLAMA_HOST``, …) are accepted as fallbacks, and the namespaced
-form always wins.
+The wire format is the package-neutral ``AGORA_PROVIDER_<NAME>_<FIELD>`` shape. The
+ecosystem's historical ``CUNEIFORM_PROVIDER_<NAME>_<FIELD>`` spelling (ported from Analyzer's
+``console.env_store``) is retained as a documented legacy alias, so an ``.env`` written by a
+Orchestrator/Analyzer console still configures this router unchanged; the neutral spelling wins
+when both name the same field. ``FIELD`` is one of ``API_KEY``, ``BASE_URL``, ``MODEL``,
+``ENABLED``; the common non-namespaced spellings (``OPENAI_API_KEY``, ``MLX_SERVE_BASE_URL``,
+``OLLAMA_HOST``, …) are accepted as fallbacks, and either namespaced form wins over them.
+
+The env file is named by ``AGORA_ENV_FILE`` (legacy alias ``CUNEIFORM_ENV_FILE``), else
+``<cwd>/.env``.
 
 Two rules this module exists to enforce:
 
@@ -28,11 +32,20 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
-#: Namespaced prefix owned by the provider settings block.
-ENV_PREFIX = "CUNEIFORM_PROVIDER_"
+#: Package-neutral namespaced prefix owned by the provider settings block.
+ENV_PREFIX = "AGORA_PROVIDER_"
+
+#: Legacy alias for :data:`ENV_PREFIX`, kept so an Analyzer/Orchestrator ``.env`` still parses.
+LEGACY_ENV_PREFIX = "CUNEIFORM_PROVIDER_"
+
+#: The namespaced prefixes recognised, highest precedence first (neutral beats legacy).
+_NAMESPACED_PREFIXES = (ENV_PREFIX, LEGACY_ENV_PREFIX)
 
 #: Env var naming the file to read provider settings from (else ``<cwd>/.env``).
-ENV_FILE_VAR = "CUNEIFORM_ENV_FILE"
+ENV_FILE_VAR = "AGORA_ENV_FILE"
+
+#: Legacy alias for :data:`ENV_FILE_VAR`.
+LEGACY_ENV_FILE_VAR = "CUNEIFORM_ENV_FILE"
 
 #: Prefix of the ladder-ordering variables (see :mod:`agora_provider_router.ladder`), the
 #: only part of the environment a :class:`RouterConfig` keeps verbatim.
@@ -180,7 +193,7 @@ def _by_name(provider: ProviderConfig) -> str:
 
 
 def _env_file_path(env: Mapping[str, str]) -> Path:
-    override = env.get(ENV_FILE_VAR)
+    override = env.get(ENV_FILE_VAR) or env.get(LEGACY_ENV_FILE_VAR)
     return Path(override) if override else Path.cwd() / ".env"
 
 
@@ -225,27 +238,40 @@ def _is_secret(key: str) -> bool:
     return upper.endswith(("API_KEY", "_TOKEN", "_SECRET"))
 
 
-def _split_namespaced(key: str) -> tuple[str, str] | None:
-    """``CUNEIFORM_PROVIDER_MLX_SERVE_BASE_URL`` → ``("mlx-serve", "base_url")``."""
-    if not key.startswith(ENV_PREFIX):
-        return None
-    rest = key[len(ENV_PREFIX) :]
-    for field in _FIELDS:
-        suffix = f"_{field}"
-        if rest.endswith(suffix) and len(rest) > len(suffix):
-            return _normalise(rest[: -len(suffix)]), field.lower()
+def _split_namespaced(key: str) -> tuple[str, str, str] | None:
+    """``AGORA_PROVIDER_MLX_SERVE_BASE_URL`` → ``("mlx-serve", "base_url", <prefix>)``.
+
+    The legacy ``CUNEIFORM_PROVIDER_`` spelling resolves identically; the matched prefix is
+    returned so precedence and ``key_source`` can name where a value came from.
+    """
+    for prefix in _NAMESPACED_PREFIXES:
+        if not key.startswith(prefix):
+            continue
+        rest = key[len(prefix) :]
+        for field in _FIELDS:
+            suffix = f"_{field}"
+            if rest.endswith(suffix) and len(rest) > len(suffix):
+                return _normalise(rest[: -len(suffix)]), field.lower(), prefix
     return None
 
 
 def _parse_providers(env: Mapping[str, str]) -> dict[str, ProviderConfig]:
     """Fold the namespaced block and the standard fallbacks into one record per provider."""
     fields: dict[str, dict[str, str]] = {}
+    #: (name, field) → rank of the prefix that set it, so the neutral spelling wins over the
+    #: legacy alias regardless of env iteration order (lower rank = higher precedence).
+    field_rank: dict[tuple[str, str], int] = {}
     for key, value in env.items():
         split = _split_namespaced(key)
         if split is None or not str(value).strip():
             continue
-        name, field = split
+        name, field, prefix = split
+        rank = _NAMESPACED_PREFIXES.index(prefix)
+        slot = (name, field)
+        if field_rank.get(slot, len(_NAMESPACED_PREFIXES)) <= rank:
+            continue
         fields.setdefault(name, {})[field] = str(value).strip()
+        field_rank[slot] = rank
 
     sources: dict[str, str] = {}
     for name, names in _STANDARD_API_KEYS.items():
@@ -273,6 +299,8 @@ def _parse_providers(env: Mapping[str, str]) -> dict[str, ProviderConfig]:
         providers[name] = ProviderConfig(
             name=name,
             api_key=SecretStr(api_key) if api_key else None,
+            # Any namespaced spelling reports the neutral prefix, so a legacy-configured and a
+            # neutral-configured provider parse to byte-identical records.
             key_source=(sources.get(name, ENV_PREFIX.rstrip("_")) if api_key else None),
             base_url=values.get("base_url"),
             model=values.get("model"),
