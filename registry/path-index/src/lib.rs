@@ -13,11 +13,14 @@
 //! the caller then dials directly, never a route through the registry.
 //!
 //! US-2 replaced the per-pop full edge rescan with a plane-typed [`EdgeIndex`]: expanding a partial
-//! path enumerates feed-compatible edges by bucket lookup instead of scanning every edge. The
-//! frontier is still the naive linear `take_best` — US-3 makes it a heap; the golden parity harness
-//! pins behaviour byte-for-byte across every refactor.
+//! path enumerates feed-compatible edges by bucket lookup instead of scanning every edge. US-3
+//! replaced the linear `take_best` frontier scan with a [`BinaryHeap`] of [`FrontierEntry`]: each
+//! partial path carries its unpriced-hop count and projected units incrementally, so popping the
+//! best route is O(log n) and the KCB §3 ranking never re-derives `.filter(…).count()` /
+//! `.reduce(…)` on a comparison. The golden parity harness pins behaviour byte-for-byte across
+//! every refactor.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BinaryHeap, HashMap, HashSet};
 use std::cmp::Ordering;
 
 use serde::{Deserialize, Serialize};
@@ -451,8 +454,11 @@ impl EdgeIndex {
 
 /// The best path from `query.from` to `query.to`, or `None` if the index has none.
 ///
-/// Best-first on `compare_paths`: the first goal-matching partial path popped from the frontier is
-/// returned. Mirrors `findCapabilityPath` exactly.
+/// Best-first on the KCB §3 ranking (see [`FrontierEntry`]): the first goal-matching partial path
+/// popped from the [`BinaryHeap`] frontier is returned. Mirrors `findCapabilityPath` exactly — the
+/// heap replaces `takeBest`'s O(n) full-frontier scan with an O(log n) pop, and an insertion
+/// sequence breaks ties so the earliest-inserted of equal-ranked paths wins, exactly as the linear
+/// scan's first-`Less`-wins did.
 pub fn search(registrations: &[Registration], query: &PathQuery) -> Option<CapabilityPath> {
     let max_hops = query.max_hops.unwrap_or(DEFAULT_MAX_HOPS);
     if max_hops < 1 {
@@ -460,41 +466,42 @@ pub fn search(registrations: &[Registration], query: &PathQuery) -> Option<Capab
     }
     let index = EdgeIndex::build(registrations);
 
-    let mut frontier: Vec<CapabilityPath> = Vec::new();
+    let mut frontier: BinaryHeap<FrontierEntry> = BinaryHeap::new();
+    let mut seq: u64 = 0;
     for edge in &index.edges {
         if matches_port(&edge.input, &query.from) {
-            frontier.push(path_of(vec![edge.clone()]));
+            frontier.push(FrontierEntry::single(edge.clone(), seq));
+            seq += 1;
         }
     }
 
-    while !frontier.is_empty() {
-        let best = take_best(&mut frontier);
-        let last = match best.steps.last() {
-            Some(step) => step.clone(),
+    while let Some(best) = frontier.pop() {
+        let last_output = match best.path.steps.last() {
+            Some(step) => step.output.clone(),
             None => continue,
         };
-        if matches_port(&last.output, &query.to) {
-            return Some(best);
+        if matches_port(&last_output, &query.to) {
+            return Some(best.path);
         }
-        if best.steps.len() >= max_hops as usize {
+        if best.path.steps.len() >= max_hops as usize {
             continue;
         }
         let used: HashSet<String> = best
+            .path
             .steps
             .iter()
             .map(|s| format!("{} {}", s.identity, s.capability))
             .collect();
-        for &i in &index.candidates(&last.output) {
+        for &i in &index.candidates(&last_output) {
             let edge = &index.edges[i];
             if used.contains(&format!("{} {}", edge.identity, edge.capability)) {
                 continue;
             }
-            if !satisfies(&last.output, &edge.input) {
+            if !satisfies(&last_output, &edge.input) {
                 continue;
             }
-            let mut steps = best.steps.clone();
-            steps.push(edge.clone());
-            frontier.push(path_of(steps));
+            frontier.push(best.extended(edge.clone(), seq));
+            seq += 1;
         }
     }
     None
@@ -527,37 +534,86 @@ fn edges_of(registrations: &[Registration]) -> Vec<PathStep> {
     edges
 }
 
-fn path_of(steps: Vec<PathStep>) -> CapabilityPath {
-    let projected_units = steps.iter().map(|s| s.est_units).sum();
-    let unpriced = steps.iter().any(|s| s.unpriced);
-    CapabilityPath { steps, projected_units, unpriced }
+// --- Frontier priority queue (US-3) --------------------------------------------------------
+
+/// A partial path on the frontier, wrapped so a [`BinaryHeap`] pops the most preferred route
+/// first — the KCB §3 ranking `comparePaths` (`path.ts`) encodes: fewest unpriced hops, then
+/// cheapest projected units, then fewest hops. Two fields are carried *incrementally* rather than
+/// recomputed on every comparison the way `comparePaths` did with `.filter(…).length` /
+/// `.reduce(…)`:
+///
+/// - `unpriced_count` — the count of unpriced hops, bumped as each hop is appended;
+/// - `path.projected_units` — the running unit total, summed once per extension.
+///
+/// `seq` is the insertion order. It is the final tie-breaker so the heap pops the *earliest*
+/// inserted of two equal-ranked paths — reproducing the linear `take_best`'s first-`Less`-wins
+/// behaviour, which the golden parity harness pins. A `BinaryHeap` is otherwise unordered among
+/// equal elements, so without `seq` two ties could swap and diverge from the retired TS path.
+struct FrontierEntry {
+    /// Count of unpriced hops — the primary ranking key, carried forward, never recomputed.
+    unpriced_count: usize,
+    /// Insertion order; the final tie-breaker after the `comparePaths` keys.
+    seq: u64,
+    path: CapabilityPath,
 }
 
-/// Pop the most preferred partial path: priced first, then cheapest, then shortest (`path.ts`
-/// takeBest). Linear scan — US-3 replaces this with a heap.
-fn take_best(frontier: &mut Vec<CapabilityPath>) -> CapabilityPath {
-    let mut best_at = 0;
-    for i in 1..frontier.len() {
-        if compare_paths(&frontier[i], &frontier[best_at]) == Ordering::Less {
-            best_at = i;
+impl FrontierEntry {
+    /// A one-hop partial path from a start edge.
+    fn single(step: PathStep, seq: u64) -> Self {
+        Self {
+            unpriced_count: usize::from(step.unpriced),
+            seq,
+            path: CapabilityPath {
+                projected_units: step.est_units,
+                unpriced: step.unpriced,
+                steps: vec![step],
+            },
         }
     }
-    frontier.remove(best_at)
+
+    /// This path with one more hop, carrying the ranking fields forward incrementally.
+    fn extended(&self, step: PathStep, seq: u64) -> Self {
+        let unpriced_count = self.unpriced_count + usize::from(step.unpriced);
+        let projected_units = self.path.projected_units + step.est_units;
+        let unpriced = self.path.unpriced || step.unpriced;
+        let mut steps = self.path.steps.clone();
+        steps.push(step);
+        Self { unpriced_count, seq, path: CapabilityPath { steps, projected_units, unpriced } }
+    }
+
+    /// The KCB §3 preference order (`comparePaths`): `Less` = more preferred. Fewest unpriced hops,
+    /// then cheapest projected units, then fewest hops, then earliest inserted. Projected-unit
+    /// equality/`NaN` falls through to hop count exactly as `comparePaths` does.
+    fn preference(&self, other: &Self) -> Ordering {
+        self.unpriced_count
+            .cmp(&other.unpriced_count)
+            .then_with(|| {
+                self.path
+                    .projected_units
+                    .partial_cmp(&other.path.projected_units)
+                    .unwrap_or(Ordering::Equal)
+            })
+            .then_with(|| self.path.steps.len().cmp(&other.path.steps.len()))
+            .then_with(|| self.seq.cmp(&other.seq))
+    }
 }
 
-/// The KCB §3 ranking key: (count of unpriced hops, then projected units, then hop count).
-fn compare_paths(a: &CapabilityPath, b: &CapabilityPath) -> Ordering {
-    let unpriced_a = a.steps.iter().filter(|s| s.unpriced).count();
-    let unpriced_b = b.steps.iter().filter(|s| s.unpriced).count();
-    match unpriced_a.cmp(&unpriced_b) {
-        Ordering::Equal => {}
-        other => return other,
+impl PartialEq for FrontierEntry {
+    fn eq(&self, other: &Self) -> bool {
+        self.seq == other.seq
     }
-    match a.projected_units.partial_cmp(&b.projected_units) {
-        Some(Ordering::Equal) | None => {}
-        Some(other) => return other,
+}
+impl Eq for FrontierEntry {}
+impl PartialOrd for FrontierEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
-    a.steps.len().cmp(&b.steps.len())
+}
+impl Ord for FrontierEntry {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // BinaryHeap is a max-heap; reverse `preference` so the most preferred (`Less`) sits on top.
+        other.preference(self)
+    }
 }
 
 #[cfg(test)]

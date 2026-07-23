@@ -344,6 +344,52 @@ struct GoldenCase {
     expected: Option<CapabilityPath>,
 }
 
+// --- US-3: heap frontier — ranking, incremental carry, and the hop-count tie-break ---------
+
+/// A one-capability provider with an explicit knowledge/entity in→out edge and a priced cost.
+fn hop(identity: &str, input: serde_json::Value, output: serde_json::Value, est_units: f64) -> serde_json::Value {
+    json!({
+        "identity": identity,
+        "endpoints": { "mcp": format!("https://{identity}.example/mcp") },
+        "capabilities": [{
+            "name": "step",
+            "inputs": [input],
+            "outputs": [output],
+            "cost": { "tier": "paid", "est_units": est_units }
+        }]
+    })
+}
+
+#[test]
+fn tie_break_falls_back_to_fewest_hops() {
+    // Two routes reach the same goal, tied on (unpriced count = 0, projected units = 5), and differ
+    // only in hop count: a 2-hop chain (3 + 2) and a 3-hop chain (1 + 1 + 3). comparePaths' final
+    // clause prefers the shorter one — so the heap must pop the 2-hop path first.
+    let seed = json!({ "plane": "entity", "types": ["seed"] });
+    let two_hop = vec![
+        hop("two-a", seed.clone(), json!({ "plane": "knowledge", "shape": "mid" }), 3.0),
+        hop("two-b", json!({ "plane": "knowledge", "shape": "mid" }), json!({ "plane": "knowledge", "shape": "final" }), 2.0),
+    ];
+    let three_hop = vec![
+        hop("three-a", seed.clone(), json!({ "plane": "knowledge", "shape": "mid-b" }), 1.0),
+        hop("three-b", json!({ "plane": "knowledge", "shape": "mid-b" }), json!({ "plane": "knowledge", "shape": "mid-c" }), 1.0),
+        hop("three-c", json!({ "plane": "knowledge", "shape": "mid-c" }), json!({ "plane": "knowledge", "shape": "final" }), 3.0),
+    ];
+    let mut providers = two_hop;
+    providers.extend(three_hop);
+    let regs = registrations(providers);
+
+    let path = search(
+        &regs,
+        &query(json!({ "entityType": "seed" }), json!({ "plane": "knowledge", "shape": "final" })),
+    )
+    .expect("a path");
+
+    assert_eq!(identities(&path), vec!["two-a", "two-b"], "the fewer-hops route wins the (0, 5) tie");
+    assert_eq!(path.projected_units, 5.0);
+    assert!(!path.unpriced);
+}
+
 #[test]
 fn golden_parity_byte_for_byte() {
     // Captured from the CURRENT findCapabilityPath (registry/src/path.ts) by generate-golden.ts.
