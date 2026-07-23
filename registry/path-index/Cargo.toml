@@ -26,3 +26,11 @@ napi-derive = { version = "2", optional = true }
 
 [build-dependencies]
 napi-build = "2"
+
+# The crossover benchmark (US-5): times the live indexed+heap `search` against the retired
+# O(n)-per-pop `search_linear` over a growing synthetic graph. `harness = false` — it's a plain
+# `main` timed with std, no criterion dev-dependency, so `cargo clippy --all-targets` stays light
+# and the gate needs no extra crates. Run it with `cargo bench`.
+[[bench]]
+name = "crossover"
+harness = false

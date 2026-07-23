@@ -390,6 +390,29 @@ fn tie_break_falls_back_to_fewest_hops() {
     assert!(!path.unpriced);
 }
 
+// --- US-5: the crossover benchmark's baseline must match the live engine ---------------------
+
+#[test]
+fn linear_baseline_agrees_with_the_indexed_engine() {
+    // `search_linear` (benches/crossover.rs baseline, the retired O(n)-per-pop frontier) must
+    // return byte-identical paths to the live `search`, or the crossover benchmark would be timing
+    // two different searches. Pin it on every golden fixture AND the ecosystem set.
+    let raw = include_str!("../../src/fixtures/golden-paths.json");
+    let file: GoldenFile = serde_json::from_str(raw).expect("golden fixtures parse");
+    for case in &file.cases {
+        assert_eq!(
+            search_linear(&case.registrations, &case.query),
+            search(&case.registrations, &case.query),
+            "linear vs indexed disagree on golden case: {}",
+            case.name,
+        );
+    }
+
+    let regs = all();
+    let q = query(json!({ "entityType": "mood" }), json!({ "mediaType": "audio/wav" }));
+    assert_eq!(search_linear(&regs, &q), search(&regs, &q));
+}
+
 #[test]
 fn golden_parity_byte_for_byte() {
     // Captured from the CURRENT findCapabilityPath (registry/src/path.ts) by generate-golden.ts.

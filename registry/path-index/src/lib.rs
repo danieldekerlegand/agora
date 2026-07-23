@@ -534,6 +534,102 @@ fn edges_of(registrations: &[Registration]) -> Vec<PathStep> {
     edges
 }
 
+// --- Retired baseline for the crossover benchmark (US-5) ------------------------------------
+
+/// The retired O(n)-per-pop frontier, kept **only** as the crossover benchmark's baseline
+/// (`benches/crossover.rs`) — never used in production, where [`search`] is the sole live engine.
+///
+/// A faithful port of the pre-US-2/US-3 `findCapabilityPath` (`registry/src/path.ts`): a `Vec`
+/// frontier scanned linearly by [`take_best`], a full edge rescan on every pop, and
+/// [`compare_paths`] recomputing the unpriced-hop count and projected units on each comparison
+/// (`.filter(…).count()` / `.map().sum()`). It returns byte-identical results to [`search`] — a
+/// unit test pins that on every golden fixture — so the benchmark times two equivalent searches
+/// and isolates exactly what the US-2 edge index and US-3 heap frontier bought.
+pub fn search_linear(
+    registrations: &[Registration],
+    query: &PathQuery,
+) -> Option<CapabilityPath> {
+    let max_hops = query.max_hops.unwrap_or(DEFAULT_MAX_HOPS);
+    if max_hops < 1 {
+        return None;
+    }
+    let edges = edges_of(registrations);
+
+    let mut frontier: Vec<CapabilityPath> = Vec::new();
+    for edge in &edges {
+        if matches_port(&edge.input, &query.from) {
+            frontier.push(path_of(vec![edge.clone()]));
+        }
+    }
+
+    while !frontier.is_empty() {
+        let best = take_best(&mut frontier);
+        let last_output = match best.steps.last() {
+            Some(step) => step.output.clone(),
+            None => continue,
+        };
+        if matches_port(&last_output, &query.to) {
+            return Some(best);
+        }
+        if best.steps.len() >= max_hops as usize {
+            continue;
+        }
+        let used: HashSet<String> = best
+            .steps
+            .iter()
+            .map(|s| format!("{} {}", s.identity, s.capability))
+            .collect();
+        // The O(edges) rescan the index replaced: every edge, every pop.
+        for edge in &edges {
+            if used.contains(&format!("{} {}", edge.identity, edge.capability)) {
+                continue;
+            }
+            if !satisfies(&last_output, &edge.input) {
+                continue;
+            }
+            let mut steps = best.steps.clone();
+            steps.push(edge.clone());
+            frontier.push(path_of(steps));
+        }
+    }
+    None
+}
+
+/// A `CapabilityPath` with its projected units and unpriced flag recomputed from the steps
+/// (`path.ts` pathOf) — the per-extension recompute the incremental [`FrontierEntry`] avoids.
+fn path_of(steps: Vec<PathStep>) -> CapabilityPath {
+    let projected_units = steps.iter().map(|s| s.est_units).sum();
+    let unpriced = steps.iter().any(|s| s.unpriced);
+    CapabilityPath { steps, projected_units, unpriced }
+}
+
+/// Pop the most preferred partial path by a linear scan (`path.ts` takeBest): first-`Less`-wins, so
+/// the earliest-inserted of equal-ranked paths is kept — the O(n)-per-pop scan the heap replaced.
+fn take_best(frontier: &mut Vec<CapabilityPath>) -> CapabilityPath {
+    let mut best_at = 0usize;
+    for i in 1..frontier.len() {
+        if compare_paths(&frontier[i], &frontier[best_at]) == Ordering::Less {
+            best_at = i;
+        }
+    }
+    frontier.remove(best_at)
+}
+
+/// `comparePaths` (`path.ts`) recomputed on every comparison: unpriced-hop count, then projected
+/// units, then hop count. Projected-unit equality/`NaN` falls through to hops, as the original did.
+fn compare_paths(a: &CapabilityPath, b: &CapabilityPath) -> Ordering {
+    let unpriced_a = a.steps.iter().filter(|s| s.unpriced).count();
+    let unpriced_b = b.steps.iter().filter(|s| s.unpriced).count();
+    unpriced_a
+        .cmp(&unpriced_b)
+        .then_with(|| {
+            a.projected_units
+                .partial_cmp(&b.projected_units)
+                .unwrap_or(Ordering::Equal)
+        })
+        .then_with(|| a.steps.len().cmp(&b.steps.len()))
+}
+
 // --- Frontier priority queue (US-3) --------------------------------------------------------
 
 /// A partial path on the frontier, wrapped so a [`BinaryHeap`] pops the most preferred route

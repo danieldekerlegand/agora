@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { findCapabilityPath, type CapabilityPath, type PathQuery } from './path.ts';
-import { findCapabilityPathIndexed, isNativeIndexActive } from './path-index.ts';
+import {
+  findCapabilityPathIndexed,
+  forcePureTsFallback,
+  isNativeIndexActive,
+} from './path-index.ts';
 import type { Registration } from './registry.ts';
 import goldenData from './fixtures/golden-paths.json';
 
@@ -34,6 +38,24 @@ describe('golden parity fixtures', () => {
     });
 
     it('the binding shim returns the identical CapabilityPath', () => {
+      expect(findCapabilityPathIndexed(registrations, query) ?? null).toEqual(expected);
+    });
+  });
+});
+
+describe('source-first fallback — native absent (US-5)', () => {
+  // Force the pure-TS branch regardless of whether an addon was built on this machine, then prove
+  // it reproduces every golden CapabilityPath byte-for-byte — so `import '@agora/registry'` and its
+  // ./src/index.ts exports never fail or diverge when no native/wasm artifact is present.
+  beforeEach(() => forcePureTsFallback(true));
+  afterEach(() => forcePureTsFallback(false));
+
+  it('serves the pure-TS fallback, not the native index', () => {
+    expect(isNativeIndexActive()).toBe(false);
+  });
+
+  describe.each(golden.cases)('$name', ({ registrations, query, expected }) => {
+    it('the forced fallback returns the identical CapabilityPath', () => {
       expect(findCapabilityPathIndexed(registrations, query) ?? null).toEqual(expected);
     });
   });

@@ -52,9 +52,29 @@ function loadNative(): NativeIndex | null {
   return native;
 }
 
+// A test seam (US-5): force the pure-TS fallback branch regardless of whether a native artifact was
+// built on this machine, so the fallback can be pinned to the golden fixtures directly rather than
+// only when no addon happens to be present. Off in every normal run — production selects the backend
+// purely by artifact presence (`loadNative`), so this changes which engine answers, never the answer.
+let fallbackForced = false;
+
+/**
+ * Force (`true`) or release (`false`) the pure-TS fallback, ignoring any native artifact. For the
+ * source-first fallback test only: it proves `import '@agora/registry'` serves correct
+ * {@link CapabilityPath}s with no addon present. Leave `false` everywhere else.
+ */
+export function forcePureTsFallback(on: boolean): void {
+  fallbackForced = on;
+}
+
+/** The native index that should serve now, or `null` when the pure-TS fallback should. */
+function activeIndex(): NativeIndex | null {
+  return fallbackForced ? null : loadNative();
+}
+
 /** True when the native path-index is loaded and serving searches (else the TS fallback is). */
 export function isNativeIndexActive(): boolean {
-  return loadNative() !== null;
+  return activeIndex() !== null;
 }
 
 /**
@@ -66,7 +86,7 @@ export function findCapabilityPathIndexed(
   registrations: readonly Registration[],
   query: PathQuery,
 ): CapabilityPath | undefined {
-  const index = loadNative();
+  const index = activeIndex();
   if (index === null) return findCapabilityPath(registrations, query);
   const result = index.searchPath(JSON.stringify(registrations), JSON.stringify(query));
   return result === null ? undefined : (JSON.parse(result) as CapabilityPath);
