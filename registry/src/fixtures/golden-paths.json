@@ -1,0 +1,2911 @@
+{
+  "description": "Golden parity fixtures for the Rust path-index — captured from registry/src/path.ts findCapabilityPath. Regenerate with `node registry/src/fixtures/generate-golden.ts`.",
+  "cases": [
+    {
+      "name": "compose a score from a mood",
+      "registrations": [
+        {
+          "identity": "pinakes:agent:describer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "describe",
+                "inputs": [
+                  {
+                    "plane": "entity",
+                    "types": [
+                      "mood",
+                      "scene"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": false
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "orchestrator:agent:composer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            },
+            "consumes": [
+              {
+                "plane": "knowledge",
+                "shape": "mood-descriptor"
+              }
+            ],
+            "produces": [
+              {
+                "plane": "media",
+                "media_types": [
+                  "audio/midi"
+                ]
+              }
+            ],
+            "capabilities": [
+              {
+                "name": "compose",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 1200
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        },
+        {
+          "identity": "composer:agent:renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "local",
+                  "est_units": 0
+                },
+                "endpoint": "https://composer.example/mcp/render"
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 3
+        },
+        {
+          "identity": "composer:agent:premium-renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 900
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 4
+        },
+        {
+          "identity": "analyzer:agent:narrator",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "narrate",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ],
+                    "world_pattern": "alderforest"
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 500
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 5
+        }
+      ],
+      "query": {
+        "from": {
+          "entityType": "mood"
+        },
+        "to": {
+          "mediaType": "audio/wav"
+        }
+      },
+      "expected": {
+        "steps": [
+          {
+            "identity": "pinakes:agent:describer",
+            "capability": "describe",
+            "address": {
+              "identity": "pinakes:agent:describer",
+              "endpoints": {
+                "mcp": "https://pinakes.example/mcp"
+              }
+            },
+            "endpoint": "https://pinakes.example/mcp",
+            "input": {
+              "plane": "entity",
+              "types": [
+                "mood",
+                "scene"
+              ]
+            },
+            "output": {
+              "plane": "knowledge",
+              "shape": "mood-descriptor"
+            },
+            "estUnits": 0,
+            "unpriced": false
+          },
+          {
+            "identity": "orchestrator:agent:composer",
+            "capability": "compose",
+            "address": {
+              "identity": "orchestrator:agent:composer",
+              "endpoints": {
+                "a2a": "https://composer.example/.well-known/agent-card.json"
+              }
+            },
+            "endpoint": "https://composer.example/.well-known/agent-card.json",
+            "input": {
+              "plane": "knowledge",
+              "shape": "mood-descriptor"
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/midi"
+              ]
+            },
+            "estUnits": 1200,
+            "unpriced": false
+          },
+          {
+            "identity": "composer:agent:renderer",
+            "capability": "render",
+            "address": {
+              "identity": "composer:agent:renderer",
+              "endpoints": {
+                "mcp": "https://composer.example/mcp"
+              }
+            },
+            "endpoint": "https://composer.example/mcp/render",
+            "input": {
+              "plane": "media",
+              "media_types": [
+                "audio/midi"
+              ]
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/wav"
+              ]
+            },
+            "estUnits": 0,
+            "unpriced": false
+          }
+        ],
+        "projectedUnits": 1200,
+        "unpriced": false
+      }
+    },
+    {
+      "name": "prefers the zero-cost render",
+      "registrations": [
+        {
+          "identity": "pinakes:agent:describer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "describe",
+                "inputs": [
+                  {
+                    "plane": "entity",
+                    "types": [
+                      "mood",
+                      "scene"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": false
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "orchestrator:agent:composer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            },
+            "consumes": [
+              {
+                "plane": "knowledge",
+                "shape": "mood-descriptor"
+              }
+            ],
+            "produces": [
+              {
+                "plane": "media",
+                "media_types": [
+                  "audio/midi"
+                ]
+              }
+            ],
+            "capabilities": [
+              {
+                "name": "compose",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 1200
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        },
+        {
+          "identity": "composer:agent:renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "local",
+                  "est_units": 0
+                },
+                "endpoint": "https://composer.example/mcp/render"
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 3
+        },
+        {
+          "identity": "composer:agent:premium-renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 900
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 4
+        },
+        {
+          "identity": "analyzer:agent:narrator",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "narrate",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ],
+                    "world_pattern": "alderforest"
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 500
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 5
+        }
+      ],
+      "query": {
+        "from": {
+          "mediaType": "audio/midi"
+        },
+        "to": {
+          "mediaType": "audio/wav"
+        }
+      },
+      "expected": {
+        "steps": [
+          {
+            "identity": "composer:agent:renderer",
+            "capability": "render",
+            "address": {
+              "identity": "composer:agent:renderer",
+              "endpoints": {
+                "mcp": "https://composer.example/mcp"
+              }
+            },
+            "endpoint": "https://composer.example/mcp/render",
+            "input": {
+              "plane": "media",
+              "media_types": [
+                "audio/midi"
+              ]
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/wav"
+              ]
+            },
+            "estUnits": 0,
+            "unpriced": false
+          }
+        ],
+        "projectedUnits": 0,
+        "unpriced": false
+      }
+    },
+    {
+      "name": "priced beats unpriced",
+      "registrations": [
+        {
+          "identity": "composer:agent:unpriced-renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:unpriced-renderer",
+            "endpoints": {
+              "mcp": "https://unpriced.composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": true
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:unpriced-renderer",
+            "endpoints": {
+              "mcp": "https://unpriced.composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "composer:agent:premium-renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 900
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        }
+      ],
+      "query": {
+        "from": {
+          "mediaType": "audio/midi"
+        },
+        "to": {
+          "mediaType": "audio/wav"
+        }
+      },
+      "expected": {
+        "steps": [
+          {
+            "identity": "composer:agent:premium-renderer",
+            "capability": "render",
+            "address": {
+              "identity": "composer:agent:premium-renderer",
+              "endpoints": {
+                "mcp": "https://premium.composer.example/mcp"
+              }
+            },
+            "endpoint": "https://premium.composer.example/mcp",
+            "input": {
+              "plane": "media",
+              "media_types": [
+                "audio/midi"
+              ]
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/wav"
+              ]
+            },
+            "estUnits": 900,
+            "unpriced": false
+          }
+        ],
+        "projectedUnits": 900,
+        "unpriced": false
+      }
+    },
+    {
+      "name": "world-scoped goal",
+      "registrations": [
+        {
+          "identity": "pinakes:agent:describer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "describe",
+                "inputs": [
+                  {
+                    "plane": "entity",
+                    "types": [
+                      "mood",
+                      "scene"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": false
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "orchestrator:agent:composer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            },
+            "consumes": [
+              {
+                "plane": "knowledge",
+                "shape": "mood-descriptor"
+              }
+            ],
+            "produces": [
+              {
+                "plane": "media",
+                "media_types": [
+                  "audio/midi"
+                ]
+              }
+            ],
+            "capabilities": [
+              {
+                "name": "compose",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 1200
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        },
+        {
+          "identity": "composer:agent:renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "local",
+                  "est_units": 0
+                },
+                "endpoint": "https://composer.example/mcp/render"
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 3
+        },
+        {
+          "identity": "composer:agent:premium-renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 900
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 4
+        },
+        {
+          "identity": "analyzer:agent:narrator",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "narrate",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ],
+                    "world_pattern": "alderforest"
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 500
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 5
+        }
+      ],
+      "query": {
+        "from": {
+          "shape": "prompt-text"
+        },
+        "to": {
+          "mediaType": "audio/wav",
+          "world": "alderforest"
+        }
+      },
+      "expected": {
+        "steps": [
+          {
+            "identity": "analyzer:agent:narrator",
+            "capability": "narrate",
+            "address": {
+              "identity": "analyzer:agent:narrator",
+              "endpoints": {
+                "mcp": "https://analyzer.example/mcp"
+              }
+            },
+            "endpoint": "https://analyzer.example/mcp",
+            "input": {
+              "plane": "knowledge",
+              "shape": "prompt-text"
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/wav"
+              ],
+              "world_pattern": "alderforest"
+            },
+            "estUnits": 500,
+            "unpriced": false
+          }
+        ],
+        "projectedUnits": 500,
+        "unpriced": false
+      }
+    },
+    {
+      "name": "single-hop plan of addresses",
+      "registrations": [
+        {
+          "identity": "composer:agent:renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "local",
+                  "est_units": 0
+                },
+                "endpoint": "https://composer.example/mcp/render"
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        }
+      ],
+      "query": {
+        "from": {
+          "mediaType": "audio/midi"
+        },
+        "to": {
+          "mediaType": "audio/wav"
+        }
+      },
+      "expected": {
+        "steps": [
+          {
+            "identity": "composer:agent:renderer",
+            "capability": "render",
+            "address": {
+              "identity": "composer:agent:renderer",
+              "endpoints": {
+                "mcp": "https://composer.example/mcp"
+              }
+            },
+            "endpoint": "https://composer.example/mcp/render",
+            "input": {
+              "plane": "media",
+              "media_types": [
+                "audio/midi"
+              ]
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/wav"
+              ]
+            },
+            "estUnits": 0,
+            "unpriced": false
+          }
+        ],
+        "projectedUnits": 0,
+        "unpriced": false
+      }
+    },
+    {
+      "name": "no chain reaches the goal",
+      "registrations": [
+        {
+          "identity": "pinakes:agent:describer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "describe",
+                "inputs": [
+                  {
+                    "plane": "entity",
+                    "types": [
+                      "mood",
+                      "scene"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": false
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "orchestrator:agent:composer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            },
+            "consumes": [
+              {
+                "plane": "knowledge",
+                "shape": "mood-descriptor"
+              }
+            ],
+            "produces": [
+              {
+                "plane": "media",
+                "media_types": [
+                  "audio/midi"
+                ]
+              }
+            ],
+            "capabilities": [
+              {
+                "name": "compose",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 1200
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        },
+        {
+          "identity": "composer:agent:renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "local",
+                  "est_units": 0
+                },
+                "endpoint": "https://composer.example/mcp/render"
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 3
+        },
+        {
+          "identity": "composer:agent:premium-renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 900
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 4
+        },
+        {
+          "identity": "analyzer:agent:narrator",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "narrate",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ],
+                    "world_pattern": "alderforest"
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 500
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 5
+        }
+      ],
+      "query": {
+        "from": {
+          "entityType": "mood"
+        },
+        "to": {
+          "mediaType": "video/mp4"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "bounded by maxHops (too short)",
+      "registrations": [
+        {
+          "identity": "pinakes:agent:describer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "describe",
+                "inputs": [
+                  {
+                    "plane": "entity",
+                    "types": [
+                      "mood",
+                      "scene"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": false
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "orchestrator:agent:composer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            },
+            "consumes": [
+              {
+                "plane": "knowledge",
+                "shape": "mood-descriptor"
+              }
+            ],
+            "produces": [
+              {
+                "plane": "media",
+                "media_types": [
+                  "audio/midi"
+                ]
+              }
+            ],
+            "capabilities": [
+              {
+                "name": "compose",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 1200
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        },
+        {
+          "identity": "composer:agent:renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "local",
+                  "est_units": 0
+                },
+                "endpoint": "https://composer.example/mcp/render"
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 3
+        },
+        {
+          "identity": "composer:agent:premium-renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 900
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 4
+        },
+        {
+          "identity": "analyzer:agent:narrator",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "narrate",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ],
+                    "world_pattern": "alderforest"
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 500
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 5
+        }
+      ],
+      "query": {
+        "from": {
+          "entityType": "mood"
+        },
+        "to": {
+          "mediaType": "audio/wav"
+        },
+        "maxHops": 2
+      },
+      "expected": null
+    },
+    {
+      "name": "bounded by maxHops (just enough)",
+      "registrations": [
+        {
+          "identity": "pinakes:agent:describer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "describe",
+                "inputs": [
+                  {
+                    "plane": "entity",
+                    "types": [
+                      "mood",
+                      "scene"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": false
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "orchestrator:agent:composer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            },
+            "consumes": [
+              {
+                "plane": "knowledge",
+                "shape": "mood-descriptor"
+              }
+            ],
+            "produces": [
+              {
+                "plane": "media",
+                "media_types": [
+                  "audio/midi"
+                ]
+              }
+            ],
+            "capabilities": [
+              {
+                "name": "compose",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 1200
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        },
+        {
+          "identity": "composer:agent:renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "local",
+                  "est_units": 0
+                },
+                "endpoint": "https://composer.example/mcp/render"
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 3
+        },
+        {
+          "identity": "composer:agent:premium-renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 900
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 4
+        },
+        {
+          "identity": "analyzer:agent:narrator",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "narrate",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ],
+                    "world_pattern": "alderforest"
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 500
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 5
+        }
+      ],
+      "query": {
+        "from": {
+          "entityType": "mood"
+        },
+        "to": {
+          "mediaType": "audio/wav"
+        },
+        "maxHops": 3
+      },
+      "expected": {
+        "steps": [
+          {
+            "identity": "pinakes:agent:describer",
+            "capability": "describe",
+            "address": {
+              "identity": "pinakes:agent:describer",
+              "endpoints": {
+                "mcp": "https://pinakes.example/mcp"
+              }
+            },
+            "endpoint": "https://pinakes.example/mcp",
+            "input": {
+              "plane": "entity",
+              "types": [
+                "mood",
+                "scene"
+              ]
+            },
+            "output": {
+              "plane": "knowledge",
+              "shape": "mood-descriptor"
+            },
+            "estUnits": 0,
+            "unpriced": false
+          },
+          {
+            "identity": "orchestrator:agent:composer",
+            "capability": "compose",
+            "address": {
+              "identity": "orchestrator:agent:composer",
+              "endpoints": {
+                "a2a": "https://composer.example/.well-known/agent-card.json"
+              }
+            },
+            "endpoint": "https://composer.example/.well-known/agent-card.json",
+            "input": {
+              "plane": "knowledge",
+              "shape": "mood-descriptor"
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/midi"
+              ]
+            },
+            "estUnits": 1200,
+            "unpriced": false
+          },
+          {
+            "identity": "composer:agent:renderer",
+            "capability": "render",
+            "address": {
+              "identity": "composer:agent:renderer",
+              "endpoints": {
+                "mcp": "https://composer.example/mcp"
+              }
+            },
+            "endpoint": "https://composer.example/mcp/render",
+            "input": {
+              "plane": "media",
+              "media_types": [
+                "audio/midi"
+              ]
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/wav"
+              ]
+            },
+            "estUnits": 0,
+            "unpriced": false
+          }
+        ],
+        "projectedUnits": 1200,
+        "unpriced": false
+      }
+    },
+    {
+      "name": "empty index",
+      "registrations": [],
+      "query": {
+        "from": {},
+        "to": {}
+      },
+      "expected": null
+    },
+    {
+      "name": "provider-router serves prompt-text to audio at zero cost",
+      "registrations": [
+        {
+          "identity": "pinakes:agent:describer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "describe",
+                "inputs": [
+                  {
+                    "plane": "entity",
+                    "types": [
+                      "mood",
+                      "scene"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": false
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "pinakes:agent:describer",
+            "endpoints": {
+              "mcp": "https://pinakes.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "orchestrator:agent:composer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            },
+            "consumes": [
+              {
+                "plane": "knowledge",
+                "shape": "mood-descriptor"
+              }
+            ],
+            "produces": [
+              {
+                "plane": "media",
+                "media_types": [
+                  "audio/midi"
+                ]
+              }
+            ],
+            "capabilities": [
+              {
+                "name": "compose",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "mood-descriptor"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 1200
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "orchestrator:agent:composer",
+            "endpoints": {
+              "a2a": "https://composer.example/.well-known/agent-card.json"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        },
+        {
+          "identity": "composer:agent:renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "local",
+                  "est_units": 0
+                },
+                "endpoint": "https://composer.example/mcp/render"
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:renderer",
+            "endpoints": {
+              "mcp": "https://composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 3
+        },
+        {
+          "identity": "composer:agent:premium-renderer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 900
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "composer:agent:premium-renderer",
+            "endpoints": {
+              "mcp": "https://premium.composer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 4
+        },
+        {
+          "identity": "analyzer:agent:narrator",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "narrate",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ],
+                    "world_pattern": "alderforest"
+                  }
+                ],
+                "cost": {
+                  "tier": "paid",
+                  "est_units": 500
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "analyzer:agent:narrator",
+            "endpoints": {
+              "mcp": "https://analyzer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 5
+        },
+        {
+          "identity": "agora:agent:provider-router",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "agora:agent:provider-router",
+            "version": "0.1.0",
+            "endpoints": {
+              "openai": "http://127.0.0.1:8000/v1",
+              "doctor": "http://127.0.0.1:8000/doctor",
+              "manifest": "http://127.0.0.1:8000/.well-known/kcb-manifest.json"
+            },
+            "produces": [
+              {
+                "plane": "knowledge",
+                "shape": "completion-text"
+              },
+              {
+                "plane": "media",
+                "media_types": [
+                  "image/png"
+                ],
+                "world_pattern": "*"
+              },
+              {
+                "plane": "media",
+                "media_types": [
+                  "audio/wav"
+                ],
+                "world_pattern": "*"
+              },
+              {
+                "plane": "media",
+                "media_types": [
+                  "video/mp4"
+                ],
+                "world_pattern": "*"
+              }
+            ],
+            "consumes": [
+              {
+                "plane": "knowledge",
+                "shape": "chat-messages"
+              },
+              {
+                "plane": "knowledge",
+                "shape": "prompt-text"
+              }
+            ],
+            "capabilities": [
+              {
+                "name": "generate.text",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "chat-messages"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "completion-text"
+                  }
+                ],
+                "cost": {
+                  "tier": "placeholder",
+                  "est_units": 0,
+                  "unit": "token",
+                  "quantity": 1000,
+                  "basis": "1000 completion tokens",
+                  "unpriced": false
+                },
+                "endpoint": "http://127.0.0.1:8000/v1/chat/completions",
+                "provider": "placeholder",
+                "model": "placeholder-text"
+              },
+              {
+                "name": "generate.image",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "image/png"
+                    ],
+                    "world_pattern": "*"
+                  }
+                ],
+                "cost": {
+                  "tier": "placeholder",
+                  "est_units": 0,
+                  "unit": "image",
+                  "quantity": 1,
+                  "basis": "one image",
+                  "unpriced": false
+                },
+                "endpoint": "http://127.0.0.1:8000/v1/images/generations",
+                "provider": "placeholder",
+                "model": "placeholder-image"
+              },
+              {
+                "name": "generate.speech",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ],
+                    "world_pattern": "*"
+                  }
+                ],
+                "cost": {
+                  "tier": "placeholder",
+                  "est_units": 0,
+                  "unit": "character",
+                  "quantity": 1000,
+                  "basis": "1000 characters of narration",
+                  "unpriced": false
+                },
+                "endpoint": "http://127.0.0.1:8000/v1/audio/speech",
+                "provider": "placeholder",
+                "model": "placeholder-speech"
+              },
+              {
+                "name": "generate.music",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ],
+                    "world_pattern": "*"
+                  }
+                ],
+                "cost": {
+                  "tier": "placeholder",
+                  "est_units": 0,
+                  "unit": "generation",
+                  "quantity": 1,
+                  "basis": "one generation",
+                  "unpriced": false
+                },
+                "endpoint": "http://127.0.0.1:8000/v1/audio/music-generations",
+                "provider": "placeholder",
+                "model": "placeholder-music"
+              },
+              {
+                "name": "generate.video",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "prompt-text"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "video/mp4"
+                    ],
+                    "world_pattern": "*"
+                  }
+                ],
+                "cost": {
+                  "tier": "placeholder",
+                  "est_units": 0,
+                  "unit": "second",
+                  "quantity": 5,
+                  "basis": "5 seconds of video",
+                  "unpriced": false
+                },
+                "endpoint": "http://127.0.0.1:8000/v1/video/generations",
+                "provider": "placeholder",
+                "model": "placeholder-video"
+              }
+            ],
+            "auth": {
+              "scheme": "capability-token",
+              "grants_required": [
+                "invoke:generate.text",
+                "invoke:generate.image",
+                "invoke:generate.speech",
+                "invoke:generate.music",
+                "invoke:generate.video"
+              ],
+              "budget_units": {
+                "supported": true,
+                "currency": "budget_units",
+                "request_key": "budget_units",
+                "header": "X-Agora-Budget-Units"
+              }
+            }
+          },
+          "address": {
+            "identity": "agora:agent:provider-router",
+            "endpoints": {
+              "openai": "http://127.0.0.1:8000/v1",
+              "doctor": "http://127.0.0.1:8000/doctor",
+              "manifest": "http://127.0.0.1:8000/.well-known/kcb-manifest.json"
+            }
+          },
+          "source": "push",
+          "sequence": 6
+        }
+      ],
+      "query": {
+        "from": {
+          "shape": "prompt-text"
+        },
+        "to": {
+          "mediaType": "audio/wav"
+        }
+      },
+      "expected": {
+        "steps": [
+          {
+            "identity": "agora:agent:provider-router",
+            "capability": "generate.speech",
+            "address": {
+              "identity": "agora:agent:provider-router",
+              "endpoints": {
+                "openai": "http://127.0.0.1:8000/v1",
+                "doctor": "http://127.0.0.1:8000/doctor",
+                "manifest": "http://127.0.0.1:8000/.well-known/kcb-manifest.json"
+              }
+            },
+            "endpoint": "http://127.0.0.1:8000/v1/audio/speech",
+            "input": {
+              "plane": "knowledge",
+              "shape": "prompt-text"
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/wav"
+              ],
+              "world_pattern": "*"
+            },
+            "estUnits": 0,
+            "unpriced": false
+          }
+        ],
+        "projectedUnits": 0,
+        "unpriced": false
+      }
+    },
+    {
+      "name": "synthetic four-hop chain, priced final hop wins",
+      "registrations": [
+        {
+          "identity": "syn:agent:seed-describer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:seed-describer",
+            "endpoints": {
+              "mcp": "https://seed-describer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "outline",
+                "inputs": [
+                  {
+                    "plane": "entity",
+                    "types": [
+                      "topic"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "outline"
+                  }
+                ],
+                "cost": {
+                  "est_units": 10
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:seed-describer",
+            "endpoints": {
+              "mcp": "https://seed-describer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "syn:agent:outliner",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:outliner",
+            "endpoints": {
+              "mcp": "https://outliner.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "sketch",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "outline"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "score-sketch"
+                  }
+                ],
+                "cost": {
+                  "est_units": 10
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:outliner",
+            "endpoints": {
+              "mcp": "https://outliner.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        },
+        {
+          "identity": "syn:agent:sketch-render",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:sketch-render",
+            "endpoints": {
+              "mcp": "https://sketch-render.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "score-sketch"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "est_units": 10
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:sketch-render",
+            "endpoints": {
+              "mcp": "https://sketch-render.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 3
+        },
+        {
+          "identity": "syn:agent:midi-master",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:midi-master",
+            "endpoints": {
+              "mcp": "https://midi-master.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "master",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "est_units": 100
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:midi-master",
+            "endpoints": {
+              "mcp": "https://midi-master.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 4
+        },
+        {
+          "identity": "syn:agent:midi-cheap",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:midi-cheap",
+            "endpoints": {
+              "mcp": "https://midi-cheap.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "master",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": true
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:midi-cheap",
+            "endpoints": {
+              "mcp": "https://midi-cheap.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 5
+        }
+      ],
+      "query": {
+        "from": {
+          "entityType": "topic"
+        },
+        "to": {
+          "mediaType": "audio/wav"
+        }
+      },
+      "expected": {
+        "steps": [
+          {
+            "identity": "syn:agent:seed-describer",
+            "capability": "outline",
+            "address": {
+              "identity": "syn:agent:seed-describer",
+              "endpoints": {
+                "mcp": "https://seed-describer.example/mcp"
+              }
+            },
+            "endpoint": "https://seed-describer.example/mcp",
+            "input": {
+              "plane": "entity",
+              "types": [
+                "topic"
+              ]
+            },
+            "output": {
+              "plane": "knowledge",
+              "shape": "outline"
+            },
+            "estUnits": 10,
+            "unpriced": false
+          },
+          {
+            "identity": "syn:agent:outliner",
+            "capability": "sketch",
+            "address": {
+              "identity": "syn:agent:outliner",
+              "endpoints": {
+                "mcp": "https://outliner.example/mcp"
+              }
+            },
+            "endpoint": "https://outliner.example/mcp",
+            "input": {
+              "plane": "knowledge",
+              "shape": "outline"
+            },
+            "output": {
+              "plane": "knowledge",
+              "shape": "score-sketch"
+            },
+            "estUnits": 10,
+            "unpriced": false
+          },
+          {
+            "identity": "syn:agent:sketch-render",
+            "capability": "render",
+            "address": {
+              "identity": "syn:agent:sketch-render",
+              "endpoints": {
+                "mcp": "https://sketch-render.example/mcp"
+              }
+            },
+            "endpoint": "https://sketch-render.example/mcp",
+            "input": {
+              "plane": "knowledge",
+              "shape": "score-sketch"
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/midi"
+              ]
+            },
+            "estUnits": 10,
+            "unpriced": false
+          },
+          {
+            "identity": "syn:agent:midi-master",
+            "capability": "master",
+            "address": {
+              "identity": "syn:agent:midi-master",
+              "endpoints": {
+                "mcp": "https://midi-master.example/mcp"
+              }
+            },
+            "endpoint": "https://midi-master.example/mcp",
+            "input": {
+              "plane": "media",
+              "media_types": [
+                "audio/midi"
+              ]
+            },
+            "output": {
+              "plane": "media",
+              "media_types": [
+                "audio/wav"
+              ]
+            },
+            "estUnits": 100,
+            "unpriced": false
+          }
+        ],
+        "projectedUnits": 130,
+        "unpriced": false
+      }
+    },
+    {
+      "name": "synthetic chain bounded below its length",
+      "registrations": [
+        {
+          "identity": "syn:agent:seed-describer",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:seed-describer",
+            "endpoints": {
+              "mcp": "https://seed-describer.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "outline",
+                "inputs": [
+                  {
+                    "plane": "entity",
+                    "types": [
+                      "topic"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "outline"
+                  }
+                ],
+                "cost": {
+                  "est_units": 10
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:seed-describer",
+            "endpoints": {
+              "mcp": "https://seed-describer.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 1
+        },
+        {
+          "identity": "syn:agent:outliner",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:outliner",
+            "endpoints": {
+              "mcp": "https://outliner.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "sketch",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "outline"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "score-sketch"
+                  }
+                ],
+                "cost": {
+                  "est_units": 10
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:outliner",
+            "endpoints": {
+              "mcp": "https://outliner.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 2
+        },
+        {
+          "identity": "syn:agent:sketch-render",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:sketch-render",
+            "endpoints": {
+              "mcp": "https://sketch-render.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "render",
+                "inputs": [
+                  {
+                    "plane": "knowledge",
+                    "shape": "score-sketch"
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "est_units": 10
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:sketch-render",
+            "endpoints": {
+              "mcp": "https://sketch-render.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 3
+        },
+        {
+          "identity": "syn:agent:midi-master",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:midi-master",
+            "endpoints": {
+              "mcp": "https://midi-master.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "master",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "est_units": 100
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:midi-master",
+            "endpoints": {
+              "mcp": "https://midi-master.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 4
+        },
+        {
+          "identity": "syn:agent:midi-cheap",
+          "manifest": {
+            "kcb_version": "0.2.0",
+            "identity": "syn:agent:midi-cheap",
+            "endpoints": {
+              "mcp": "https://midi-cheap.example/mcp"
+            },
+            "capabilities": [
+              {
+                "name": "master",
+                "inputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/midi"
+                    ]
+                  }
+                ],
+                "outputs": [
+                  {
+                    "plane": "media",
+                    "media_types": [
+                      "audio/wav"
+                    ]
+                  }
+                ],
+                "cost": {
+                  "est_units": 0,
+                  "unpriced": true
+                }
+              }
+            ]
+          },
+          "address": {
+            "identity": "syn:agent:midi-cheap",
+            "endpoints": {
+              "mcp": "https://midi-cheap.example/mcp"
+            }
+          },
+          "source": "push",
+          "sequence": 5
+        }
+      ],
+      "query": {
+        "from": {
+          "entityType": "topic"
+        },
+        "to": {
+          "mediaType": "audio/wav"
+        },
+        "maxHops": 3
+      },
+      "expected": null
+    }
+  ]
+}

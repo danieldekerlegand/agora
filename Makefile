@@ -73,8 +73,20 @@ check-schemas:  ## Gate: the shared schemas package only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/schemas
 check-clients:  ## Gate: the client libraries only
 	@$(MAKE) --no-print-directory ts-area PKG="@agora/kcb-client @agora/relation-registry-client"
-check-registry:  ## Gate: the registry only
+check-registry: check-path-index  ## Gate: the registry only (TS gate + the Rust path-index crate)
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/registry
+
+# The Rust path-index engine behind CapabilityRegistry.path(). Skipped (not failed) when the Rust
+# toolchain is absent: the TS shim falls back to the pure-TypeScript path, so a Rust-less host still
+# builds and passes the TS gate (source-first / native-optional, US-5).
+.PHONY: check-path-index
+check-path-index:  ## Gate: the Rust path-index crate (cargo test + clippy)
+	@if command -v cargo >/dev/null 2>&1; then \
+		echo "cargo test + clippy (registry/path-index)"; \
+		cd registry/path-index && cargo test && cargo clippy --all-targets -- -D warnings; \
+	else \
+		echo "cargo not found — skipping path-index Rust gate (TS fallback covers it)"; \
+	fi
 check-resolver:  ## Gate: the resolver only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/resolver
 check-console:  ## Gate: the console only

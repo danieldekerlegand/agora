@@ -1,0 +1,28 @@
+[package]
+name = "agora-path-index"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Indexed capability-path search for the @agora/registry — the Rust engine behind CapabilityRegistry.path()."
+license = "MIT"
+
+# rlib for `cargo test`/`clippy` (the default gate) and the golden parity harness; cdylib so the
+# `binding` feature can emit the loadable N-API artifact. A cdylib built without the `binding`
+# feature exports nothing and links cleanly — the pure-TS fallback covers the artifact's absence.
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+# Compile the napi-rs N-API addon. Off by default so the gate (cargo test + clippy) stays a pure
+# Rust build with no Node link dependency; the artifact is produced by `npm run build:native`.
+binding = ["dep:napi", "dep:napi-derive"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+napi = { version = "2", optional = true, default-features = false, features = ["napi4"] }
+napi-derive = { version = "2", optional = true }
+
+[build-dependencies]
+napi-build = "2"
