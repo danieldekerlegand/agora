@@ -9,6 +9,7 @@ import json
 import re
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from agora_provider_router import KCB_VERSION, ROUTER_IDENTITY
@@ -17,6 +18,8 @@ from agora_provider_router.app import app
 REPO_ROOT = Path(__file__).resolve().parents[2]
 #: Where the TypeScript side pins the same spec versions (``@agora/schemas``).
 SCHEMAS_VERSIONS = REPO_ROOT / "schemas" / "src" / "versions.ts"
+#: The workspace manifest that lists the router as an area of the commons.
+ROOT_PACKAGE_JSON = REPO_ROOT / "package.json"
 
 
 def test_health_reports_identity_without_secrets() -> None:
@@ -29,6 +32,10 @@ def test_health_reports_identity_without_secrets() -> None:
     assert not any("key" in key or "token" in key for key in body)
 
 
+@pytest.mark.skipif(
+    not SCHEMAS_VERSIONS.exists(),
+    reason=f"standalone checkout: {SCHEMAS_VERSIONS} (the TS schemas package) is absent",
+)
 def test_kcb_version_matches_the_typescript_schemas_package() -> None:
     source = SCHEMAS_VERSIONS.read_text(encoding="utf-8")
     match = re.search(r"kcb:\s*('|\")([^'\"]+)\1", source)
@@ -36,7 +43,11 @@ def test_kcb_version_matches_the_typescript_schemas_package() -> None:
     assert match.group(2) == KCB_VERSION
 
 
+@pytest.mark.skipif(
+    not ROOT_PACKAGE_JSON.exists(),
+    reason=f"standalone checkout: {ROOT_PACKAGE_JSON} (the workspace root) is absent",
+)
 def test_the_router_is_listed_as_an_area_of_the_commons() -> None:
-    workspaces = json.loads((REPO_ROOT / "package.json").read_text())["workspaces"]
+    workspaces = json.loads(ROOT_PACKAGE_JSON.read_text())["workspaces"]
     assert "registry" in workspaces
     assert (REPO_ROOT / "provider-router" / "pyproject.toml").exists()

@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from agora_provider_router import KCB_VERSION, ROUTER_IDENTITY
 from agora_provider_router.ladder import MODALITIES
 from agora_provider_router.manifest import BASE_URL_ENV, capability_manifest
@@ -134,6 +136,10 @@ class TestTheRegistryFixture:
         / "provider-router.manifest.json"
     )
 
+    @pytest.mark.skipif(
+        not FIXTURE.exists(),
+        reason=f"standalone checkout: {FIXTURE} (the TS registry fixture) is absent",
+    )
     def test_the_captured_fixture_still_matches_what_the_router_publishes(self) -> None:
         captured = json.loads(self.FIXTURE.read_text(encoding="utf-8"))
         assert captured == manifest_for(), (
