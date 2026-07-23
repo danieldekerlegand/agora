@@ -1,0 +1,20 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "translation-py"
+version = "0.1.0"
+description = "PyO3 bindings for agora's translation core — the canonical-graph translation matrix in-process for Python consumers (pinakes/analyzer), zero network hop."
+requires-python = ">=3.9"
+license = { text = "MIT" }
+classifiers = [
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[tool.maturin]
+# The compiled module a Python caller imports as `import translation_py`. `-m` /
+# `--manifest-path` in test.sh points maturin at the adjacent Cargo.toml so it builds
+# just this workspace member.
+module-name = "translation_py"

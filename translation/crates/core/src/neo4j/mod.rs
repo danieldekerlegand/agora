@@ -20,8 +20,8 @@ pub mod load_csv;
 pub const ENTITY_LABEL: &str = "Entity";
 
 pub use export::{
-    export_to_tsv, ExportResult, GraphCursor, Neo4jEdge, Neo4jNode, PropValue, EDGE_QUERY,
-    NODE_QUERY,
+    export_to_tsv, graph_to_neo4j_export, ExportResult, GraphCursor, Neo4jEdge, Neo4jNode,
+    PropValue, EDGE_QUERY, NODE_QUERY,
 };
 pub use load_csv::{
     build_statements, edge_cypher, graph_to_load_script, node_cypher, render_load_script,

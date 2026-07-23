@@ -1,0 +1,2 @@
+:START_ID	:END_ID	:TYPE	weight:float	time_start:int	time_end:int	pinakes_id	source	source_url	source_query	retrieved_at	confidence:float	license
+cs:language:Q150	cs:place:Q90	LOCATED_IN					wikidata	https://www.wikidata.org/wiki/Q150		2026-07-01T00:00:00Z	0.7	CC0

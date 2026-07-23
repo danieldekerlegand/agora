@@ -35,9 +35,9 @@ pub use csv::{
 pub use error::Error;
 pub use graph::{Cell, Graph, Row};
 pub use neo4j::{
-    build_statements, edge_cypher, export_to_tsv, graph_to_load_script, node_cypher,
-    render_load_script, CypherStatement, ExportResult, GraphCursor, Neo4jEdge, Neo4jNode, PropValue,
-    EDGE_QUERY, ENTITY_LABEL, NODE_QUERY,
+    build_statements, edge_cypher, export_to_tsv, graph_to_load_script, graph_to_neo4j_export,
+    node_cypher, render_load_script, CypherStatement, ExportResult, GraphCursor, Neo4jEdge,
+    Neo4jNode, PropValue, EDGE_QUERY, ENTITY_LABEL, NODE_QUERY,
 };
 pub use schema::{
     parse_column, CanonicalSchema, Column, EdgeType, NodeType, PropertyType, DELIMITER,

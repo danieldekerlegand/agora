@@ -171,6 +171,102 @@ fn edge_row(edge: &Neo4jEdge) -> Row {
     row
 }
 
+/// Reconstruct the `labels(n)` / `properties(n)` records a driver returns from an
+/// in-memory canonical node row — the embeddable stand-in for a live Bolt read.
+///
+/// Every non-`:LABEL` cell becomes a property (a scalar as a string, a multi-value
+/// cell as a list, exactly the shapes [`export_to_tsv`] stringifies back), and the
+/// [`ENTITY_LABEL`] anchor is appended to the label set so the export's drop-and-sort
+/// runs the same way it does on a real graph. The output is independent of the input
+/// label order (the export sorts), so a round-tripped row re-exports identically.
+fn node_from_row(row: &Row) -> Neo4jNode {
+    let mut labels: Vec<String> = Vec::new();
+    let mut props: BTreeMap<String, PropValue> = BTreeMap::new();
+    for (key, cell) in row {
+        if key == ":LABEL" {
+            match cell {
+                Cell::Multi(values) => labels.extend(values.iter().cloned()),
+                Cell::Scalar(value) => labels.push(value.clone()),
+            }
+            continue;
+        }
+        props.insert(key.clone(), prop_from_cell(cell));
+    }
+    labels.push(ENTITY_LABEL.to_string());
+    Neo4jNode { labels, props }
+}
+
+/// Reconstruct the endpoint/type/properties record a driver returns from an in-memory
+/// canonical edge row.
+fn edge_from_row(row: &Row) -> Result<Neo4jEdge, Error> {
+    let endpoint = |key: &str| -> Result<String, Error> {
+        match row.get(key) {
+            Some(Cell::Scalar(value)) => Ok(value.clone()),
+            Some(Cell::Multi(_)) => Err(Error::Neo4j(format!("edge column {key:?} must be scalar"))),
+            None => Err(Error::Neo4j(format!("edge row is missing {key:?}"))),
+        }
+    };
+    let start = endpoint(":START_ID")?;
+    let end = endpoint(":END_ID")?;
+    let edge_type = endpoint(":TYPE")?;
+    let mut props: BTreeMap<String, PropValue> = BTreeMap::new();
+    for (key, cell) in row {
+        if matches!(key.as_str(), ":START_ID" | ":END_ID" | ":TYPE") {
+            continue;
+        }
+        props.insert(key.clone(), prop_from_cell(cell));
+    }
+    Ok(Neo4jEdge {
+        start,
+        end,
+        edge_type,
+        props,
+    })
+}
+
+/// A canonical cell as the property value a driver would return for it.
+fn prop_from_cell(cell: &Cell) -> PropValue {
+    match cell {
+        Cell::Scalar(value) => PropValue::Str(value.clone()),
+        Cell::Multi(values) => {
+            PropValue::List(values.iter().map(|v| PropValue::Str(v.clone())).collect())
+        }
+    }
+}
+
+/// Export an in-memory canonical [`Graph`] to sharded canonical TSV — the embeddable
+/// equivalent of `neo4j/export.py` with no live driver.
+///
+/// Each canonical row is reconstructed into the `labels(n)` / `properties(n)` /
+/// `type(r)` shape a Bolt cursor returns after a `load_csv` import, then handed to the
+/// same [`export_to_tsv`] streaming pass. So a caller that imported a dataset and
+/// exported it back through Neo4j gets byte-identical shards to one that never left the
+/// process — one export implementation, two entry points.
+pub fn graph_to_neo4j_export(
+    schema: &CanonicalSchema,
+    graph: &crate::graph::Graph,
+) -> Result<ExportResult, Error> {
+    struct GraphView {
+        nodes: Vec<Neo4jNode>,
+        edges: Vec<Neo4jEdge>,
+    }
+    impl GraphCursor for GraphView {
+        fn nodes(&self) -> Vec<Neo4jNode> {
+            self.nodes.clone()
+        }
+        fn edges(&self) -> Vec<Neo4jEdge> {
+            self.edges.clone()
+        }
+    }
+    let nodes = graph.nodes.iter().map(node_from_row).collect();
+    let edges = graph
+        .edges
+        .iter()
+        .map(edge_from_row)
+        .collect::<Result<Vec<_>, _>>()?;
+    export_to_tsv(schema, &GraphView { nodes, edges })
+}
+
 /// Export a graph read over `cursor` to canonical TSV, sharded by label / `:TYPE`.
 ///
 /// Nodes and edges are streamed and written in **separate passes** (the node buckets

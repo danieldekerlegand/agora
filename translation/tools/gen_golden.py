@@ -31,6 +31,8 @@ from pathlib import Path
 
 from culturescrape.datalog.export import Engine, export_dataset
 from culturescrape.datalog.souffle import SOUFFLE_PROGRAM_NAME
+from culturescrape.neo4j.constraints import ENTITY_LABEL
+from culturescrape.neo4j.export import EDGE_QUERY, NODE_QUERY, export_to_tsv
 from culturescrape.neo4j.load_csv import edge_cypher, node_cypher
 from culturescrape.schema.headers import (
     EdgeSchema,
@@ -100,6 +102,9 @@ def _write_datalog_goldens(schema: dict, graph: dict) -> None:
             shutil.copyfile(facts, facts_dir / facts.name)
             print(f"wrote facts {facts.name} -> {facts_dir / facts.name}")
 
+        (DATALOG_GOLDEN / "fact_count.txt").write_text(
+            f"{result.fact_count}\n", encoding="utf-8"
+        )
         print(f"export_dataset projected {result.fact_count} facts")
 
 
@@ -124,12 +129,103 @@ def _write_neo4j_goldens(schema: dict) -> None:
     print(f"wrote node/edge LOAD CSV cypher -> {NEO4J_GOLDEN}")
 
 
+class _FakeSession:
+    """Replays a per-query list of fixture records, like a real Bolt cursor."""
+
+    def __init__(self, results: dict) -> None:
+        self._results = results
+
+    def __enter__(self) -> "_FakeSession":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+    def run(self, query: str) -> list:
+        return self._results[query]
+
+
+class _FakeDriver:
+    """A driver whose ``session().run(query)`` replays the fixture graph as the
+    ``labels(n)`` / ``properties(n)`` / ``type(r)`` records a real read returns."""
+
+    def __init__(self, results: dict) -> None:
+        self._results = results
+
+    def session(self) -> _FakeSession:
+        return _FakeSession(self._results)
+
+    def close(self) -> None:
+        return None
+
+
+def _node_record(row: dict) -> dict:
+    labels = [ENTITY_LABEL] + list(row.get(":LABEL", []))
+    props = {k: v for k, v in row.items() if k != ":LABEL"}
+    return {"labels": labels, "props": props}
+
+
+def _edge_record(row: dict) -> dict:
+    props = {k: v for k, v in row.items() if k not in (":START_ID", ":END_ID", ":TYPE")}
+    return {
+        "start": row[":START_ID"],
+        "end": row[":END_ID"],
+        "type": row[":TYPE"],
+        "props": props,
+    }
+
+
+def _write_neo4j_export_goldens(schema: dict, graph: dict) -> None:
+    """Capture what ``neo4j/export.py``'s ``export_to_tsv`` writes for the shared
+    fixture (US-5), so the PyO3 ``to_neo4j_export`` — and the native core adapter it
+    forwards to — can assert byte-identity against the reference exporter.
+
+    The fixture graph is replayed over a **fake driver** exactly as culture-scrape's
+    own ``test_neo4j_export.py`` mocks its cursor: each node becomes a
+    ``labels(n)``/``properties(n)`` record (the ``ENTITY_LABEL`` anchor prepended,
+    dropped again by the export), each edge an endpoint/type/properties record.
+    ``export_to_tsv`` builds its schema from ``NodeSchema.canonical()`` /
+    ``EdgeSchema.canonical()``, which hard-code a ``parent_code`` column absent from
+    the vendored ``canonical-schema.json`` (the US-1 discrepancy) — so those are
+    patched to the JSON-derived schema the Rust core reads, keeping both sides on the
+    one canonical header.
+    """
+    node_schema = NodeSchema(_columns(schema["node"]))
+    edge_schema = EdgeSchema(_columns(schema["edge"]))
+    NodeSchema.canonical = classmethod(lambda cls: node_schema)  # type: ignore[assignment]
+    EdgeSchema.canonical = classmethod(lambda cls: edge_schema)  # type: ignore[assignment]
+
+    driver = _FakeDriver(
+        {
+            NODE_QUERY: [_node_record(row) for row in graph["nodes"]],
+            EDGE_QUERY: [_edge_record(row) for row in graph["edges"]],
+        }
+    )
+
+    export_dir = NEO4J_GOLDEN / "export"
+    if export_dir.exists():
+        shutil.rmtree(export_dir)
+    with tempfile.TemporaryDirectory() as tmp:
+        result = export_to_tsv(tmp, driver=driver)
+        (export_dir / "nodes").mkdir(parents=True)
+        (export_dir / "edges").mkdir(parents=True)
+        for path in result.node_files:
+            shutil.copyfile(path, export_dir / "nodes" / path.name)
+        for path in result.edge_files:
+            shutil.copyfile(path, export_dir / "edges" / path.name)
+    print(
+        f"export_to_tsv wrote {result.node_count} node / {result.edge_count} "
+        f"edge rows -> {export_dir}"
+    )
+
+
 def main() -> None:
     schema = json.loads(SCHEMA_JSON.read_text(encoding="utf-8"))
     graph = json.loads(FIXTURE.read_text(encoding="utf-8"))
     _write_tsv_goldens(schema, graph)
     _write_datalog_goldens(schema, graph)
     _write_neo4j_goldens(schema)
+    _write_neo4j_export_goldens(schema, graph)
 
 
 if __name__ == "__main__":

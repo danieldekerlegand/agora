@@ -1,0 +1,5 @@
+# Ephemeral toolchain venv the PyO3 binding test builds into (regenerated each run).
+.venv/
+# Python bytecode / pytest caches.
+__pycache__/
+.pytest_cache/
