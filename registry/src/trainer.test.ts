@@ -1,4 +1,4 @@
-import { isCapabilityManifest, parseManifest } from '@agora/schemas';
+import { parseManifestBody } from '@agora/schemas';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -32,12 +32,15 @@ function serving(body: unknown, { ok = true, status = 200 } = {}): [ManifestFetc
 
 describe('the trainer manifest is a valid KCB manifest (schemas narrower)', () => {
   it('parses and narrows without throwing', () => {
-    expect(() => parseManifest(TRAINER_MANIFEST)).not.toThrow();
-    expect(isCapabilityManifest(TRAINER_MANIFEST)).toBe(true);
+    // A bare KCB manifest body, as the trainer publishes it and as the registry consumes it
+    // (`registry.ts` → parseManifestBody). `isCapabilityManifest` is the *card* predicate since
+    // agora:43 — it is false for a body by design (schemas/src/manifest.test.ts), so the body
+    // parser is what asserts this fixture's validity.
+    expect(() => parseManifestBody(TRAINER_MANIFEST)).not.toThrow();
   });
 
   it('declares the finetune capability once per modality, cost metered in gpu-seconds', () => {
-    const manifest = parseManifest(TRAINER_MANIFEST);
+    const manifest = parseManifestBody(TRAINER_MANIFEST);
     const finetune = manifest.capabilities?.filter((c) => c.name === 'finetune') ?? [];
     expect(finetune.length).toBeGreaterThan(0);
     expect(finetune.every((c) => c.cost?.est_units !== undefined)).toBe(true);
