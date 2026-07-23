@@ -1,0 +1,13 @@
+{
+  "contractVersion": "0.1.0",
+  "worldId": "fixture-world-001",
+  "seed": 42,
+  "exportedAt": "2026-07-12T00:00:00Z",
+  "predicateSchemaHash": "3b2a1c0d3b2a1c0d3b2a1c0d3b2a1c0d3b2a1c0d3b2a1c0d3b2a1c0d3b2a1c0d",
+  "ir": {
+    "meta": { "insimulVersion": "1.0.0", "exportVersion": 3 },
+    "entities": { "characters": [ { "id": "char-1", "firstName": "Ada", "birthYear": 1852 } ] }
+  },
+  "prologKb": "person('char-1').\nbirth_year('char-1', 1852).\n",
+  "licenseNote": "PROPRIETARY"
+}

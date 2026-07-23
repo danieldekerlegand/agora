@@ -1,0 +1,26 @@
+{
+  "contractVersion": "0.1.0",
+  "exportedAt": "2026-07-12T00:00:00Z",
+  "tier": "personal",
+  "nodes": [
+    {
+      "id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "type": "asset",
+      "properties": { "media_type": "video", "duration": 12.5, "container": "mp4" },
+      "provenance": { "source": "analyzer", "retrieved_at": "2026-07-11T00:00:00Z", "confidence": 1.0 },
+      "license": "PERSONAL",
+      "tier": "personal"
+    }
+  ],
+  "edges": [
+    {
+      "source": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "target": "cs:place:mohenjo-daro",
+      "type": "depicts",
+      "properties": { "method": "refers_to" },
+      "provenance": { "source": "linguascrape-snapshot", "confidence": 0.85 },
+      "license": "PERSONAL",
+      "tier": "personal"
+    }
+  ]
+}

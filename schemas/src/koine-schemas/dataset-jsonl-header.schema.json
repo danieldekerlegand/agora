@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koine.ecosystem/schemas/dataset-jsonl-header.schema.json",
+  "title": "DatasetJsonlHeader",
+  "description": "The first record of every training-exhaust JSONL file exported by any ecosystem project (Insimul rules/conversations/truths, Analyzer nl-edit/generations/preferences/qa-labels, Pinakes ml/ builders). Guarantees the trust tier (KGP §7) + license class (§7.1) + provenance travel with the data. Absorbed from legacy (ADR-0003).",
+  "type": "object",
+  "properties": {
+    "record": { "const": "header" },
+    "contractVersion": { "$ref": "provenance.schema.json#/$defs/contractVersion" },
+    "datasetKind": { "type": "string", "minLength": 1, "description": "e.g. rules-sft, nl-edit, generations, preferences, lore-qa, qa-labels" },
+    "source": { "type": "string", "minLength": 1, "description": "emitting project id: insimul | analyzer | pinakes" },
+    "tier": { "$ref": "provenance.schema.json#/$defs/tier" },
+    "license": { "$ref": "provenance.schema.json#/$defs/license" },
+    "generatedAt": { "type": "string" },
+    "provenance": { "type": "object", "description": "emitter-specific: world ids, run ids, corpus DVC hashes." }
+  },
+  "required": ["record", "contractVersion", "datasetKind", "source", "tier", "license"],
+  "additionalProperties": true
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koine.ecosystem/schemas/canonical-world-export.schema.json",
+  "title": "CanonicalWorldExport",
+  "description": "Insimul -> Pinakes: a generated world (WorldIR + Prolog KB) as a deterministic export envelope, ingested into the synthetic trust tier (KGP §7). Exact on the envelope; the ir payload is Insimul's own versioned WorldIR shape (permissive here). Absorbed from legacy (ADR-0003).",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "provenance.schema.json#/$defs/contractVersion" },
+    "worldId": { "type": "string", "minLength": 1 },
+    "seed": { "type": ["string", "integer"] },
+    "exportedAt": { "type": "string" },
+    "predicateSchemaHash": { "type": "string", "minLength": 1, "description": "SHA-256 over (name, arity) pairs — Insimul's save-file drift-detection mechanism." },
+    "ir": { "type": "object" },
+    "prologKb": { "type": "string" },
+    "licenseNote": { "$ref": "provenance.schema.json#/$defs/license", "description": "License class per KGP §7.1; typically PROPRIETARY. Ingested records land in the synthetic trust tier (KGP §7)." }
+  },
+  "required": ["contractVersion", "worldId", "seed", "exportedAt", "predicateSchemaHash", "ir", "prologKb", "licenseNote"],
+  "additionalProperties": true
+}

@@ -33,6 +33,7 @@ co_occurs	2	a|b	true	grounding-only	core		Untyped co-occurrence of two entities
 derived_from	2	derived|source	false	grounding-only	core		General derivation lineage
 retracts	2	retraction|target	false	grounding-only	core		Lifecycle: withdraws a prior claim (KINP §4.2; additive, never deletes)
 supersedes	2	newer|older	false	grounding-only	core		Lifecycle: replaces a prior claim with a newer one (KINP §4.2)
+retrains	2	newer|older	false	grounding-only	core		Lifecycle: a re-train over the same pinned inputs mints a NEW model entity that retrains an earlier one (KFT §5.2); never a content-address id collision
 located_in	2	entity|place	false	horn-safe	core	contains	Spatial containment: an entity is located in a place (positional, NOT mereological — cf. part_of)
 descended_from	2	descendant|ancestor	false	horn-safe	core	ancestor_of	Genealogical/lineal descent (person, culture, language); the ancestor closure is one Horn rule
 caused_by	2	effect|cause	false	horn-safe	core	causes	Event causality: the effect event happened because of the cause event

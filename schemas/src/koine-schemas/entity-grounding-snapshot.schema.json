@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koine.ecosystem/schemas/entity-grounding-snapshot.schema.json",
+  "title": "EntityGroundingSnapshot",
+  "description": "Pinakes -> Analyzer (and any consumer needing offline entity reconciliation): a compact, license-filtered snapshot of canonical entities + reconciliation keys, formalizing the KGP grounding-pack.md §2 entity envelope. Names and keys only — no bulk fields. Absorbed from legacy (ADR-0003).",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "provenance.schema.json#/$defs/contractVersion" },
+    "generatedAt": { "type": "string" },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "csid": { "$ref": "provenance.schema.json#/$defs/csid" },
+          "entityType": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "aliases": { "type": "array", "items": { "type": "string" } },
+          "keys": {
+            "type": "object",
+            "properties": {
+              "wikidata_qid": { "type": "string" },
+              "iso639": { "type": "string" },
+              "glottocode": { "type": "string" },
+              "normalized": { "type": "string", "description": "normalized name+type blocking key (KGP §3 normalization)." }
+            },
+            "additionalProperties": true
+          },
+          "provenance": { "$ref": "provenance.schema.json#/$defs/provenance" },
+          "license": { "$ref": "provenance.schema.json#/$defs/license" },
+          "egress": { "$ref": "provenance.schema.json#/$defs/egress" }
+        },
+        "required": ["csid", "entityType", "name", "keys", "provenance", "license"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["contractVersion", "generatedAt", "entities"],
+  "additionalProperties": true
+}

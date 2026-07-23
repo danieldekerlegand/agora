@@ -1,0 +1,37 @@
+{
+  "kgp_version": "0.4.0",
+  "pack_id": "sha256-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "producer": "pinakes",
+  "worlds": ["pinakes:world:consensus-reality"],
+  "kind": "snapshot",
+  "basis": null,
+  "dialect": "grounding-only",
+  "entities": [
+    {
+      "csid": "cs:culture:Q11768",
+      "entityType": "culture",
+      "fields": { "name": "Minoan civilization", "region": "Crete", "time_start": -3100, "time_end": -1100 },
+      "provenance": { "source": "wikidata", "source_url": "https://www.wikidata.org/entity/Q11768", "retrieved_at": "2026-07-01T00:00:00Z", "confidence": 1.0 },
+      "license": "CC0-1.0"
+    },
+    {
+      "csid": "cs:place:mohenjo-daro",
+      "entityType": "place",
+      "fields": { "name": "Mohenjo-daro", "lat": 27.324, "lon": 68.138 },
+      "provenance": { "source": "linguascrape", "confidence": 0.9 },
+      "license": "CC-BY-4.0"
+    }
+  ],
+  "assertions": [
+    {
+      "id": "pinakes:claim:sha256-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "provenance": { "source": "pinakes", "confidence": 0.9 },
+      "license": "CC-BY-4.0"
+    }
+  ],
+  "manifest": {
+    "counts": { "entities": 2, "assertions": 1 },
+    "created": "2026-07-12T00:00:00Z",
+    "license_policy": { "CC0-1.0": 1, "CC-BY-4.0": 2 }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "record": "header",
+  "contractVersion": "0.1.0",
+  "datasetKind": "nl-edit",
+  "source": "analyzer",
+  "tier": "personal",
+  "license": "PERSONAL",
+  "generatedAt": "2026-07-12T00:00:00Z",
+  "provenance": { "runIds": ["run-001"], "exporter": "dataset-export-job" }
+}
