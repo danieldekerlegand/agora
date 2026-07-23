@@ -22,10 +22,11 @@ const HERE = dirname(fileURLToPath(import.meta.url)); // schemas/scripts
 const SCHEMAS_DIR = resolve(HERE, '..'); // schemas
 const SNAPSHOT_DIR = join(SCHEMAS_DIR, 'src', 'koine-schemas');
 
-// The six draft-2020-12 files agora's validators load: the five interchange artifacts backing
+// The draft-2020-12 files agora's validators load: the interchange artifacts backing
 // ARTIFACT_SCHEMAS plus the shared `provenance.schema.json` whose $defs (contractVersion / csid /
 // provenance / license / tier / dialect / egress) every other schema $refs. Listed explicitly so
-// a new koine schema (e.g. finetune-job) does not silently enter agora's validator surface.
+// a new koine schema does not silently enter agora's validator surface. `finetune-job.schema.json`
+// (KFT §3) was added by agora:41 — it $refs provenance + dataset-jsonl-header, both already here.
 const SCHEMA_FILES = [
   'provenance.schema.json',
   'grounding-pack.schema.json',
@@ -33,6 +34,7 @@ const SCHEMA_FILES = [
   'entity-grounding-snapshot.schema.json',
   'analyzer-canonical-export.schema.json',
   'dataset-jsonl-header.schema.json',
+  'finetune-job.schema.json',
 ];
 
 /**
