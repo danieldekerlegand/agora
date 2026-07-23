@@ -66,6 +66,12 @@ export interface ExchangeDetail {
    * body to summarise it (tier/provider/cost) because only it knows where those live.
    */
   response?: (body: JsonObject) => Record<string, Json | undefined>;
+  /**
+   * A hook onto a successful answer's *headers*, so a multi-step wire can pick up a transport
+   * token it must echo on a later leg — MCP's `Mcp-Session-Id`, which lives in the header, not
+   * the JSON-RPC body. The seam still owns the socket; this only reads what came back.
+   */
+  captureHeaders?: (headers: { get(name: string): string | null }) => void;
 }
 
 /**
