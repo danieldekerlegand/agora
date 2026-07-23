@@ -98,7 +98,30 @@ The engine ladder gains its media-plane rung and the run gains its full KFT §5 
   trainer-side stand-in for the discovery registry's (§8) refusal. An in-tier registration admits
   any class — `local-only` output stays in-tier, which is exactly what §5.4 permits.
 
-Still to come: multi-provider registry routing + scope handoffs (US-5).
+## Multi-provider routing + scope boundary (US-5)
+
+Training is **multi-provider** (KFT §9, FT-K): agora hosts the **general** `finetune` provider,
+Pinakes runs its **own specialized** one, and more than one can match a job (both accept
+`text-generation`). The **discovery registry** — not the trainer — disambiguates
+(`registry/src/select.ts`, `CapabilityRegistry.selectFinetune`): it prefers the more **specialized**
+matching provider (the narrower advertised `modality × method` surface), then lower `cost` (KCB §3);
+a job MAY name a target provider explicitly (honored, but rejected if it can't serve the job); an
+**unbroken tie** (equal specialization *and* cost) is **surfaced to the caller**, never resolved by
+registration order. The trainer's manifest advertises only the **general** modalities/methods it
+serves, which is exactly what lets the registry tell it apart from a narrower specialist (the stub
+`PINAKES_FINETUNE` manifest drives the tiebreak test).
+
+### Scope boundary — what is NOT built here
+
+agora hosts **only the general** provider. Per ADR-0001 (koine specifies, agora implements) and the
+multi-provider decision (FT-K), three runtime tasklists are handed to their own repos and run under
+their own gates — recorded in the koine program map (`../koine/tasks/chief/README.md`, Tranche D):
+
+| Follow-up | Repo | Role | `dependsOn` (numbered stems) |
+|---|---|---|---|
+| `90-finetune-provider` | **pinakes** | Pinakes's own **specialized** `finetune` provider — its `ml/` TRL+PEFT (SLM + neurosymbolic + Mac-MPS) path exposed as a **distinct capability on the bus**, NOT an adapter inside agora; inherently `local-only`. | `koine:20-kft-finetune-profile`, `pinakes:41-publish-kcb-manifest` |
+| `90-finetune-client` | **orchestrator** | The KCB **client** replacing `Runner::Stub` — discover → invoke → **subscribe** to the real §6 stream, un-404-ing export (§5.3) and the registry (§8), issuing `invoke:finetune` grants (§7). | `koine:20-kft-finetune-profile` (dials `agora:90` + `pinakes:90` at runtime) |
+| `agora:41-finetune-job-validator` | **agora** | The ajv/jsonschema validator + conformance CI for `finetune-job.schema.json` (§3); semantic admission (modality×method, egress) stays in the providers. | `agora:40-absorb-legacy-validators-ci`, `koine:20-kft-finetune-profile` |
 
 ## Run it
 

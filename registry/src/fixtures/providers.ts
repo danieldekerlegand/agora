@@ -102,6 +102,51 @@ export const WORLD_EXPORT: CapabilityManifest = {
   produces: [{ plane: 'knowledge', dialect: 'grounding-only', worlds: ['alderforest'] }],
 };
 
+/**
+ * Pinakes's **specialized** `finetune` provider (KFT §9, FT-K) — the stub the registry's
+ * multi-provider tiebreak drives against. It advertises a deliberately NARROWER capability
+ * than agora's general trainer: a single `modality` (`text-generation`), only its
+ * neurosymbolic SLM methods, and — its data being synthetic/personal-tier — a `local-only`
+ * tier. For a `text-generation` job both providers serve, the registry must prefer THIS one:
+ * more specialized wins over the general trainer, before cost is even consulted (KCB §3).
+ */
+export const PINAKES_FINETUNE: CapabilityManifest = {
+  kcb_version,
+  identity: 'pinakes:agent:finetune',
+  endpoints: { a2a: 'https://pinakes.example/.well-known/agent-card.json' },
+  consumes: [
+    { plane: 'entity', types: ['model', 'text-generation'] },
+    { plane: 'knowledge', dialect: 'grounding-only', shape: 'training-set' },
+  ],
+  produces: [
+    { plane: 'entity', types: ['model', 'text-generation'] },
+    { plane: 'media', media_types: ['application/vnd.koine.model+gguf'], world_pattern: '*' },
+  ],
+  capabilities: [
+    {
+      name: 'finetune',
+      modality: 'text-generation',
+      methods: ['sft', 'lora', 'qlora'],
+      inputs: [
+        { plane: 'entity', types: ['model', 'text-generation'] },
+        { plane: 'knowledge', dialect: 'grounding-only', shape: 'training-set' },
+      ],
+      outputs: [
+        { plane: 'entity', types: ['model', 'text-generation'] },
+        {
+          plane: 'media',
+          media_types: ['application/vnd.koine.model+gguf'],
+          world_pattern: '*',
+        },
+      ],
+      // Cheaper per-run than the general trainer's text-generation rung (1_800_000), so the
+      // "prefer specialized FIRST" rule is testable independent of cost — and cost still has
+      // something to break when two providers are equally specialized.
+      cost: { tier: 'local', meter: 'gpu-seconds', est_units: 900_000 },
+    },
+  ],
+};
+
 /** A capability its provider could not price — never the cheapest route (delta K). */
 export const UNPRICED_RENDERER: CapabilityManifest = {
   kcb_version,

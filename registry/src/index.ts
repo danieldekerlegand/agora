@@ -39,6 +39,12 @@ export {
 } from './path.ts';
 export { matchesPort, satisfies, servesWorld, worldMatches, type PortQuery } from './ports.ts';
 export {
+  selectFinetuneProvider,
+  type FinetuneJobSpec,
+  type ProviderSelection,
+  type SelectionReason,
+} from './select.ts';
+export {
   CrawlError,
   KCB_MANIFEST_PATH,
   manifestUrl,
@@ -93,6 +99,6 @@ export function describeRegistry(): RegistryDescription {
     identity: REGISTRY_IDENTITY,
     kcbVersion: SPEC_VERSIONS.kcb,
     proxiesTraffic: false,
-    verbs: ['register', 'remove', 'get', 'list', 'address', 'find', 'path'],
+    verbs: ['register', 'remove', 'get', 'list', 'address', 'find', 'path', 'selectFinetune'],
   };
 }

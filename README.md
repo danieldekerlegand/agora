@@ -44,6 +44,15 @@ Each directory is a **buildable unit with its own gate**:
 | `schemas/` | TypeScript | shared koine manifest schemas / protocol types |
 | `clients/*` | TypeScript | shared protocol client libraries (`@agora/kcb-client`, `@agora/relation-registry-client`) |
 
+`trainer/` is the **general** `finetune` provider **only** (KFT §9, FT-K). Training is
+multi-provider: Pinakes runs its own **specialized** `finetune` provider on the bus (not an adapter
+inside agora), and the registry disambiguates between them (`registry/src/select.ts` — prefer the
+more specialized, then lower cost, surface an unbroken tie). Three runtime follow-ups are handed to
+their own repos and **not built here** — Pinakes's specialized provider (`pinakes:90-finetune-provider`),
+Orchestrator's KCB client replacing `Runner::Stub` (`orchestrator:90-finetune-client`), and the
+finetune-job validator CI (`agora:41-finetune-job-validator`); see `trainer/README.md` and the koine
+program map (`../koine/tasks/chief/README.md`, Tranche D).
+
 ## The provider-router supersession (ADR-0004)
 
 There are two provider-routers in this tree, and that is deliberate but temporary.

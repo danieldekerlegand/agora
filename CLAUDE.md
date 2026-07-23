@@ -55,7 +55,11 @@ never as cross-language source). See README "Stack" for the rationale.
   `provider-router-erl/test/apr_conformance_SUITE_data/capture_python_surface.py`.
 - **`trainer/`** — the *second* Python area (same toolchain), the general KFT `finetune`
   capability. Package `agora_trainer` under `src/`. Distinct from `provider-router/` per ADR-0001
-  decision 1 (two routers, never merged) — it imports nothing from it.
+  decision 1 (two routers, never merged) — it imports nothing from it. **General provider only**
+  (KFT §9/FT-K): training is multi-provider, the registry disambiguates general-vs-specialized
+  (`registry/src/select.ts`), and three follow-ups are NOT built here — Pinakes's specialized
+  provider (`pinakes:90`), Orchestrator's KCB client replacing `Runner::Stub` (`orchestrator:90`), and
+  `agora:41-finetune-job-validator`. See `trainer/README.md` §"Scope boundary".
 - **everything else** — TypeScript, Node 22, npm workspaces at the repo root. React 19 + Vite for
   the console. Lint `eslint` (one flat config at the root), types `tsc -p tsconfig.json`
   (`--noEmit`), tests `vitest`. Packages are **source-first**: `exports` points at
