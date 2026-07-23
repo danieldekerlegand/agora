@@ -17,7 +17,7 @@
 %%% the shapes a caller or an upstream provider sends.
 -module(apr_json).
 
--export([encode/1, decode/1, canonical/1]).
+-export([encode/1, decode/1, canonical/1, python_repr/1]).
 -export([get/2, get/3, is_key/2, put/3, put_front/3, remove/2, keys/1, kvs/1, from_map/1]).
 
 -type object() :: {obj, [{binary(), term()}]}.
@@ -283,6 +283,48 @@ canonical({obj, KVs}) -> {obj, lists:sort([{K, canonical(V)} || {K, V} <- KVs])}
 canonical(Map) when is_map(Map) -> canonical({obj, maps:to_list(Map)});
 canonical(List) when is_list(List) -> [canonical(E) || E <- List];
 canonical(Other) -> Other.
+
+%% @doc A decoded JSON value spelled as CPython's `repr' would spell it.
+%%
+%% Error messages that quote the offending value are part of the contract — an unreadable
+%% `budget_units' answers 422 with `... got 'abc'', and `app.py' produces that string by
+%% interpolating a Python `repr'. Reproducing the spelling here is what keeps the refusal
+%% body byte-identical: `<<"abc">>' is the same value as `'abc'' but not the same bytes.
+-spec python_repr(term()) -> binary().
+python_repr(null) -> <<"None">>;
+python_repr(undefined) -> <<"None">>;
+python_repr(true) -> <<"True">>;
+python_repr(false) -> <<"False">>;
+python_repr(V) when is_integer(V) -> integer_to_binary(V);
+python_repr(V) when is_float(V) -> python_float(V);
+python_repr(V) when is_binary(V) -> repr_string(V);
+python_repr({obj, KVs}) ->
+    iolist_to_binary([${, lists:join(<<", ">>,
+                                     [[python_repr(K), <<": ">>, python_repr(V)]
+                                      || {K, V} <- KVs]), $}]);
+python_repr(Map) when is_map(Map) -> python_repr(from_map(Map));
+python_repr(List) when is_list(List) ->
+    iolist_to_binary([$[, lists:join(<<", ">>, [python_repr(E) || E <- List]), $]]);
+python_repr(Atom) when is_atom(Atom) -> repr_string(atom_to_binary(Atom, utf8)).
+
+%% Python quotes a string with `'', switching to `"' only when it holds a `'' and no `"'.
+repr_string(Bin) ->
+    Quote = case {binary:match(Bin, <<"'">>), binary:match(Bin, <<"\"">>)} of
+                {nomatch, _} -> $';
+                {_, nomatch} -> $";
+                {_, _} -> $'
+            end,
+    iolist_to_binary([Quote, repr_escape(Bin, Quote), Quote]).
+
+repr_escape(<<>>, _Quote) -> [];
+repr_escape(<<$\\, R/binary>>, Q) -> [$\\, $\\ | repr_escape(R, Q)];
+repr_escape(<<$\n, R/binary>>, Q) -> [$\\, $n | repr_escape(R, Q)];
+repr_escape(<<$\r, R/binary>>, Q) -> [$\\, $r | repr_escape(R, Q)];
+repr_escape(<<$\t, R/binary>>, Q) -> [$\\, $t | repr_escape(R, Q)];
+repr_escape(<<C, R/binary>>, Q) when C < 16#20 ->
+    [io_lib:format("\\x~2.16.0b", [C]) | repr_escape(R, Q)];
+repr_escape(<<C, R/binary>>, Q) when C =:= Q -> [$\\, C | repr_escape(R, Q)];
+repr_escape(<<C, R/binary>>, Q) -> [C | repr_escape(R, Q)].
 
 %% @doc `Key''s value, or `undefined' when absent.
 -spec get(binary(), term()) -> term().

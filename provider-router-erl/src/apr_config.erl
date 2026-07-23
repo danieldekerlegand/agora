@@ -10,13 +10,21 @@
 %%% in the reportable {@link describe/1} view, which reports *whether* a key is set and where
 %%% it came from, never its value.
 %%%
+%%% The env file is named by `AGORA_ENV_FILE' (legacy alias `CUNEIFORM_ENV_FILE'), else
+%%% `<cwd>/.env'; it is layered *under* the process environment (an explicit `export' wins),
+%%% and a file holding secrets at looser-than-0600 permissions is tightened in place on load
+%%% rather than refused — this router must never fail closed. What happened is reported by
+%%% `/doctor' as `config.env_file'.
+%%%
 %%% Only the `AGORA_*' subset of the environment is retained on the config (for the ladder
 %%% and, later, price overrides) — deliberately not the whole environment, so a config value
 %%% can never carry an exported secret into a log line.
 -module(apr_config).
 
--export([from_env/0, from_env/1, env/0,
-         provider/2, providers/1, ladder_env/1, describe/1,
+-include_lib("kernel/include/file.hrl").
+
+-export([from_env/0, from_env/1, from_env/2, env/0,
+         provider/2, providers/1, ladder_env/1, env_file/1, describe/1,
          has_key/1, usable/1]).
 
 -type provider() :: #{name := binary(),
@@ -25,10 +33,17 @@
                       base_url := binary() | undefined,
                       model := binary() | undefined,
                       enabled := boolean() | undefined}.
+%% What happened when the provider env file was read — reported by `/doctor'
+%% (`config.py::EnvFileReport').
+-type env_file_report() :: #{path := binary(),
+                             exists := boolean(),
+                             tightened := boolean(),
+                             error := binary() | undefined}.
 -type config() :: #{providers := #{binary() => provider()},
-                   env := #{string() => string()}}.
+                   env := #{string() => string()},
+                   env_file := env_file_report() | undefined}.
 
--export_type([config/0, provider/0]).
+-export_type([config/0, provider/0, env_file_report/0]).
 
 -define(NS_NEUTRAL, "AGORA_PROVIDER_").
 -define(NS_LEGACY, "CUNEIFORM_PROVIDER_").
@@ -44,19 +59,39 @@ split_eq(Entry) ->
         [Key] -> {Key, ""}
     end.
 
-%% @doc Parse the live process environment into a config snapshot.
+%% @doc Parse the live process environment into a config snapshot, layering the env file
+%% *under* it — a real environment variable beats the file, as in `config.py'.
 -spec from_env() -> config().
-from_env() -> from_env(env()).
+from_env() -> from_env(env(), #{read_file => true}).
 
-%% @doc Parse an explicit environment mapping — the injectable form the tests use.
+%% @doc Parse an explicit environment mapping, with no env file — the injectable form the
+%% tests use (`RouterConfig.from_env(env, read_file=False)').
 -spec from_env(#{string() => string()}) -> config().
-from_env(FullEnv) ->
+from_env(FullEnv) -> from_env(FullEnv, #{}).
+
+%% @doc As {@link from_env/1}, with options: `read_file' (default `false') and `env_file'
+%% (an explicit path, overriding `AGORA_ENV_FILE').
+-spec from_env(#{string() => string()}, map()) -> config().
+from_env(Env, Options) ->
+    {FileValues, Report} =
+        case maps:get(read_file, Options, false) of
+            true -> load_env_file(env_file_path(Env, Options));
+            false -> {#{}, undefined}
+        end,
+    %% An explicit `export' is the stronger statement of intent, so the process environment
+    %% wins over the file; silently overriding it would make the router disagree with its
+    %% own environment.
+    FullEnv = maps:merge(FileValues, Env),
     LadderEnv = maps:filter(fun(Key, _) -> lists:prefix("AGORA_", Key) end, FullEnv),
-    #{providers => parse_providers(FullEnv), env => LadderEnv}.
+    #{providers => parse_providers(FullEnv), env => LadderEnv, env_file => Report}.
 
 %% @doc The `AGORA_*' env subset the ladder and price overrides read.
 -spec ladder_env(config()) -> #{string() => string()}.
 ladder_env(Config) -> maps:get(env, Config).
+
+%% @doc What happened when the env file was read, or `undefined' when none was consulted.
+-spec env_file(config()) -> env_file_report() | undefined.
+env_file(Config) -> maps:get(env_file, Config, undefined).
 
 %% @doc `Name''s settings, or an empty (unusable) record — never a missing-key error.
 -spec provider(config(), binary()) -> provider().
@@ -91,7 +126,15 @@ present(Bin) when is_binary(Bin) -> true.
 describe(Config) ->
     Names = lists:sort(maps:keys(maps:get(providers, Config))),
     {obj, [{<<"providers">>, [describe_provider(provider(Config, Name)) || Name <- Names]},
-           {<<"env_file">>, null}]}.
+           {<<"env_file">>, describe_env_file(env_file(Config))}]}.
+
+%% `EnvFileReport.model_dump()' — field-declaration order, and `null' when no file was read.
+describe_env_file(undefined) -> null;
+describe_env_file(Report) ->
+    {obj, [{<<"path">>, maps:get(path, Report)},
+           {<<"exists">>, maps:get(exists, Report)},
+           {<<"tightened">>, maps:get(tightened, Report)},
+           {<<"error">>, nn(maps:get(error, Report))}]}.
 
 describe_provider(Provider) ->
     {obj, [{<<"name">>, maps:get(name, Provider)},
@@ -104,6 +147,86 @@ describe_provider(Provider) ->
 
 nn(undefined) -> null;
 nn(Value) -> Value.
+
+%% --- the env file -----------------------------------------------------------
+
+%% The file is named by `AGORA_ENV_FILE' (legacy alias `CUNEIFORM_ENV_FILE'), else `<cwd>/.env'.
+env_file_path(Env, Options) ->
+    case maps:get(env_file, Options, undefined) of
+        undefined -> configured_env_file(Env);
+        Path -> to_path(Path)
+    end.
+
+configured_env_file(Env) ->
+    case first_present(Env, ["AGORA_ENV_FILE", "CUNEIFORM_ENV_FILE"]) of
+        {_Var, Value} -> Value;
+        none ->
+            {ok, Cwd} = file:get_cwd(),
+            to_path(filename:join(Cwd, ".env"))
+    end.
+
+to_path(Path) when is_binary(Path) -> Path;
+to_path(Path) when is_list(Path) -> list_to_binary(Path).
+
+%% @doc Parse `Path' if it exists, tightening it to 0600 first when it holds secrets.
+%%
+%% A key on disk is 0600: a file holding secrets at looser-than-owner permissions is
+%% tightened in place on load, and the fact is reported by `/doctor'. Refusing to read it
+%% instead would be the other defensible choice, but this router must never fail closed —
+%% see the always-completes invariant.
+load_env_file(Path) ->
+    case filelib:is_file(Path) of
+        false ->
+            {#{}, #{path => Path, exists => false, tightened => false, error => undefined}};
+        true ->
+            case file:read_file(Path) of
+                {error, Reason} ->
+                    {#{}, #{path => Path, exists => true, tightened => false,
+                            error => list_to_binary(file:format_error(Reason))}};
+                {ok, Bytes} ->
+                    Values = parse_env_text(unicode:characters_to_list(Bytes, utf8)),
+                    {Values, #{path => Path, exists => true,
+                               tightened => tighten(Path, Values), error => undefined}}
+            end
+    end.
+
+tighten(Path, Values) ->
+    HoldsSecret = lists:any(fun({Key, Value}) -> is_secret(Key) andalso Value =/= "" end,
+                            maps:to_list(Values)),
+    case HoldsSecret andalso file:read_file_info(Path) of
+        {ok, #file_info{mode = Mode}} when Mode band 8#077 =/= 0 ->
+            ok = file:change_mode(Path, 8#600),
+            true;
+        _ -> false
+    end.
+
+parse_env_text(Text) ->
+    lists:foldl(
+      fun(Line, Acc) ->
+              case string:trim(Line) of
+                  "" -> Acc;
+                  "#" ++ _ -> Acc;
+                  Stripped ->
+                      case string:split(Stripped, "=") of
+                          [Key, Raw] -> maps:put(string:trim(Key), unquote(Raw), Acc);
+                          [_NoEquals] -> Acc
+                      end
+              end
+      end, #{}, string:split(Text, "\n", all)).
+
+unquote(Raw) ->
+    case string:trim(Raw) of
+        [Q | Rest] = Value when Q =:= $"; Q =:= $' ->
+            case lists:reverse(Rest) of
+                [Q | Middle] when Rest =/= [] -> lists:reverse(Middle);
+                _ -> Value
+            end;
+        Value -> Value
+    end.
+
+is_secret(Key) ->
+    Upper = string:uppercase(Key),
+    lists:any(fun(Suffix) -> has_suffix(Suffix, Upper) end, ["API_KEY", "_TOKEN", "_SECRET"]).
 
 %% --- parsing ----------------------------------------------------------------
 

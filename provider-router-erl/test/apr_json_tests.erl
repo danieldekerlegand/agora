@@ -111,3 +111,33 @@ put_keeps_an_existing_keys_position_test() ->
 put_appends_a_new_key_test() ->
     Result = apr_json:put(<<"agora">>, 1, {obj, [{<<"id">>, <<"x">>}]}),
     ?assertEqual([<<"id">>, <<"agora">>], apr_json:keys(Result)).
+
+%% --- values spell as Python's repr, for the messages that quote them --------
+
+python_repr_spells_the_json_scalars_test() ->
+    %% An unreadable `budget_units' answers 422 quoting the value it refused, and `cost.py'
+    %% builds that message from a Python `repr'. The spelling is response bytes.
+    Cases = [{null, <<"None">>},
+             {true, <<"True">>},
+             {false, <<"False">>},
+             {0, <<"0">>},
+             {-5, <<"-5">>},
+             {1000.0, <<"1000.0">>},
+             {<<"abc">>, <<"'abc'">>},
+             {<<>>, <<"''">>}],
+    lists:foreach(fun({Value, Expected}) ->
+                          ?assertEqual(Expected, apr_json:python_repr(Value))
+                  end, Cases).
+
+python_repr_quotes_the_way_python_quotes_test() ->
+    %% Python reaches for `"' only to avoid escaping a lone `''.
+    ?assertEqual(<<"\"it's\"">>, apr_json:python_repr(<<"it's">>)),
+    ?assertEqual(<<"'say \"hi\"'">>, apr_json:python_repr(<<"say \"hi\"">>)),
+    ?assertEqual(<<"'it\\'s \"both\"'">>, apr_json:python_repr(<<"it's \"both\"">>)),
+    ?assertEqual(<<"'a\\nb'">>, apr_json:python_repr(<<"a\nb">>)),
+    ?assertEqual(<<"'\\x00'">>, apr_json:python_repr(<<0>>)).
+
+python_repr_spells_containers_test() ->
+    ?assertEqual(<<"[1, 'a', None]">>, apr_json:python_repr([1, <<"a">>, null])),
+    ?assertEqual(<<"{'k': 1}">>, apr_json:python_repr({obj, [{<<"k">>, 1}]})),
+    ?assertEqual(<<"[]">>, apr_json:python_repr([])).

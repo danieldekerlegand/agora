@@ -7,8 +7,12 @@ surface, the KCB capability manifest, the `budget_units` spend ceilings (KCB §5
 always-completes / ZERO-SPEND invariant.
 
 Language is internal (ADR-0001): this is a service over the wire, never shared as
-cross-language source. The Python router remains the contract of record until the
-supersession cutover completes across US-1..US-6.
+cross-language source — which is why a third toolchain costs nothing to any caller.
+
+**This is now the canonical provider-router.** `../provider-router/` stays in the tree as the
+executable specification: `test/apr_conformance_SUITE.erl` replays a corpus captured from it
+and asserts every answer is the same bytes (see "Conformance" below). The cutover path is in
+the root `README.md` under "The provider-router supersession".
 
 ## Layout (grows per story)
 
@@ -35,15 +39,15 @@ src/
   apr_assets.erl                the content-addressed store behind the fetch verb
   apr_translate.erl             the supervised port program over the Rust translator (agora:60)
   apr_health.erl                the byte-identical /health body
-  apr_*_handler.erl             cowboy handlers: health, doctor, manifest, redirect, generate,
-                                subscribe (SSE), fetch
-  apr_stub_handler.erl          defined 501 for /v1/models and /v1/providers (US-6)
+  apr_*_handler.erl             cowboy handlers: health, doctor, models, providers, manifest,
+                                redirect, generate, subscribe (SSE), fetch
   agora_provider_router_app.erl OTP application — boots the cowboy listener
   agora_provider_router_sup.erl top supervisor, over the ladder tree and the bus
 test/
   apr_routes_tests.erl          eunit: route table == app.py surface; /health byte-identical
   apr_ladder_tests.erl          eunit: the ladder, ported from test_ladder.py
   apr_cost_tests.erl            eunit: the price table + the two safety rules (test_cost.py)
+  apr_config_tests.erl          eunit: the env file — env beats file, and a key on disk is 0600
   apr_grant_tests.erl           eunit: grants, topics, event identity, asset ids (KCB §4/§5)
   apr_http_SUITE.erl            common_test: boots the app over HTTP and drives the surface
   apr_zero_spend_SUITE.erl      common_test: ZERO-SPEND / always-completes (test_zero_spend.py)
@@ -51,7 +55,37 @@ test/
   apr_subscribe_SUITE.erl       common_test: the subscribe fan-out, grants, fetch, isolation
   apr_translate_tests.erl       eunit: which vendors this node can dial, resolved not dialed
   apr_translate_SUITE.erl       common_test: a native vendor dialed through the translator
+  apr_conformance_SUITE.erl     common_test: the whole surface, byte-identical to the Python
+                                router; the console's session capture; the KCB version pin;
+                                no key on any surface
+  apr_testpaths.erl             finding console/ and schemas/ from a test run (skip if absent)
 ```
+
+## Conformance
+
+The supersession gate. `apr_conformance_SUITE` drives a request corpus over real HTTP against
+the running application and asserts the answers are **the same bytes** the Python router
+returns — not merely equivalent JSON. Key order, float spelling and separators are contract: a
+relayed upstream body must survive the round trip unchanged, and a digest is taken over bytes.
+
+- `test/apr_conformance_SUITE_data/python-surface.json` is the corpus, captured from the Python
+  app by `capture_python_surface.py` in the same directory (which carries its own regenerate
+  command). Two environments — **bare**, where every modality falls to the placeholder, and
+  **keyed**, where a ceiling of zero refuses the paid rung without dialing it — across the five
+  generation routes, the five reads, the 308 off the legacy manifest path and the refusal of an
+  unreadable ceiling. Nothing in the capture opens a socket to a vendor, so it is reproducible
+  and free.
+- `console/src/fixtures/provider-router.session.json` is pinned separately: it is a *third*
+  party's copy of the same exchange, replayed by the conformance console instead of opening a
+  socket. The Erlang router has to satisfy the identical fixture, or the console's scenario has
+  stopped being a capture of the router it claims to describe.
+- `schemas/src/versions.ts` pins `kcb_version`, exactly as `test_skeleton.py` pins the Python
+  constant — a spec bump turns this gate red too.
+- No secret reaches any surface: keys are redacted from `/doctor`, `/health`, the model and
+  vendor lists, the manifest, and from a failed rung's `reason` (`router.py::_reason`).
+
+Both cross-area files are optional — this directory must stay extractable on its own, so an
+absent `console/` or `schemas/` **skips** its case (reporting the skip) rather than failing it.
 
 ## The capability bus (KCB §4)
 
@@ -116,7 +150,8 @@ rather than a dead address, and byte-for-byte conformance (US-6) is judged again
 ## Gate
 
 `make check-router-erl` from the repo root runs `rebar3 compile`, `rebar3 dialyzer`,
-`rebar3 eunit`, and `rebar3 ct`. It is wired into `make check`. Following agora's
+`rebar3 eunit`, and `rebar3 ct`. It is wired into `make check` and is **the router's gate**
+(`make check-provider-router` gates the superseded Python one). Following agora's
 native-optional convention (`check-path-index`, `check-translation`), the gate **skips
 cleanly** on a host without the Erlang toolchain (`rebar3` not on `PATH`) so a Rust/TS-only
 checkout still passes `make check`; install Erlang/OTP (≥26) + rebar3 to run it for real.

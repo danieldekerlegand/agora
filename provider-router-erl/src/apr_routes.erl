@@ -14,7 +14,9 @@
 %%% folds the standalone document onto the AgentCard). Matching `app.py' exactly is what the
 %%% byte-for-byte conformance of US-6 needs, and it is what a 0.2.0 crawler expects to find.
 %%%
-%%% `/v1/models' and `/v1/providers' are the last stubs, landing with the conformance suite.
+%%% Every route is now a real handler: `/v1/models' and `/v1/providers', the last two stubs,
+%%% landed with the conformance suite (US-6) that pins their bodies against the Python
+%%% router's, and the stub handler went with them.
 %%%
 %%% Routes carry a **kind**. `contract' routes are the ones mirrored from `app.py' — that set
 %%% is the external contract and is pinned, byte-for-byte, by the route test and by US-6's
@@ -31,8 +33,8 @@
 handlers() ->
     [{<<"/health">>,                       apr_health_handler,   #{}, contract},
      {<<"/doctor">>,                       apr_doctor_handler,   #{}, contract},
-     {<<"/v1/models">>,                    apr_stub_handler,     #{name => models}, contract},
-     {<<"/v1/providers">>,                 apr_stub_handler,     #{name => providers}, contract},
+     {<<"/v1/models">>,                    apr_models_handler,    #{}, contract},
+     {<<"/v1/providers">>,                 apr_providers_handler, #{}, contract},
      {apr_manifest:manifest_path(),        apr_manifest_handler, #{}, contract},
      {apr_manifest:legacy_manifest_path(), apr_redirect_handler,
       #{status => 308, location => apr_manifest:manifest_path()}, contract},

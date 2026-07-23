@@ -56,13 +56,17 @@ PAID_VENDORS: dict[str, PaidVendor] = {
     "groq": PaidVendor(
         "groq", "openai", "https://api.groq.com/openai/v1", {"text": "llama-3.3-70b-versatile"}
     ),
-    "anthropic": PaidVendor("anthropic", "native"),
-    "gemini": PaidVendor("gemini", "native"),
-    "replicate": PaidVendor("replicate", "native"),
-    "elevenlabs": PaidVendor("elevenlabs", "native"),
-    "runway": PaidVendor("runway", "native"),
-    "luma": PaidVendor("luma", "native"),
-    "minimax": PaidVendor("minimax", "native"),
+    # The native-wire vendors declare their base URL too. This router cannot dial them (no
+    # adapter — see the module docstring), but the vendor vocabulary ``/v1/providers``
+    # publishes is shared with the Erlang router (agora:80), which can: a console reading
+    # either one must see the same table, so the address is declared in both.
+    "anthropic": PaidVendor("anthropic", "native", "https://api.anthropic.com/v1"),
+    "gemini": PaidVendor("gemini", "native", "https://generativelanguage.googleapis.com/v1beta"),
+    "replicate": PaidVendor("replicate", "native", "https://api.replicate.com/v1"),
+    "elevenlabs": PaidVendor("elevenlabs", "native", "https://api.elevenlabs.io/v1"),
+    "runway": PaidVendor("runway", "native", "https://api.dev.runwayml.com/v1"),
+    "luma": PaidVendor("luma", "native", "https://api.lumalabs.ai/dream-machine/v1"),
+    "minimax": PaidVendor("minimax", "native", "https://api.minimax.chat/v1"),
 }
 
 #: modality → paid vendors in preference order. Analyzer's per-skill orders, consolidated.

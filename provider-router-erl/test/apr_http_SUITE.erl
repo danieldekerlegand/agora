@@ -1,17 +1,19 @@
 %%% @doc common_test: boot the real OTP application over HTTP and drive the surface.
 %%%
-%%% Asserts `GET /health` is byte-identical to `app.py::health` and that the stub routes
-%%% answer with a defined status (501) rather than crashing the listener (US-1 AC).
+%%% Asserts `GET /health` is byte-identical to `app.py::health` and that every registered
+%%% route answers with a defined status rather than crashing the listener (US-1 AC). The
+%%% *bodies* of the mirrored surface are pinned against the Python router's by
+%%% `apr_conformance_SUITE'; this suite is the liveness half.
 -module(apr_http_SUITE).
 
 -include_lib("common_test/include/ct.hrl").
 
 -export([all/0, init_per_suite/1, end_per_suite/1]).
--export([health_returns_byte_identical_body/1, stub_routes_answer_without_crashing/1,
+-export([health_returns_byte_identical_body/1, every_contract_read_answers_without_crashing/1,
          doctor_answers_ok/1]).
 
 all() ->
-    [health_returns_byte_identical_body, stub_routes_answer_without_crashing,
+    [health_returns_byte_identical_body, every_contract_read_answers_without_crashing,
      doctor_answers_ok].
 
 init_per_suite(Config) ->
@@ -33,14 +35,14 @@ health_returns_byte_identical_body(Config) ->
       "\"version\":\"0.1.0\",\"kcb_version\":\"0.2.0\"}">> = Body,
     ok.
 
-stub_routes_answer_without_crashing(Config) ->
-    %% The last two stubs: /v1/models and /v1/providers land with the conformance suite
-    %% (US-6). The manifest routes went live in US-3 and are covered by `apr_budget_SUITE'.
+every_contract_read_answers_without_crashing(Config) ->
+    %% /v1/models and /v1/providers were the last stubs; they went live with the conformance
+    %% suite (US-6), so every read on the mirrored surface now answers 200.
     Reads = ["/v1/models", "/v1/providers"],
     lists:foreach(
       fun(Path) ->
               {Status, _Body} = get(Config, Path),
-              501 = Status
+              200 = Status
       end, Reads),
     %% The listener is still up after every stub hit — /health answers again.
     {200, _} = get(Config, "/health"),

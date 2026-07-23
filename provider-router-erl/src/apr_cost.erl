@@ -269,9 +269,11 @@ parse_ceiling(Raw) when is_binary(Raw) ->
     end;
 parse_ceiling(Raw) -> throw({ceiling_error, ceiling_message(Raw)}).
 
+%% The refused value is quoted the way CPython's `repr' quotes it — `cost.py' interpolates
+%% one, and this message is a response body, so its spelling is contract (US-6).
 ceiling_message(Raw) ->
     unicode:characters_to_binary(
-      io_lib:format("~s must be a number of budget units, got ~p", [?BUDGET_KEY, Raw])).
+      [?BUDGET_KEY, <<" must be a number of budget units, got ">>, apr_json:python_repr(Raw)]).
 
 %% @doc Python's `format(x, "g")': six significant digits, trailing zeros stripped.
 %%
