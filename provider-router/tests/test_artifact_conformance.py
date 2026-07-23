@@ -1,6 +1,6 @@
 """The Python half of agora's dual-ecosystem conformance gate (legacy-absorbed, ADR-0003).
 
-The mirror image of ``schemas/src/conformance/conformance.test.ts``: the same five golden
+The mirror image of ``schemas/src/conformance/conformance.test.ts``: the same golden
 fixtures, validated by the Python ``jsonschema`` twin instead of the TypeScript ``ajv`` one.
 Both read the ONE derived koine-schema snapshot and the ONE fixtures directory, so an artifact
 that passes/fails the TS suite passes/fails here — legacy ``conformance.yml``'s invariant that
@@ -28,7 +28,7 @@ from agora_provider_router.artifact_validator import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-#: The five golden fixtures the TS conformance suite drives — the exact same files.
+#: The golden fixtures the TS conformance suite drives — the exact same files.
 FIXTURES = REPO_ROOT / "schemas" / "src" / "conformance" / "fixtures"
 
 #: The required spec-version key each artifact stamps its koine contract version into. koine kept
@@ -40,6 +40,7 @@ VERSION_KEY = {
     "entity-grounding-snapshot": "contractVersion",
     "analyzer-canonical-export": "contractVersion",
     "dataset-jsonl-header": "contractVersion",
+    "finetune-job": "kft_version",
 }
 
 #: Skip the whole module in a standalone router checkout with no sibling ``schemas/`` area.

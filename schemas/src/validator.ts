@@ -23,11 +23,15 @@ import type { AnySchemaObject, ValidateFunction } from 'ajv/dist/2020.js';
 const SCHEMAS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'koine-schemas');
 
 /**
- * The five interchange artifacts agora validates, mapped to the koine schema file that governs
- * each — the same five names legacy's `validate.mjs` exposed (grounding-pack,
- * canonical-world-export, entity-grounding-snapshot, analyzer-canonical-export, dataset-jsonl-header).
- * `provenance.schema.json` is deliberately absent: it is the shared `$defs` library every artifact
- * `$ref`s, not a top-level artifact anyone validates against directly.
+ * The interchange artifacts agora validates, mapped to the koine schema file that governs each —
+ * the five names legacy's `validate.mjs` exposed (grounding-pack, canonical-world-export,
+ * entity-grounding-snapshot, analyzer-canonical-export, dataset-jsonl-header) plus `finetune-job`, the
+ * KFT §3 job manifest agora:41 added (it `$ref`s provenance + dataset-jsonl-header, both already
+ * registered). This validator checks STRUCTURE only — required fields, enums, types, `$ref`
+ * resolution; the SEMANTIC admission rules KFT defines (modality×method compatibility, egress
+ * feasibility, cost ceiling) are PROVIDER behavior enforced at invoke (agora:90 / pinakes:90), not
+ * schema validation. `provenance.schema.json` is deliberately absent: it is the shared `$defs`
+ * library every artifact `$ref`s, not a top-level artifact anyone validates against directly.
  */
 export const ARTIFACT_SCHEMAS = {
   'grounding-pack': 'grounding-pack.schema.json',
@@ -35,6 +39,7 @@ export const ARTIFACT_SCHEMAS = {
   'entity-grounding-snapshot': 'entity-grounding-snapshot.schema.json',
   'analyzer-canonical-export': 'analyzer-canonical-export.schema.json',
   'dataset-jsonl-header': 'dataset-jsonl-header.schema.json',
+  'finetune-job': 'finetune-job.schema.json',
 } as const;
 
 /** A validatable artifact name — a key of {@link ARTIFACT_SCHEMAS}. */

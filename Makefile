@@ -11,12 +11,14 @@ UV     := cd $(PY_DIR) && uv
 # npm workspace selectors for the TS areas.
 TS_AREAS := schemas clients/kcb-client clients/relation-registry-client registry resolver console
 
-# The five interchange artifact names — the shared list BOTH validators expose
+# The interchange artifact names — the shared list BOTH validators expose
 # (schemas/src/validator.ts ARTIFACT_SCHEMAS ⇔ artifact_validator.py). legacy's
-# conformance.yml looped these through each ecosystem's validator CLI; `check-conformance`
-# below absorbs that loop as a `make check` step. Their golden fixtures live off the
+# conformance.yml looped the first five through each ecosystem's validator CLI;
+# `check-conformance` below absorbs that loop as a `make check` step. finetune-job
+# (KFT §3, agora:41) joins the same loop so a regression in either validator or its
+# fixture turns `make check` red too. Their golden fixtures live off the
 # @agora/schemas library surface, beside the vitest/pytest conformance suites.
-ARTIFACTS := grounding-pack canonical-world-export entity-grounding-snapshot analyzer-canonical-export dataset-jsonl-header
+ARTIFACTS := grounding-pack canonical-world-export entity-grounding-snapshot analyzer-canonical-export dataset-jsonl-header finetune-job
 FIXTURES  := $(CURDIR)/schemas/src/conformance/fixtures
 
 .PHONY: help install install-py install-ts check check-provider-router check-ts \

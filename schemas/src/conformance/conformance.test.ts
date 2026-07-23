@@ -39,6 +39,9 @@ const VERSION_KEY: Record<ArtifactName, string> = {
   'entity-grounding-snapshot': 'contractVersion',
   'analyzer-canonical-export': 'contractVersion',
   'dataset-jsonl-header': 'contractVersion',
+  // finetune-job stamps the KFT spec version into `kft_version` (a required $ref to
+  // provenance.schema.json#/$defs/contractVersion) — deleting it is the missing-version case.
+  'finetune-job': 'kft_version',
 };
 
 // Data-driven over the sorted ARTIFACT_SCHEMAS keys (validate.mjs L21-27 / conformance.test.mjs
