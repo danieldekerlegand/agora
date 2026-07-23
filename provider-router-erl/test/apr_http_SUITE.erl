@@ -7,10 +7,12 @@
 -include_lib("common_test/include/ct.hrl").
 
 -export([all/0, init_per_suite/1, end_per_suite/1]).
--export([health_returns_byte_identical_body/1, stub_routes_answer_without_crashing/1]).
+-export([health_returns_byte_identical_body/1, stub_routes_answer_without_crashing/1,
+         doctor_answers_ok/1]).
 
 all() ->
-    [health_returns_byte_identical_body, stub_routes_answer_without_crashing].
+    [health_returns_byte_identical_body, stub_routes_answer_without_crashing,
+     doctor_answers_ok].
 
 init_per_suite(Config) ->
     %% Port 0 → OS-assigned; read it back so the test is host-agnostic.
@@ -32,8 +34,7 @@ health_returns_byte_identical_body(Config) ->
     ok.
 
 stub_routes_answer_without_crashing(Config) ->
-    Reads = ["/doctor", "/v1/models", "/v1/providers",
-             "/.well-known/kcb-manifest.json"],
+    Reads = ["/v1/models", "/v1/providers", "/.well-known/kcb-manifest.json"],
     lists:foreach(
       fun(Path) ->
               {Status, _Body} = get(Config, Path),
@@ -41,6 +42,15 @@ stub_routes_answer_without_crashing(Config) ->
       end, Reads),
     %% The listener is still up after every stub hit — /health answers again.
     {200, _} = get(Config, "/health"),
+    ok.
+
+doctor_answers_ok(Config) ->
+    %% /doctor is live as of US-2: 200 with the resolved ladder, ending in the placeholder
+    %% and reporting each tier's status. It dials nothing, so it answers on a bare node.
+    {200, Body} = get(Config, "/doctor"),
+    {_, _} = binary:match(Body, <<"resolves_to">>),
+    {_, _} = binary:match(Body, <<"placeholder">>),
+    {_, _} = binary:match(Body, <<"unconfigured">>),
     ok.
 
 %% --- helpers ---

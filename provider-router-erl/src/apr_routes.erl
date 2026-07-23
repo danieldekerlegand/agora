@@ -6,8 +6,8 @@
 %%%
 %%% The set is the ten paths of `app.py`: five reads (`/health`, `/doctor`, `/v1/models`,
 %%% `/v1/providers`, the KCB manifest) and the five generation POSTs, one per modality.
-%%% Everything but `/health` is a stub returning a defined status (US-1); the real
-%%% handlers land in US-2..US-5.
+%%% `/health` (US-1) and `/doctor` (US-2) are live; the rest are stubs returning a defined
+%%% status until their story lands (the generation POSTs + manifest in US-3..US-5).
 -module(apr_routes).
 
 -export([paths/0, dispatch/0, handlers/0]).
@@ -16,7 +16,7 @@
 -spec handlers() -> [{binary(), module(), map()}].
 handlers() ->
     [{<<"/health">>,                          apr_health_handler, #{}},
-     {<<"/doctor">>,                          apr_stub_handler,   #{name => doctor}},
+     {<<"/doctor">>,                          apr_doctor_handler, #{}},
      {<<"/v1/models">>,                       apr_stub_handler,   #{name => models}},
      {<<"/v1/providers">>,                    apr_stub_handler,   #{name => providers}},
      {<<"/.well-known/kcb-manifest.json">>,   apr_stub_handler,   #{name => manifest}},
