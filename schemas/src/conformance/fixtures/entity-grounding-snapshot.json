@@ -1,0 +1,23 @@
+{
+  "contractVersion": "0.1.0",
+  "generatedAt": "2026-07-12T00:00:00Z",
+  "entities": [
+    {
+      "csid": "cs:language:Q1860",
+      "entityType": "language",
+      "name": "English",
+      "aliases": ["English language"],
+      "keys": { "wikidata_qid": "Q1860", "iso639": "eng", "glottocode": "stan1293", "normalized": "english|language" },
+      "provenance": { "source": "linguascrape", "confidence": 1.0 },
+      "license": "CC0-1.0"
+    },
+    {
+      "csid": "cs:place:mohenjo-daro",
+      "entityType": "place",
+      "name": "Mohenjo-daro",
+      "keys": { "wikidata_qid": "Q5710", "normalized": "mohenjo-daro|place" },
+      "provenance": { "source": "linguascrape", "confidence": 1.0 },
+      "license": "CC0-1.0"
+    }
+  ]
+}
