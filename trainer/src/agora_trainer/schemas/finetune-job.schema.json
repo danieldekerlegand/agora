@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koine.ecosystem/schemas/finetune-job.schema.json",
+  "title": "FinetuneJob",
+  "description": "The invoke payload for the KFT `finetune` capability (specs/fine-tuning.md §3, KFT 0.3.0). The machine-readable twin of the job manifest. Data is referenced by KINP/KGP/KMI id, never inlined. DEPENDS ON koine:10 having landed schemas/provenance.schema.json (shared $defs) and schemas/dataset-jsonl-header.schema.json (the training-record header) — the cross-schema $refs below resolve only once those are present. A golden positive example lives at schemas/fixtures/finetune-job.json; the ajv/jsonschema validators + conformance suite that exercise this schema are DEFERRED to agora:40 per ADR-0001 (koine = contracts / agora = runtime), NOT built in koine.",
+  "type": "object",
+  "$defs": {
+    "kinpId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+:[a-z0-9-]+:[^\\s]+$",
+      "description": "A KINP CURIE — namespace:kind:local (e.g. orchestrator:activity:ft-run/9f2a, pinakes:model:qwen2.5-3b-instruct, kgp:pack:sha256-7b1e…, analyzer:asset:blake3-a1b2…)."
+    }
+  },
+  "properties": {
+    "kft_version": {
+      "$ref": "provenance.schema.json#/$defs/contractVersion",
+      "description": "The KFT spec version this job was authored against (semver). A finetuned model pins the kft_version it was trained under (KFT §11)."
+    },
+    "job": {
+      "$ref": "#/$defs/kinpId",
+      "description": "The KINP PROV activity id for this run — the reproducibility anchor (KFT §5.2, FT-C)."
+    },
+    "base_model": {
+      "$ref": "#/$defs/kinpId",
+      "description": "The base-model KINP `model` entity. External (Hub) bases are minted entities carrying an external anchor to their Hub coordinate — never a raw hf:… string (KFT §5.1, FT-G)."
+    },
+    "modality": {
+      "type": "string",
+      "enum": ["text-generation", "image-text-to-text", "video-text-to-text", "text-to-image", "text-to-video"],
+      "description": "KFT §3.1 modality vocabulary. Registered in koine registry/. modality × method compatibility is validated at admission (FT-F)."
+    },
+    "method": {
+      "type": "string",
+      "enum": ["sft", "lora", "qlora", "full", "dpo"],
+      "description": "Training method. Not independent of modality — an incompatible combo (e.g. dpo × text-to-image) is rejected at admission (KFT §3.1, FT-F)."
+    },
+    "dataset": {
+      "type": "object",
+      "description": "Training data by reference only (KFT §4.1). At least one of knowledge/media MUST be non-empty.",
+      "properties": {
+        "knowledge": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kinpId" },
+          "description": "KGP GroundingPack ids (text/knowledge data)."
+        },
+        "media": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kinpId" },
+          "description": "KMI asset ids (multimodal data), fetched lazily via KCB fetch:asset."
+        },
+        "header": {
+          "$ref": "dataset-jsonl-header.schema.json",
+          "description": "The dataset-jsonl-header — carries tier + license + provenance that travel with the data (koine:10)."
+        }
+      },
+      "anyOf": [
+        { "required": ["knowledge"] },
+        { "required": ["media"] }
+      ],
+      "additionalProperties": false
+    },
+    "hyperparams": {
+      "type": "object",
+      "description": "Method-specific hyperparameters (epochs, lr, max_seq_len, lora{r,alpha,dropout,target_modules}, …). Permissive — engine adapters own the detail (KFT §9).",
+      "additionalProperties": true
+    },
+    "export": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Requested output variants, e.g. gguf:Q4_K_M, safetensors-adapter, onnx. Each becomes a KMI variant_of/derived_from asset (KFT §5.3)."
+    },
+    "compute": {
+      "type": "object",
+      "description": "Placement request. The effective egress is verified against {data ∪ base} at admission and a local-only run is pinned to local compute (KFT §4.2, FT-B).",
+      "properties": {
+        "class": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Requested compute class (e.g. local-mps, single-gpu-a100-80gb). A cross-boundary class is rejected for a local-only-effective run (KFT §4.2)."
+        },
+        "egress": {
+          "type": "string",
+          "enum": ["derived", "exportable", "local-only"],
+          "default": "derived",
+          "description": "derived = compute from data ∪ base (recommended); explicit values are still verified and rejected on violation (KFT §4.2, KGP §7.2)."
+        }
+      },
+      "required": ["class"],
+      "additionalProperties": false
+    },
+    "eval": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/kinpId" },
+      "description": "KCS conformance-scenario ids used as eval/reward (KFT §6.1). A local-only model is evaluated in-tier (FT-D)."
+    },
+    "seed": {
+      "type": "integer",
+      "description": "Training seed — part of the run's reproducibility anchor (KFT §5.2, FT-C)."
+    },
+    "config_hash": {
+      "type": "string",
+      "description": "sha256- of the fully-resolved engine config — the other half of the run reproducibility anchor (KFT §5.2, FT-C)."
+    },
+    "signing": {
+      "type": "object",
+      "description": "Shared signing shape (KCB §5 / KGP §9.3) so the run is cryptographically attributable (KFT §7).",
+      "properties": {
+        "key_id": { "type": "string", "minLength": 1 },
+        "alg": { "type": "string", "minLength": 1 }
+      },
+      "required": ["key_id", "alg"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["kft_version", "job", "base_model", "modality", "method", "dataset", "compute"],
+  "additionalProperties": false
+}

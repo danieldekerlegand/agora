@@ -34,6 +34,9 @@ dependencies = [
     # Lazy KMI `fetch:asset` of media training data + weight assets (KMI §7, US-4), and what
     # FastAPI's TestClient dials the in-process app through.
     "httpx>=0.27",
+    # Admission validation of the finetune-job payload against the vendored koine schema
+    # (KFT §3, FT-F) — draft-2020-12 with `referencing` resolving the cross-schema $refs.
+    "jsonschema>=4.20",
 ]
 
 [project.optional-dependencies]
@@ -50,6 +53,8 @@ Issues = "https://github.com/agora-commons/agora/issues"
 
 [project.scripts]
 agora-trainer = "agora_trainer.__main__:main"
+# The admission validator as a CLI — 0 valid / 1 invalid / 2 usage (KFT §3, FT-F).
+agora-trainer-validate = "agora_trainer.validate:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -73,3 +78,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 python_version = "3.11"
 files = ["src", "tests"]
 strict = true
+
+# jsonschema ships no complete type surface for its validator classes; the admission validator
+# (validate.py) is the only user and is itself strictly typed at its boundary.
+[[tool.mypy.overrides]]
+module = "jsonschema.*"
+ignore_missing_imports = true

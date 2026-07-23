@@ -11,16 +11,34 @@ The config is built once from the process environment and cached; tests build th
 
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
 from functools import lru_cache
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from . import KCB_VERSION, KFT_VERSION, __version__
 from .config import TrainerConfig
+from .engine import UnsupportedJob
 from .manifest import AGENT_CARD_PATH, MANIFEST_PATH, agent_card, capability_manifest
+from .runner import run
+from .validate import Problem, Report, Status, validate_job
 
 app = FastAPI(title="agora trainer", version=__version__)
+
+#: The §6 telemetry stream's content type — newline-delimited JSON, one event per line.
+TELEMETRY_MEDIA_TYPE = "application/x-ndjson"
+
+#: The admission verdict → HTTP status, the transport twin of the CLI exit codes
+#: (0 ok / 1 invalid / 2 usage): a valid job streams (200), a schema/semantic failure is
+#: unprocessable (422), and an unreadable request is a client usage error (400).
+_HTTP_STATUS: dict[Status, int] = {
+    Status.OK: 200,
+    Status.INVALID: 422,
+    Status.USAGE: 400,
+}
 
 
 @lru_cache(maxsize=1)
@@ -54,3 +72,55 @@ def a2a_agent_card(config: ConfigDep) -> dict[str, Any]:
 def kcb_manifest(config: ConfigDep) -> dict[str, Any]:
     """The trainer's KCB capability manifest (KCB §2, KFT §2) — what the registry indexes."""
     return capability_manifest(config)
+
+
+@app.post("/invoke")
+async def invoke(request: Request) -> Response:
+    """`invoke` the `finetune` capability (KCB §4) — admit the job, then stream §6 telemetry.
+
+    Admission (KFT §3.1, FT-F) runs first: an unreadable body is a usage error (400), a
+    schema/semantic failure is unprocessable (422) with the structured report as the body — the
+    HTTP twin of the validator's exit codes. A valid job is run and its training-telemetry
+    stream (§6) is returned as newline-delimited JSON: one event per step in monotonic order,
+    then the terminal event carrying the finetuned-model id + weight asset ids. A modality that
+    is compatible but has no wired engine yet (US-4) is a distinct 501, not a rejection.
+    """
+    try:
+        payload = await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+        return _reject(_usage_report("request body is not valid JSON"))
+    report = validate_job(payload)
+    if not report.ok:
+        return _reject(report)
+    try:
+        events = run(payload)
+    except UnsupportedJob as exc:
+        return JSONResponse(
+            status_code=501,
+            content={
+                "ok": False,
+                "status": "unsupported",
+                "problems": [
+                    Problem("no-engine", "/modality", str(exc)).describe(),
+                ],
+            },
+        )
+
+    def _ndjson() -> Iterator[bytes]:
+        for event in events:
+            yield (json.dumps(event.describe()) + "\n").encode("utf-8")
+
+    return StreamingResponse(
+        _ndjson(),
+        media_type=TELEMETRY_MEDIA_TYPE,
+        headers={"X-Agora-Job": str(payload["job"])},
+    )
+
+
+def _reject(report: Report) -> JSONResponse:
+    """Render an admission rejection at the mapped HTTP status (KFT §3.1)."""
+    return JSONResponse(status_code=_HTTP_STATUS[report.status], content=report.describe())
+
+
+def _usage_report(message: str) -> Report:
+    return Report(status=Status.USAGE, problems=(Problem("usage", "/", message),))

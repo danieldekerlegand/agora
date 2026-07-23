@@ -25,9 +25,29 @@ One `finetune` capability per KFT §3.1 modality (`text-generation`, `image-text
 The modality rides the entity ports' `types` (the §5.1 model-entity refinement), so the registry
 finds the trainer both by capability name `finetune` and by modality.
 
-Still to come: the invoke / subscribe task surface + job admission and telemetry (US-2), the
-egress-gated SkyPilot placement + spend gating (US-3), the multimodal adapter + model/weight
-artifacts with lineage (US-4), and multi-provider registry routing (US-5).
+## Admission, engines & telemetry (US-2)
+
+`invoke` (`POST /invoke`, KCB §4) admits a finetune job, then streams the KFT §6
+training-telemetry over the same request:
+
+- **Admission** validates the payload against the vendored `finetune-job.schema.json` (KFT §3;
+  the copy under `src/agora_trainer/schemas/` is pinned byte-for-byte to koine) and then checks
+  the `modality × method` combination (KFT §3.1, FT-F) — an incompatible pair (e.g.
+  `dpo × text-to-image`) is rejected *before* any engine runs. The verdict is a structured report
+  with exit-code semantics matching agora's validators: **0** ok / **1** invalid / **2** usage —
+  over the CLI (`agora-trainer-validate <job.json>`) and mirrored to HTTP (200 / 422 / 400).
+- **Engine ladder** (KFT §9): an admitted job is dispatched by `modality × method` to an engine
+  adapter (`prepare_data → launch → emit_telemetry → export`). US-2 wires the **LLaMA-Factory**
+  rung (`text-generation` × {sft, lora, qlora}); a compatible-but-unwired modality (e.g.
+  `text-to-image`, US-4's diffusers rung) is an honest `501`, distinct from a rejection.
+- **Telemetry** (KFT §6): one event per training step in monotonic order, content-addressed by
+  `job + step` so redelivery is idempotent, closed by a terminal event carrying the minted
+  finetuned-model id + weight/export asset ids. Where no GPU / LLaMA-Factory is present the
+  adapter replays a **recorded run** (real per-step logs), never a fabricated loss curve.
+
+Still to come: the egress-gated SkyPilot placement + spend gating (US-3), the multimodal adapter
++ model/weight artifacts with lineage & inheritance (US-4), and multi-provider registry routing
+(US-5).
 
 ## Run it
 
