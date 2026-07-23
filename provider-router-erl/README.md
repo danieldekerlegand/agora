@@ -27,19 +27,50 @@ src/
   apr_modality_sup.erl          a modality's rung workers + its permanent placeholder worker
   apr_rung_worker.erl           one gen_server per (modality, tier) — prices, then dials
   apr_placeholder_worker.erl    the terminal worker: offline, free, never refusable
+  apr_grant.erl                 capability grants — verb + scope + spend ceiling (KCB §5)
+  apr_bus.erl                   the subscribe registry and the fan-out (KCB §4)
+  apr_subscriber.erl            one process per consumer — seen set, ledger, delivery
+  apr_subscriber_sup.erl        the dynamic (temporary) tree of live subscriptions
+  apr_events.erl                what a completed generation announces on the bus
+  apr_assets.erl                the content-addressed store behind the fetch verb
   apr_health.erl                the byte-identical /health body
-  apr_*_handler.erl             cowboy handlers: health, doctor, manifest, redirect, generate
+  apr_*_handler.erl             cowboy handlers: health, doctor, manifest, redirect, generate,
+                                subscribe (SSE), fetch
   apr_stub_handler.erl          defined 501 for /v1/models and /v1/providers (US-6)
   agora_provider_router_app.erl OTP application — boots the cowboy listener
-  agora_provider_router_sup.erl top supervisor, over the ladder tree
+  agora_provider_router_sup.erl top supervisor, over the ladder tree and the bus
 test/
   apr_routes_tests.erl          eunit: route table == app.py surface; /health byte-identical
   apr_ladder_tests.erl          eunit: the ladder, ported from test_ladder.py
   apr_cost_tests.erl            eunit: the price table + the two safety rules (test_cost.py)
+  apr_grant_tests.erl           eunit: grants, topics, event identity, asset ids (KCB §4/§5)
   apr_http_SUITE.erl            common_test: boots the app over HTTP and drives the surface
   apr_zero_spend_SUITE.erl      common_test: ZERO-SPEND / always-completes (test_zero_spend.py)
   apr_budget_SUITE.erl          common_test: the ceiling, the routing report, the manifest
+  apr_subscribe_SUITE.erl       common_test: the subscribe fan-out, grants, fetch, isolation
 ```
+
+## The capability bus (KCB §4)
+
+`subscribe` and `fetch` are verbs the spec defines for every KCB provider; the Python router
+surfaced neither, so they arrive here as **additions beside** the mirrored contract, never as
+edits to it (`apr_routes:contract_paths/0` vs `bus_paths/0` — the first set is what US-6's
+conformance fixture pins byte-for-byte, and the AgentCard is left exactly as it was).
+
+- `POST /v1/subscribe` opens a `text/event-stream` for a `world/<world>` or
+  `capability/<name>` topic. Registration needs a grant covering `subscribe` on the topic's
+  scope (§5), and the grant's `budget_units` ceiling is checked twice — once against what one
+  event on a capability topic is projected to cost, so a grant that could never afford a
+  delivery is refused outright, and then event by event on the stream.
+- `GET /v1/assets/<digest>` is the `fetch` verb, gated by a `fetch:asset` grant. An asset that
+  has not propagated yet is a `404` carrying `"pending": true` — "not yet" and "never" are
+  different answers, and delta L says a reference is *allowed* to outrun its bytes.
+
+Each subscription is its own process under a `temporary` `simple_one_for_one` tree, so a
+consumer that cannot keep up costs only itself: publishing is a cast per subscriber and never
+blocks the ladder. Events carry content-addressed ids, which is what lets the fan-out be
+at-least-once — a redelivery is dropped by the subscriber, and nothing anywhere inspects
+arrival order.
 
 ## The manifest paths
 

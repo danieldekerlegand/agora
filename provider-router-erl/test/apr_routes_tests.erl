@@ -22,8 +22,19 @@
          <<"/v1/audio/music-generations">>,
          <<"/v1/video/generations">>]).
 
+%% The KCB verbs of `capability-bus.md` §4 that the Python router never surfaced. They are
+%% listed apart from `?PYTHON_SURFACE` on purpose: the contract set is what US-6's fixture
+%% pins byte-for-byte, and an addition beside it must never be mistaken for a change to it.
+-define(BUS_SURFACE,
+        [<<"/v1/subscribe">>,
+         <<"/v1/assets/:id">>]).
+
 route_table_matches_python_surface_test() ->
-    ?assertEqual(lists:sort(?PYTHON_SURFACE), lists:sort(apr_routes:paths())).
+    ?assertEqual(lists:sort(?PYTHON_SURFACE), lists:sort(apr_routes:contract_paths())).
+
+bus_routes_are_additions_beside_the_contract_test() ->
+    ?assertEqual(lists:sort(?BUS_SURFACE), lists:sort(apr_routes:bus_paths())),
+    ?assertEqual(lists:sort(?PYTHON_SURFACE ++ ?BUS_SURFACE), lists:sort(apr_routes:paths())).
 
 route_table_has_no_duplicates_test() ->
     Paths = apr_routes:paths(),

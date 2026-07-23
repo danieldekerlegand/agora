@@ -31,7 +31,13 @@ init(Req0, State) ->
 
 generate(Modality, Payload, Options, Req) ->
     try apr_router:complete(Modality, Payload, Options) of
-        Completion -> ok_response(Completion, Req)
+        Completion ->
+            Replied = ok_response(Completion, Req),
+            %% ...and only then tell the bus (KCB §4). After the reply, so a subscriber can
+            %% never be on the caller's critical path, and guarded inside `announce', so it
+            %% can never turn a served request into a failed one.
+            ok = apr_events:announce(Modality, Payload, Completion),
+            Replied
     catch
         %% The body's ceiling is parsed inside the walk (it is stripped from the payload
         %% there), so an unreadable one surfaces here rather than at decode time.
