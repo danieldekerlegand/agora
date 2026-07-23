@@ -12,12 +12,12 @@
 //! is no payload, transport, or `invoke` anywhere in this crate; a [`CapabilityPath`] is a plan
 //! the caller then dials directly, never a route through the registry.
 //!
-//! This US-1 port is deliberately naive — a linear frontier scan (`take_best`) and a full edge
-//! rescan per pop, exactly like the TypeScript it replaces. US-2 adds the plane-typed edge index
-//! and US-3 the heap-based frontier; the golden parity harness pins behaviour byte-for-byte
-//! across every refactor.
+//! US-2 replaced the per-pop full edge rescan with a plane-typed [`EdgeIndex`]: expanding a partial
+//! path enumerates feed-compatible edges by bucket lookup instead of scanning every edge. The
+//! frontier is still the naive linear `take_best` — US-3 makes it a heap; the golden parity harness
+//! pins behaviour byte-for-byte across every refactor.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::cmp::Ordering;
 
 use serde::{Deserialize, Serialize};
@@ -153,13 +153,13 @@ pub struct PathQuery {
 // --- Result types (serialized back to the TS shim, byte-compatible with path.ts) -----------
 
 /// One hop: who to dial, what to invoke, and what it costs (`path.ts` `PathStep`).
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PathStep {
     pub identity: String,
     pub capability: String,
     pub address: ProviderAddress,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub endpoint: Option<String>,
     pub input: Port,
     pub output: Port,
@@ -168,7 +168,7 @@ pub struct PathStep {
 }
 
 /// An ordered plan of addresses to dial, with its projected cost (`path.ts` `CapabilityPath`).
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CapabilityPath {
     pub steps: Vec<PathStep>,
@@ -349,6 +349,104 @@ fn endpoint_for(address: &ProviderAddress, capability_endpoint: Option<&str>) ->
     address.endpoints.get("a2a").cloned()
 }
 
+// --- Edge index (US-2) ---------------------------------------------------------------------
+
+/// The plane-typed edge index behind the search. Every (capability, input, output) triple is an
+/// edge (`edges_of`, faithful to `path.ts` edgesOf + step); edges are additionally bucketed by
+/// their *consumed* (input) port so expanding a partial path enumerates feed-compatible edges by
+/// lookup, replacing the TypeScript's `for (const edge of edges)` rescan over every edge per pop.
+///
+/// Bucketing is by plane first — the cheap discriminant `satisfies` requires to match — then
+/// refined *losslessly* within the two planes whose edge test is by-equality: knowledge by
+/// `(shape, dialect)` and entity by each declared type. The media plane stays plane-scoped: its
+/// test is a bidirectional glob over `media_types` **and** `world_pattern` (`audio/*` vs
+/// `audio/wav`, `*` worlds), which a hash bucket cannot narrow without dropping a true match, so
+/// media candidates are the whole media bucket, each still filtered by `satisfies`.
+///
+/// Candidate lists are returned in global edge order, so the frontier is built in exactly the
+/// order the linear rescan produced — the first-`Less`-wins tie-break in `take_best`/`compare_paths`
+/// stays byte-identical, which the golden parity harness pins.
+struct EdgeIndex {
+    edges: Vec<PathStep>,
+    /// Entity input type → edge indices declaring it (an edge with N types appears in N buckets).
+    entity_by_type: HashMap<String, Vec<usize>>,
+    /// Knowledge input `(shape, dialect)` → edge indices (each edge in exactly one bucket).
+    knowledge_by_shape_dialect: HashMap<(Option<String>, Option<String>), Vec<usize>>,
+    /// Media input edge indices, in global order — globs defeat finer bucketing.
+    media: Vec<usize>,
+}
+
+impl EdgeIndex {
+    /// Build the index once per search from the registry's registrations.
+    fn build(registrations: &[Registration]) -> Self {
+        let edges = edges_of(registrations);
+        let mut entity_by_type: HashMap<String, Vec<usize>> = HashMap::new();
+        let mut knowledge_by_shape_dialect: HashMap<(Option<String>, Option<String>), Vec<usize>> =
+            HashMap::new();
+        let mut media: Vec<usize> = Vec::new();
+        for (i, edge) in edges.iter().enumerate() {
+            match &edge.input {
+                Port::Entity { types } => {
+                    for t in types {
+                        entity_by_type.entry(t.clone()).or_default().push(i);
+                    }
+                }
+                Port::Knowledge { shape, dialect, .. } => {
+                    knowledge_by_shape_dialect
+                        .entry((shape.clone(), dialect.clone()))
+                        .or_default()
+                        .push(i);
+                }
+                Port::Media { .. } => media.push(i),
+            }
+        }
+        Self { edges, entity_by_type, knowledge_by_shape_dialect, media }
+    }
+
+    /// Edge indices whose consumed input `produced` could feed, in global edge order. A superset
+    /// filter for media (the caller still applies `satisfies`); exact for knowledge and entity.
+    fn candidates(&self, produced: &Port) -> Vec<usize> {
+        match produced {
+            Port::Entity { types } => {
+                // satisfies: some consumer-wanted type is in `types` ⟺ the edge sits in a bucket
+                // keyed by one of `types`. An edge can list several, so dedupe after gathering.
+                let mut out: Vec<usize> = types
+                    .iter()
+                    .filter_map(|t| self.entity_by_type.get(t))
+                    .flatten()
+                    .copied()
+                    .collect();
+                out.sort_unstable();
+                out.dedup();
+                out
+            }
+            Port::Knowledge { shape, dialect, .. } => {
+                // satisfies: consumer shape/dialect must each be unset or equal to the producer's,
+                // so only these ≤4 buckets can match. Each edge is in one bucket — no dedupe needed.
+                let mut shapes: Vec<Option<String>> = vec![None];
+                if shape.is_some() {
+                    shapes.push(shape.clone());
+                }
+                let mut dialects: Vec<Option<String>> = vec![None];
+                if dialect.is_some() {
+                    dialects.push(dialect.clone());
+                }
+                let mut out: Vec<usize> = Vec::new();
+                for s in &shapes {
+                    for d in &dialects {
+                        if let Some(bucket) = self.knowledge_by_shape_dialect.get(&(s.clone(), d.clone())) {
+                            out.extend_from_slice(bucket);
+                        }
+                    }
+                }
+                out.sort_unstable();
+                out
+            }
+            Port::Media { .. } => self.media.clone(),
+        }
+    }
+}
+
 // --- Search (path.ts) ----------------------------------------------------------------------
 
 /// The best path from `query.from` to `query.to`, or `None` if the index has none.
@@ -360,10 +458,10 @@ pub fn search(registrations: &[Registration], query: &PathQuery) -> Option<Capab
     if max_hops < 1 {
         return None;
     }
-    let edges = edges_of(registrations);
+    let index = EdgeIndex::build(registrations);
 
     let mut frontier: Vec<CapabilityPath> = Vec::new();
-    for edge in &edges {
+    for edge in &index.edges {
         if matches_port(&edge.input, &query.from) {
             frontier.push(path_of(vec![edge.clone()]));
         }
@@ -386,7 +484,8 @@ pub fn search(registrations: &[Registration], query: &PathQuery) -> Option<Capab
             .iter()
             .map(|s| format!("{} {}", s.identity, s.capability))
             .collect();
-        for edge in &edges {
+        for &i in &index.candidates(&last.output) {
+            let edge = &index.edges[i];
             if used.contains(&format!("{} {}", edge.identity, edge.capability)) {
                 continue;
             }
