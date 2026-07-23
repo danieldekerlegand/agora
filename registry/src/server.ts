@@ -27,6 +27,15 @@ import {
   type CapabilityRegistry,
   type FindQuery,
 } from './registry.ts';
+import {
+  createReplicator,
+  isNewOrChanged,
+  REPLICATION_HEADER,
+  SOURCE_HEADER,
+  sourceFromHeader,
+  type ReplicationFetch,
+  type Replicator,
+} from './replication.ts';
 import type { ManifestStore } from './store.ts';
 
 export interface RegistryServerOptions {
@@ -38,6 +47,11 @@ export interface RegistryServerOptions {
   store?: ManifestStore;
   /** The `fetch` a `/crawl` uses; defaults to the global. Structural, so a test can stub it. */
   fetch?: ManifestFetch;
+  /** Peer node base URLs to replicate register/remove to, so a cluster converges. Empty (the
+   * default) means a single standalone node. Each node stays a cache — see {@link Replicator}. */
+  peers?: readonly string[];
+  /** The `fetch` replication uses; defaults to the global. Structural, so a test can stub it. */
+  replicationFetch?: ReplicationFetch;
 }
 
 /** A bound address — what {@link RegistryService.listen} resolves to. */
@@ -77,8 +91,12 @@ export function createRegistryServer(options: RegistryServerOptions = {}): Regis
   const registry =
     options.registry ?? (options.store ? createDurableRegistry(options.store) : createRegistry());
   const fetch = options.fetch;
+  const replicator =
+    options.peers && options.peers.length > 0
+      ? createReplicator(options.peers, options.replicationFetch)
+      : undefined;
   const server = createServer((req, res) => {
-    void handle(req, res, registry, fetch);
+    void handle(req, res, registry, fetch, replicator);
   });
 
   return {
@@ -105,11 +123,12 @@ async function handle(
   res: ServerResponse,
   registry: CapabilityRegistry,
   fetch: ManifestFetch | undefined,
+  replicator: Replicator | undefined,
 ): Promise<void> {
   try {
     const url = new URL(req.url ?? '/', 'http://registry.local');
     const method = req.method ?? 'GET';
-    await route(method, url, req, res, registry, fetch);
+    await route(method, url, req, res, registry, fetch, replicator);
   } catch (err) {
     if (err instanceof ManifestError) {
       // A malformed manifest never enters the index — it is the caller's error (§3).
@@ -133,18 +152,30 @@ async function route(
   res: ServerResponse,
   registry: CapabilityRegistry,
   fetch: ManifestFetch | undefined,
+  replicator: Replicator | undefined,
 ): Promise<void> {
   const path = url.pathname;
+  // A replicated delivery is applied locally but never re-fanned — that is what keeps the
+  // mesh loop-free. A direct client write, by contrast, propagates to this node's peers.
+  const replicated = req.headers[REPLICATION_HEADER] !== undefined;
 
   // Description / health: identity + verbs + proxiesTraffic:false, over the wire.
   if (method === 'GET' && (path === '/' || path === '/describe')) {
     return sendJson(res, 200, describeRegistry());
   }
 
-  // register (push): the manifest flows verbatim through CapabilityRegistry.register.
+  // register (push): the manifest flows verbatim through CapabilityRegistry.register. A
+  // replicated delivery keeps its origin's source; a direct push is 'push'.
   if (method === 'POST' && path === '/register') {
     const manifest = await readJson(req);
-    return sendJson(res, 201, registry.register(manifest, { source: 'push' }));
+    const source = replicated ? sourceFromHeader(headerValue(req, SOURCE_HEADER)) : 'push';
+    const before = registry.list();
+    const registration = registry.register(manifest, { source });
+    // Only a genuine change ripples outward, and never a replicated one — idempotent + loop-free.
+    if (replicator && !replicated && isNewOrChanged(before, registration)) {
+      await replicator.register(registration);
+    }
+    return sendJson(res, 201, registration);
   }
 
   // The pull path: crawl a provider's well-known manifest (source:'pull'), never a payload.
@@ -152,7 +183,12 @@ async function route(
     const body = requireObject(await readJson(req));
     const baseUrl = body.baseUrl;
     if (typeof baseUrl !== 'string') throw new HttpError(400, 'crawl requires a string baseUrl');
+    const before = registry.list();
     const registration = await registerFromWellKnown(registry, baseUrl, fetch ? { fetch } : {});
+    // A crawled entry replicates as 'pull' too — the peers converge without each re-crawling.
+    if (replicator && isNewOrChanged(before, registration)) {
+      await replicator.register(registration);
+    }
     return sendJson(res, 201, registration);
   }
 
@@ -161,7 +197,10 @@ async function route(
     const body = requireObject(await readJson(req));
     const identity = body.identity;
     if (typeof identity !== 'string') throw new HttpError(400, 'remove requires a string identity');
-    return sendJson(res, 200, { removed: registry.remove(identity) });
+    const removed = registry.remove(identity);
+    // Propagate only a removal that actually happened, and never a replicated one.
+    if (replicator && !replicated && removed) await replicator.remove(identity);
+    return sendJson(res, 200, { removed });
   }
 
   if (method === 'GET' && path === '/list') {
@@ -215,6 +254,11 @@ function findQueryFromParams(url: URL): FindQuery {
   const world = url.searchParams.get('world');
   if (world !== null) query.world = world;
   return query;
+}
+
+function headerValue(req: IncomingMessage, name: string): string | undefined {
+  const value = req.headers[name];
+  return Array.isArray(value) ? value[0] : value;
 }
 
 function requireIdentity(url: URL): string {

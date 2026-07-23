@@ -55,6 +55,13 @@ export {
   type RegistryService,
   type ServiceAddress,
 } from './server.ts';
+export {
+  createReplicator,
+  REPLICATION_HEADER,
+  SOURCE_HEADER,
+  type ReplicationFetch,
+  type Replicator,
+} from './replication.ts';
 
 /** KINP identity of the registry itself — a provider is a fabric entity too (KCB §2). */
 export const REGISTRY_IDENTITY = 'agora:agent:registry';
