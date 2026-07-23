@@ -7,7 +7,7 @@ koine and runtime to agora. koine:10 ported legacy's six draft-2020-12 schemas i
 space), ``@agora/schemas``'s ``validator.ts`` is the TypeScript-ecosystem validator over
 them, and this is its Python twin — a faithful port of ``legacy/validators/validate.py``.
 
-The two exist so a schema change "lands green only when BOTH agree": the same five golden
+The two exist so a schema change "lands green only when BOTH agree": the same golden
 fixtures validate identically under ajv (Node) and jsonschema (Python), or the gate is red.
 Both read the SAME derived koine-schema snapshot (``schemas/src/koine-schemas/``, regenerated
 by ``regen-koine-schemas.mjs`` — never hand-edited), so neither ecosystem can fork the contract.
@@ -16,7 +16,7 @@ Usage:
     python -m agora_provider_router.artifact_validator <schema-name> <artifact.json>
 
 Schema names: grounding-pack, canonical-world-export, entity-grounding-snapshot,
-analyzer-canonical-export, dataset-jsonl-header.
+analyzer-canonical-export, dataset-jsonl-header, finetune-job.
 
 Exit 0 = valid; exit 1 = invalid (errors printed); exit 2 = usage/load error — the same
 exit-code semantics as ``validator.ts``'s CLI, so a CI smoke can loop both ecosystems.
@@ -40,8 +40,12 @@ from referencing import Registry, Resource
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 SCHEMAS_DIR = _REPO_ROOT / "schemas" / "src" / "koine-schemas"
 
-#: The five interchange artifacts, each mapped to the koine schema file that governs it — the
-#: same five names ``validator.ts`` (and legacy's ``validate.mjs``) expose. ``provenance`` is
+#: The interchange artifacts, each mapped to the koine schema file that governs it — the same
+#: names ``validator.ts`` (and legacy's ``validate.mjs``) expose: the five legacy artifacts plus
+#: ``finetune-job``, the KFT §3 job manifest agora:41 added (it ``$ref``s provenance +
+#: dataset-jsonl-header, both already registered). This validator checks STRUCTURE only — the
+#: SEMANTIC admission KFT defines (modality×method compatibility, egress feasibility, cost ceiling)
+#: is PROVIDER behavior at invoke (agora:90 / pinakes:90), not schema shape. ``provenance`` is
 #: absent: it is the shared ``$defs`` library every artifact ``$ref``s, never validated directly.
 ARTIFACT_SCHEMAS = {
     "grounding-pack": "grounding-pack.schema.json",
@@ -49,6 +53,7 @@ ARTIFACT_SCHEMAS = {
     "entity-grounding-snapshot": "entity-grounding-snapshot.schema.json",
     "analyzer-canonical-export": "analyzer-canonical-export.schema.json",
     "dataset-jsonl-header": "dataset-jsonl-header.schema.json",
+    "finetune-job": "finetune-job.schema.json",
 }
 
 #: The koine schema id base. Every ported schema declares ``$id``
@@ -121,9 +126,14 @@ def main(argv: list[str]) -> int:
         return 1
     contract = "?"
     if isinstance(instance, dict):
-        # grounding-pack stamps its version into `kgp_version` (KGP §2); the other four keep
-        # `contractVersion`. Show whichever the artifact carries.
-        contract = instance.get("contractVersion") or instance.get("kgp_version") or "?"
+        # grounding-pack stamps its version into `kgp_version` (KGP §2) and finetune-job into
+        # `kft_version` (KFT §3); the other four keep `contractVersion`. Show whichever it carries.
+        contract = (
+            instance.get("contractVersion")
+            or instance.get("kgp_version")
+            or instance.get("kft_version")
+            or "?"
+        )
     print(f"VALID {artifact_path} against {name} (contract {contract})")
     return 0
 
