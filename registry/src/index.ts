@@ -43,6 +43,12 @@ export {
   type CrawlOptions,
   type ManifestFetch,
 } from './crawl.ts';
+export {
+  createRegistryServer,
+  type RegistryServerOptions,
+  type RegistryService,
+  type ServiceAddress,
+} from './server.ts';
 
 /** KINP identity of the registry itself — a provider is a fabric entity too (KCB §2). */
 export const REGISTRY_IDENTITY = 'agora:agent:registry';
