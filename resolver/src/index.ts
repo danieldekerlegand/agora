@@ -62,6 +62,12 @@ export {
 } from './policy.ts';
 export { createMemoryCache, type ResolverCache } from './cache.ts';
 export {
+  createFileCache,
+  createFileLinkStore,
+  createMemoryLinkStore,
+  type LinkStore,
+} from './persistence.ts';
+export {
   createResolverServer,
   type ResolverService,
   type ResolverServerOptions,

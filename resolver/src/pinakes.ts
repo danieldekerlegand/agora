@@ -26,6 +26,7 @@ import {
 } from '@agora/schemas';
 
 import { createMemoryCache, type ResolverCache } from './cache.ts';
+import type { LinkStore } from './persistence.ts';
 import { decideLink, mergePolicy, worldFor, type MergePolicy } from './policy.ts';
 import {
   AuthorityUnreachableError,
@@ -69,6 +70,13 @@ export interface PinakesOptions {
   policy?: Partial<MergePolicy>;
   /** KINP identity of the authority, for error messages and provenance. */
   identity?: string;
+  /**
+   * The durable equivalence-layer store behind {@link AuthorityResolver.applied} and
+   * {@link AuthorityResolver.reviewQueue} (§11 decision 2). Defaults to in-memory arrays that
+   * do not survive a restart; pass a {@link LinkStore} to persist both lists. When one is
+   * given the resolver rehydrates from it on construction and writes each decision through.
+   */
+  links?: LinkStore;
 }
 
 /** KINP identity Pinakes publishes its resolver under. */
@@ -85,8 +93,12 @@ export function createPinakesResolver(options: PinakesOptions): AuthorityResolve
   const cache = options.cache ?? createMemoryCache();
   const policy = mergePolicy(options.policy);
   const authorityIdentity = options.identity ?? PINAKES_IDENTITY;
-  const reviewQueue: LinkProposal[] = [];
-  const applied: LinkProposal[] = [];
+  // Rehydrate both lists from the durable store when one is configured (§11 decision 2), so a
+  // restart resumes with the links it had already applied and queued rather than an empty
+  // equivalence layer. Without a store these are plain in-memory arrays, as before.
+  const links = options.links;
+  const reviewQueue: LinkProposal[] = links ? links.loadReviewQueue() : [];
+  const applied: LinkProposal[] = links ? links.loadApplied() : [];
 
   async function resolve(ref: EntityRef): Promise<ResolvedIdentity> {
     const id = ref.id;
@@ -152,8 +164,16 @@ export function createPinakesResolver(options: PinakesOptions): AuthorityResolve
     }
     const candidates = readCandidates(await response.json(), policy);
     const proposal = decideLink({ world, candidates, subject: query.of, lineageOnly, policy });
-    if (proposal.relation === null || proposal.review) reviewQueue.push(proposal);
-    else applied.push(proposal);
+    // Nothing below-threshold or ambiguous is ever silently applied: a null-relation or
+    // review proposal goes to the queue, only a cleared one to applied — and each write goes
+    // through to the durable store so the split survives a restart (§11 decision 2).
+    if (proposal.relation === null || proposal.review) {
+      reviewQueue.push(proposal);
+      links?.addReview(proposal);
+    } else {
+      applied.push(proposal);
+      links?.addApplied(proposal);
+    }
     return { candidates, proposal, authority: 'pinakes' };
   }
 

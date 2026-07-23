@@ -28,6 +28,7 @@ import type { KinpKind } from '@agora/schemas';
 
 import { createMemoryCache, type ResolverCache } from './cache.ts';
 import { createLocalResolver, describeResolver } from './index.ts';
+import type { LinkStore } from './persistence.ts';
 import { createPinakesResolver, type AuthorityFetch } from './pinakes.ts';
 import type { MergePolicy } from './policy.ts';
 import {
@@ -56,6 +57,9 @@ export interface ResolverServerOptions {
   policy?: Partial<MergePolicy>;
   /** KINP identity of the authority, for error messages and provenance. */
   authorityIdentity?: string;
+  /** The durable equivalence-layer store (applied / reviewQueue). Ignored unless an authority
+   * resolver is built here (§11 decision 2). */
+  links?: LinkStore;
 }
 
 /** A bound address — what {@link ResolverService.listen} resolves to. */
@@ -97,6 +101,7 @@ function resolverFor(options: ResolverServerOptions): Resolver {
   else pinakes.cache = createMemoryCache();
   if (options.policy !== undefined) pinakes.policy = options.policy;
   if (options.authorityIdentity !== undefined) pinakes.identity = options.authorityIdentity;
+  if (options.links !== undefined) pinakes.links = options.links;
   return createPinakesResolver(pinakes);
 }
 
