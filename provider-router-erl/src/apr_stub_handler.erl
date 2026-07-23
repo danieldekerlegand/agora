@@ -3,7 +3,10 @@
 %%% Every registered path answers rather than crashing the listener: an unimplemented
 %%% route returns a defined `501 Not Implemented` with a small JSON body naming the route,
 %%% so the full `app.py` surface is reachable now and each handler is swapped in as its
-%%% story lands (`/doctor` in US-2, the generation POSTs + manifest in US-2..US-5).
+%%% story lands (`/doctor` in US-2, the generation POSTs + the manifest in US-3).
+%%%
+%%% Two reads are left: `/v1/models` and `/v1/providers`, which land with the HTTP
+%%% contract-conformance suite (US-6) that pins their bodies against the Python router's.
 -module(apr_stub_handler).
 -behaviour(cowboy_handler).
 

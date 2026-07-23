@@ -15,6 +15,7 @@
          nothing_is_dialed/1,
          broken_ladder_variable_still_completes/1,
          placeholder_is_deterministic_and_free/1,
+         a_reordered_payload_yields_the_same_stand_in/1,
          placeholder_artifact_declares_itself/1,
          a_crashing_rung_falls_through_to_placeholder/1,
          a_timing_out_rung_falls_through_to_placeholder/1]).
@@ -26,6 +27,7 @@ all() ->
      nothing_is_dialed,
      broken_ladder_variable_still_completes,
      placeholder_is_deterministic_and_free,
+     a_reordered_payload_yields_the_same_stand_in,
      placeholder_artifact_declares_itself,
      a_crashing_rung_falls_through_to_placeholder,
      a_timing_out_rung_falls_through_to_placeholder].
@@ -54,13 +56,19 @@ bare_env_resolves_every_modality_to_placeholder(_Config) ->
 
 nothing_is_dialed(_Config) ->
     Self = self(),
-    Recorder = fun(Backend, _Payload) -> Self ! {dialed, Backend}, {ok, #{}} end,
+    Recorder = fun(Backend, _Payload) ->
+                       Self ! {dialed, Backend},
+                       {ok, {obj, [{<<"id">>, <<"upstream">>}]}}
+               end,
     lists:foreach(
       fun(Modality) ->
               Completion = apr_router:complete(Modality, #{<<"prompt">> => <<"hello">>},
                                                #{transport => Recorder}),
               placeholder = apr_router:completion_tier(Completion),
-              true = map_size(maps:get(response, Completion)) > 0
+              true = apr_json:keys(apr_router:response(Completion)) =/= [],
+              %% Nothing was spent, and the report says so rather than leaving it implied.
+              %% Compared, not matched: a `0.0' pattern is a warning in OTP 27+ (`-0.0').
+              true = apr_cost:units(maps:get(actual, Completion)) == 0.0
       end, apr_ladder:modalities()),
     receive
         {dialed, B} -> ct:fail({dialed_a_backend, B})
@@ -86,13 +94,26 @@ placeholder_is_deterministic_and_free(_Config) ->
                <<"temperature">> => 1},
     First = apr_router:complete(text, Payload),
     Second = apr_router:complete(text, Payload),
-    Response = maps:get(response, First),
-    Response = maps:get(response, Second),
-    Usage = maps:get(<<"usage">>, Response),
-    0 = maps:get(<<"total_tokens">>, Usage),
-    [Choice | _] = maps:get(<<"choices">>, Response),
-    Content = maps:get(<<"content">>, maps:get(<<"message">>, Choice)),
+    Response = apr_router:response(First),
+    Response = apr_router:response(Second),
+    %% Byte-identical, not merely equal: the response is relayed verbatim, so its key order
+    %% is part of what a conformance scenario pins.
+    Encoded = apr_json:encode(Response),
+    Encoded = apr_json:encode(apr_router:response(Second)),
+    Usage = apr_json:get(<<"usage">>, Response),
+    0 = apr_json:get(<<"total_tokens">>, Usage),
+    [Choice | _] = apr_json:get(<<"choices">>, Response),
+    Content = apr_json:get(<<"content">>, apr_json:get(<<"message">>, Choice)),
     {_, _} = binary:match(Content, <<"placeholder">>),
+    ok.
+
+a_reordered_payload_yields_the_same_stand_in(_Config) ->
+    %% The digest is canonical (sorted keys), so two callers who send the same fields in a
+    %% different order get the same deterministic stand-in back.
+    A = {obj, [{<<"prompt">>, <<"a cat">>}, {<<"n">>, 1}]},
+    B = {obj, [{<<"n">>, 1}, {<<"prompt">>, <<"a cat">>}]},
+    Digest = apr_placeholder:digest(A),
+    Digest = apr_placeholder:digest(B),
     ok.
 
 placeholder_artifact_declares_itself(_Config) ->
@@ -100,9 +121,9 @@ placeholder_artifact_declares_itself(_Config) ->
       fun(Modality) ->
               Response = apr_placeholder:complete(Modality, #{<<"prompt">> => <<"a cat">>},
                                                   <<"placeholder">>),
-              [Artifact | _] = maps:get(<<"data">>, Response),
-              true = maps:get(<<"placeholder">>, Artifact),
-              MediaType = maps:get(<<"media_type">>, Artifact),
+              [Artifact | _] = apr_json:get(<<"data">>, Response),
+              true = apr_json:get(<<"placeholder">>, Artifact),
+              MediaType = apr_json:get(<<"media_type">>, Artifact),
               [Family | _] = binary:split(MediaType, <<"/">>),
               true = lists:member(Family, [<<"image">>, <<"audio">>, <<"video">>])
       end, [image, speech, music, video]),

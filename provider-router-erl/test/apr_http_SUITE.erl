@@ -34,7 +34,9 @@ health_returns_byte_identical_body(Config) ->
     ok.
 
 stub_routes_answer_without_crashing(Config) ->
-    Reads = ["/v1/models", "/v1/providers", "/.well-known/kcb-manifest.json"],
+    %% The last two stubs: /v1/models and /v1/providers land with the conformance suite
+    %% (US-6). The manifest routes went live in US-3 and are covered by `apr_budget_SUITE'.
+    Reads = ["/v1/models", "/v1/providers"],
     lists:foreach(
       fun(Path) ->
               {Status, _Body} = get(Config, Path),

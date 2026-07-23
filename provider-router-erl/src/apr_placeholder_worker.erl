@@ -25,6 +25,11 @@ start_link(Modality) ->
 init(Modality) ->
     {ok, #{modality => Modality}}.
 
+%% The ceiling is accepted and deliberately not enforced: the placeholder is priced (never
+%% `unpriced') at `0.0', and `parse_ceiling' clamps a negative ceiling to zero, so it survives
+%% every ceiling by construction. Gating it anyway would make the terminal child refusable —
+%% the one thing always-completes forbids. Its success attempt carries no `projected', exactly
+%% as `router.py' records the placeholder rung.
 handle_call({serve, Payload, _Ceiling, _Transport}, _From, State) ->
     #{modality := Modality} = State,
     Backend = apr_backends:placeholder_backend(Modality),

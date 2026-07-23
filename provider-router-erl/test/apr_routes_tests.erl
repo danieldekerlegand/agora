@@ -3,13 +3,18 @@
 -module(apr_routes_tests).
 -include_lib("eunit/include/eunit.hrl").
 
-%% The ten paths of `app.py`, verbatim. If the Python surface changes, this list and the
+%% The eleven paths of `app.py`, verbatim. If the Python surface changes, this list and the
 %% route table must change together — that is the point of pinning it here.
+%%
+%% Both `.well-known` paths are `app.py`'s: `MANIFEST_PATH` serves the AgentCard the KCB
+%% manifest was folded onto (capability-bus.md §6) and `LEGACY_MANIFEST_PATH` 308s onto it.
+%% US-1 registered only the legacy path and deferred the reconciliation to the manifest story.
 -define(PYTHON_SURFACE,
         [<<"/health">>,
          <<"/doctor">>,
          <<"/v1/models">>,
          <<"/v1/providers">>,
+         <<"/.well-known/agent-card.json">>,
          <<"/.well-known/kcb-manifest.json">>,
          <<"/v1/chat/completions">>,
          <<"/v1/images/generations">>,

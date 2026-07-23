@@ -184,11 +184,12 @@ pending_reason(Names, Modality) ->
        " adapter for its native wire format ", [16#2014],
        " falling through rather than sending it OpenAI JSON"]).
 
+%% `backends.py' spells this `', '.join(vendors) or 'none declared'`, guarding a modality
+%% absent from its `PAID_PROVIDERS` dict. Here {@link paid_providers/1} is a clause per
+%% modality and every one names at least one vendor, so the guard is provably dead — dialyzer
+%% says so — and carrying it would be a branch no test could ever reach.
 unconfigured_reason(Modality, Vendors) ->
-    Listed = case Vendors of
-                 [] -> "none declared";
-                 _ -> lists:join(", ", [binary_to_list(V) || V <- Vendors])
-             end,
+    Listed = lists:join(", ", [binary_to_list(V) || V <- Vendors]),
     unicode:characters_to_binary(
       ["no API key for any ", atom_to_list(Modality), " vendor (", Listed, ")"]).
 

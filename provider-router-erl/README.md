@@ -15,16 +15,39 @@ supersession cutover completes across US-1..US-6.
 ```
 src/
   apr.erl                       constants — version, kcb_version, identity (mirrors __init__.py)
-  apr_routes.erl                the route table — one source for paths/0 and the cowboy dispatch
+  apr_json.erl                  JSON codec — ORDERED objects for responses, sorted for digests
+  apr_config.erl                AGORA_PROVIDER_* settings; secrets never reach describe/1
+  apr_ladder.erl                the sacred ladder — tier order, AGORA_<MODALITY>_LADDER
+  apr_backends.erl              tier -> a dialable backend, or why not
+  apr_cost.erl                  the agora:50 price table + the budget_units ceiling (KCB §5)
+  apr_placeholder.erl           the deterministic terminal tier
+  apr_manifest.erl              the KCB capability manifest / A2A AgentCard (KCB §2, §6)
+  apr_router.erl                resolution, the ladder walk, and the routing report
+  apr_ladder_sup.erl            one modality subtree per modality
+  apr_modality_sup.erl          a modality's rung workers + its permanent placeholder worker
+  apr_rung_worker.erl           one gen_server per (modality, tier) — prices, then dials
+  apr_placeholder_worker.erl    the terminal worker: offline, free, never refusable
   apr_health.erl                the byte-identical /health body
-  apr_health_handler.erl        cowboy handler: GET /health
-  apr_stub_handler.erl          defined 501 for the not-yet-implemented routes (US-2..US-5)
+  apr_*_handler.erl             cowboy handlers: health, doctor, manifest, redirect, generate
+  apr_stub_handler.erl          defined 501 for /v1/models and /v1/providers (US-6)
   agora_provider_router_app.erl OTP application — boots the cowboy listener
-  agora_provider_router_sup.erl top supervisor (grows into the ladder tree in US-2)
+  agora_provider_router_sup.erl top supervisor, over the ladder tree
 test/
   apr_routes_tests.erl          eunit: route table == app.py surface; /health byte-identical
+  apr_ladder_tests.erl          eunit: the ladder, ported from test_ladder.py
+  apr_cost_tests.erl            eunit: the price table + the two safety rules (test_cost.py)
   apr_http_SUITE.erl            common_test: boots the app over HTTP and drives the surface
+  apr_zero_spend_SUITE.erl      common_test: ZERO-SPEND / always-completes (test_zero_spend.py)
+  apr_budget_SUITE.erl          common_test: the ceiling, the routing report, the manifest
 ```
+
+## The manifest paths
+
+`app.py` serves the A2A AgentCard — the KCB manifest folded onto it as a named extension
+(capability-bus.md §2/§6) — at `/.well-known/agent-card.json`, and answers the pre-0.3.0
+`/.well-known/kcb-manifest.json` with a **308** onto it. Both are registered here, with the
+same statuses and the same bodies: a 0.2.0 crawler must land on the authoritative document
+rather than a dead address, and byte-for-byte conformance (US-6) is judged against the card.
 
 ## Gate
 
