@@ -486,10 +486,13 @@ export function invokeIO(
         entities: [identity],
         detail: detail({ endpoint: call.url, ...(legs?.request ?? {}) }),
       });
+      // A2A opens with an agent-card GET (no body); a GET/HEAD carrying a body is malformed
+      // (the platform fetch rejects it), so the seam sends one only on a method that takes it.
+      const carriesBody = call.method !== 'GET' && call.method !== 'HEAD';
       const response = await fetch(call.url, {
         method: call.method,
         headers: call.headers,
-        body: JSON.stringify(call.body),
+        body: carriesBody ? JSON.stringify(call.body) : undefined,
         signal,
       });
       const body = await readExchangeBody(response);
