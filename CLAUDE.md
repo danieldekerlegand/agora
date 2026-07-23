@@ -29,6 +29,7 @@ more than one. Zero errors, exit 0. `make help` lists everything.
 |---|---|
 | everything | `make check` (what CI and `.chief/verify.sh` run) |
 | `provider-router/` | `make check-provider-router` |
+| `provider-router-erl/` | `make check-router-erl` (Erlang/OTP re-implementation, agora:80 / ADR-0004) |
 | `schemas/` | `make check-schemas` |
 | `clients/*` | `make check-clients` |
 | `registry/` | `make check-registry` |

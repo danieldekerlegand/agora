@@ -176,6 +176,7 @@ Per area, when a change touches only one:
 | Area | Gate |
 |---|---|
 | `provider-router/` | `make check-provider-router` — `ruff check` + `ruff format --check` + `mypy` + `pytest` |
+| `provider-router-erl/` | `make check-router-erl` — `rebar3 compile` + `dialyzer` + `eunit` + `ct` (the Erlang re-implementation, agora:80 / ADR-0004; skips cleanly when the Erlang toolchain is absent) |
 | `schemas/` | `make check-schemas` |
 | `clients/*` | `make check-clients` |
 | `registry/` | `make check-registry` |
