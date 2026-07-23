@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koine.ecosystem/schemas/grounding-pack.schema.json",
+  "title": "GroundingPack",
+  "description": "The machine-readable form of the KGP grounding-pack.md §2 envelope: a content-addressed, self-describing bundle of knowledge scoped to one or more worlds (KINP §5). Reconciled onto the KGP §2 envelope (kgp_version / pack_id / producer / worlds / kind / basis / dialect + entities / assertions / links / provenance / manifest) — US-4 of ADR-0003. Legacy's grounding-pack identity is RETIRED here: its hard-coded `source` const discriminator and the free-string `packId` are dropped in favour of a KINP `producer` namespace + a content-addressed `pack_id` (KGP §2.1), and legacy's {contractVersion, packId, generatedAt, source, domains, prologFacts, licenseManifest} envelope keys are replaced by the KGP §2 shape. Exact on the envelope, ids, provenance, license; permissive on entity fields.",
+  "type": "object",
+  "properties": {
+    "kgp_version": {
+      "$ref": "provenance.schema.json#/$defs/contractVersion",
+      "description": "The KGP spec version (semver) this pack was produced against — e.g. \"0.4.0\". Supersedes legacy's single `contractVersion`/`CONTRACT_VERSION` and the downstream `insimul-grounding-v1` const, both renamed onto `kgp_version` (ADR-0003 §Downstream)."
+    },
+    "pack_id": {
+      "type": "string",
+      "pattern": "^sha256-[0-9a-f]{64}$",
+      "description": "Content-addressed pack id (KGP §2.1): sha256-<hex> of the canonical manifest ⊕ sorted(entities) ⊕ sorted(assertions) ⊕ sorted(links). Byte-reproducible — two producers emitting the same knowledge emit the same pack_id. Replaces legacy's free-string `packId`."
+    },
+    "producer": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "The producing project's KINP namespace, e.g. `pinakes`, `analyzer`, `insimul`. Replaces legacy's hard-coded `source` const discriminator — any KINP namespace may produce a pack, not a single hard-coded source (ADR-0003)."
+    },
+    "worlds": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "The world CURIEs this pack is scoped to (KINP §5), e.g. `pinakes:world:consensus-reality`. Replaces legacy's free-string `domains`."
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["snapshot", "delta"],
+      "description": "Directionality (KGP §6): a full `snapshot` or a `delta` applied against `basis`."
+    },
+    "basis": {
+      "anyOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^sha256-[0-9a-f]{64}$" }
+      ],
+      "description": "For kind=delta, the `pack_id` this delta applies against (KGP §6); null for a snapshot."
+    },
+    "dialect": {
+      "$ref": "provenance.schema.json#/$defs/dialect",
+      "description": "Pack-level logic dialect (KGP §2 envelope, §5) — the highest logic tier a consumer may evaluate over this pack's assertions. NOT an egress or trust field; local-only is excluded here because it is an egress class, not a dialect tier (KGP §5)."
+    },
+    "entities": {
+      "type": "array",
+      "description": "The referenced entity records (KGP §2): each keyed by a `csid` — structurally the KINP entity CURIE (identity.md §7.1) — never a legacy ad-hoc id.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "csid": { "$ref": "provenance.schema.json#/$defs/csid" },
+          "entityType": { "type": "string", "minLength": 1 },
+          "fields": { "type": "object" },
+          "provenance": { "$ref": "provenance.schema.json#/$defs/provenance" },
+          "license": { "$ref": "provenance.schema.json#/$defs/license" },
+          "egress": { "$ref": "provenance.schema.json#/$defs/egress" }
+        },
+        "required": ["csid", "entityType", "fields", "provenance", "license"],
+        "additionalProperties": true
+      }
+    },
+    "assertions": {
+      "type": "array",
+      "description": "The KINP assertion envelopes (identity.md §7.1) this pack carries. Each `id` is the content-addressed claim id (KGP §3), so identical claims dedup/merge across producers. Replaces legacy's untyped `prologFacts` strings — Prolog remains a §4 serialization, not the envelope shape.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "provenance.schema.json#/$defs/claimId" },
+          "provenance": { "$ref": "provenance.schema.json#/$defs/provenance" },
+          "license": { "$ref": "provenance.schema.json#/$defs/license" },
+          "egress": { "$ref": "provenance.schema.json#/$defs/egress" }
+        },
+        "required": ["id", "provenance", "license"],
+        "additionalProperties": true
+      }
+    },
+    "links": {
+      "type": "array",
+      "description": "Equivalence + lifecycle relations (same_as / based_on / part_of / instance_of / retracts / supersedes) — themselves assertions using KINP's reserved relations (identity.md §7.1), so each `id` is a content-addressed claim id.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "provenance.schema.json#/$defs/claimId" }
+        },
+        "required": ["id"],
+        "additionalProperties": true
+      }
+    },
+    "provenance": {
+      "type": "array",
+      "description": "W3C-PROV-shaped activities/agents referenced by the assertions (KGP §2, §7).",
+      "items": { "type": "object" }
+    },
+    "manifest": {
+      "type": "object",
+      "description": "The self-describing pack manifest (KGP §2): record counts, creation time, optional signing, and the license admission policy (§7.1).",
+      "properties": {
+        "counts": {
+          "type": "object",
+          "description": "record kind -> count (entities/assertions/links).",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "created": { "type": "string", "description": "ISO-8601 UTC." },
+        "license_policy": {
+          "type": "object",
+          "description": "The license admission allowlist (KGP §7.1): license id -> record count; must cover every record. Replaces legacy's top-level `licenseManifest`.",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": ["kgp_version", "pack_id", "producer", "worlds", "kind", "dialect", "entities", "assertions", "manifest"],
+  "additionalProperties": true
+}

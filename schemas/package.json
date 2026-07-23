@@ -12,6 +12,11 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "regen:koine-fixture": "node scripts/regen-koine-fixture.mjs",
-    "regen:koine-fixture:check": "node scripts/regen-koine-fixture.mjs --check"
+    "regen:koine-fixture:check": "node scripts/regen-koine-fixture.mjs --check",
+    "regen:koine-schemas": "node scripts/regen-koine-schemas.mjs",
+    "regen:koine-schemas:check": "node scripts/regen-koine-schemas.mjs --check"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1"
   }
 }

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koine.ecosystem/schemas/analyzer-canonical-export.schema.json",
+  "title": "ArgosCanonicalExport",
+  "description": "Analyzer to_canonical projection -> Pinakes: the file/media predicate web as a canonical-graph artifact. Every record is personal-tier (KGP §7) and license-labeled (§7.1); co_occurs is excluded (derived, not stored). Node ids follow the shared KINP/KMI id spaces (provenance.schema.json nodeRef). Absorbed from legacy (ADR-0003).",
+  "type": "object",
+  "properties": {
+    "contractVersion": { "$ref": "provenance.schema.json#/$defs/contractVersion" },
+    "exportedAt": { "type": "string" },
+    "tier": { "const": "personal" },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "$ref": "provenance.schema.json#/$defs/nodeRef" },
+          "type": { "type": "string", "minLength": 1 },
+          "properties": { "type": "object" },
+          "provenance": { "$ref": "provenance.schema.json#/$defs/provenance" },
+          "license": { "$ref": "provenance.schema.json#/$defs/license" },
+          "tier": { "const": "personal" },
+          "egress": { "$ref": "provenance.schema.json#/$defs/egress", "description": "Egress class (KGP §7.2). personal-tier records are typically local-only; the egress axis is enforced independently of this descriptive tier." }
+        },
+        "required": ["id", "type", "provenance", "license", "tier"],
+        "additionalProperties": true
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": { "$ref": "provenance.schema.json#/$defs/nodeRef" },
+          "target": { "$ref": "provenance.schema.json#/$defs/nodeRef" },
+          "type": { "type": "string", "minLength": 1 },
+          "properties": { "type": "object" },
+          "provenance": { "$ref": "provenance.schema.json#/$defs/provenance" },
+          "license": { "$ref": "provenance.schema.json#/$defs/license" },
+          "tier": { "const": "personal" },
+          "egress": { "$ref": "provenance.schema.json#/$defs/egress", "description": "Egress class (KGP §7.2). personal-tier records are typically local-only; the egress axis is enforced independently of this descriptive tier." }
+        },
+        "required": ["source", "target", "type", "provenance", "license", "tier"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["contractVersion", "exportedAt", "tier", "nodes", "edges"],
+  "additionalProperties": true
+}
