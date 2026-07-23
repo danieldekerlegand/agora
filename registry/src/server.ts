@@ -21,11 +21,21 @@ import { ManifestError, type Plane } from '@agora/schemas';
 
 import { registerFromWellKnown, CrawlError, type ManifestFetch } from './crawl.ts';
 import { describeRegistry } from './index.ts';
-import { createRegistry, type CapabilityRegistry, type FindQuery } from './registry.ts';
+import {
+  createDurableRegistry,
+  createRegistry,
+  type CapabilityRegistry,
+  type FindQuery,
+} from './registry.ts';
+import type { ManifestStore } from './store.ts';
 
 export interface RegistryServerOptions {
-  /** The index to serve. Defaults to a fresh in-memory {@link createRegistry}. */
+  /** The index to serve. Takes precedence over {@link RegistryServerOptions.store}; defaults
+   * to a fresh in-memory {@link createRegistry}. */
   registry?: CapabilityRegistry;
+  /** A durable store to build the index on — rehydrated on boot so registrations survive a
+   * restart. Ignored when an explicit `registry` is passed. */
+  store?: ManifestStore;
   /** The `fetch` a `/crawl` uses; defaults to the global. Structural, so a test can stub it. */
   fetch?: ManifestFetch;
 }
@@ -64,7 +74,8 @@ class HttpError extends Error {
  * {@link RegistryService.listen} is called.
  */
 export function createRegistryServer(options: RegistryServerOptions = {}): RegistryService {
-  const registry = options.registry ?? createRegistry();
+  const registry =
+    options.registry ?? (options.store ? createDurableRegistry(options.store) : createRegistry());
   const fetch = options.fetch;
   const server = createServer((req, res) => {
     void handle(req, res, registry, fetch);

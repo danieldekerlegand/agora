@@ -16,6 +16,7 @@ import { SPEC_VERSIONS } from '@agora/schemas';
 
 export {
   CapabilityRegistry,
+  createDurableRegistry,
   createRegistry,
   type FindQuery,
   type Match,
@@ -24,6 +25,11 @@ export {
   type Registration,
   type RegistrationSource,
 } from './registry.ts';
+export {
+  createFileStore,
+  createMemoryStore,
+  type ManifestStore,
+} from './store.ts';
 export { compareByCost, costOf } from './cost.ts';
 export {
   findCapabilityPath,

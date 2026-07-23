@@ -26,6 +26,7 @@ import {
 import { compareByCost, costOf } from './cost.ts';
 import { findCapabilityPath, type CapabilityPath, type PathQuery } from './path.ts';
 import { matchesPort, type PortQuery } from './ports.ts';
+import type { ManifestStore } from './store.ts';
 
 /** How a manifest reached the index (§3 population: push register, or crawl). */
 export type RegistrationSource = 'push' | 'pull';
@@ -95,6 +96,23 @@ export class CapabilityRegistry {
   private nextSequence = 1;
 
   /**
+   * A bare registry is pure in-memory. Passed a {@link ManifestStore}, it rehydrates every
+   * persisted registration on boot — re-freezing each manifest so a reloaded record is as
+   * immutable as a freshly registered one — and resumes `nextSequence` past the highest
+   * persisted sequence, so a re-register after restart still replaces-in-place and `list()`
+   * ordering is unchanged. No re-crawl: the stored record is served as-is.
+   */
+  constructor(private readonly store?: ManifestStore) {
+    for (const record of store?.load() ?? []) {
+      const registration: Registration = { ...record, manifest: deepFreeze(record.manifest) };
+      this.entries.set(registration.identity, registration);
+      if (registration.sequence >= this.nextSequence) {
+        this.nextSequence = registration.sequence + 1;
+      }
+    }
+  }
+
+  /**
    * Index a manifest (§3 push population). Throws `ManifestError` on anything that is not
    * a readable KCB manifest — an unreadable entry would be handed to peers as an address.
    *
@@ -113,12 +131,15 @@ export class CapabilityRegistry {
       sequence: previous?.sequence ?? this.nextSequence++,
     };
     this.entries.set(parsed.identity, registration);
+    this.store?.save(registration);
     return registration;
   }
 
   /** Drop a provider from the index. The provider itself is unaffected — this is a cache. */
   remove(identity: string): boolean {
-    return this.entries.delete(identity);
+    const removed = this.entries.delete(identity);
+    if (removed) this.store?.delete(identity);
+    return removed;
   }
 
   get(identity: string): Registration | undefined {
@@ -177,6 +198,14 @@ export class CapabilityRegistry {
 
 export function createRegistry(): CapabilityRegistry {
   return new CapabilityRegistry();
+}
+
+/**
+ * A registry backed by a durable {@link ManifestStore} — registrations survive a restart.
+ * The zero-config {@link createRegistry} stays pure in-memory; this is the opt-in factory.
+ */
+export function createDurableRegistry(store: ManifestStore): CapabilityRegistry {
+  return new CapabilityRegistry(store);
 }
 
 /**
