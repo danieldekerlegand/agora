@@ -99,11 +99,13 @@ export {
   type AgentExtension,
 } from './agent-card.ts';
 export {
+  embedManifest,
   isCapabilityManifest,
   isCompatibleKcbVersion,
   ManifestError,
   parseManifest,
   parseManifestBody,
+  toAgentCardExtension,
   type Capability,
   type CapabilityCost,
   type CapabilityManifest,

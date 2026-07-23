@@ -16,7 +16,7 @@
  * (§3); anything this version does not model — inside the `params` body or on the surrounding
  * card — must survive being read.
  */
-import { KCB_MANIFEST_EXTENSION_URI } from './agent-card.ts';
+import { KCB_MANIFEST_EXTENSION_URI, type AgentCard, type AgentExtension } from './agent-card.ts';
 import { parseKinpId } from './identity.ts';
 import { isPlane } from './planes.ts';
 import { SPEC_VERSIONS } from './versions.ts';
@@ -212,6 +212,44 @@ export function isCapabilityManifest(value: unknown): value is CapabilityManifes
   } catch {
     return false;
   }
+}
+
+/**
+ * Wrap a {@link CapabilityManifest} as the single KCB {@link AgentExtension} of an AgentCard —
+ * the inverse of the extraction {@link parseManifest} performs (§2/§6).
+ *
+ * The manifest body becomes the extension's `params` **verbatim**: it carries only the endpoints
+ * the manifest already lists — no endpoint the source does not carry is invented, mirroring the
+ * provider-router's "no dead endpoint" rule (`manifest.py`). The extension is marked
+ * `required: false` per the capability-bus.md §2 example, so a reader that does not speak KCB can
+ * still use the card's plain A2A surface.
+ */
+export function toAgentCardExtension(manifest: CapabilityManifest): AgentExtension {
+  return {
+    uri: KCB_MANIFEST_EXTENSION_URI,
+    description: 'Koine capability-bus manifest',
+    required: false,
+    params: manifest as unknown as Record<string, unknown>,
+  };
+}
+
+/**
+ * Attach `manifest` to `card` as its KCB extension, returning a new card (§2/§6). Any existing
+ * KCB extension is replaced — a card carries exactly one, and {@link parseManifest} rejects more
+ * — while every other extension and every card field is preserved.
+ */
+export function embedManifest(card: AgentCard, manifest: CapabilityManifest): AgentCard {
+  const capabilities = card.capabilities ?? {};
+  const others = (capabilities.extensions ?? []).filter(
+    (extension) => extension.uri !== KCB_MANIFEST_EXTENSION_URI,
+  );
+  return {
+    ...card,
+    capabilities: {
+      ...capabilities,
+      extensions: [...others, toAgentCardExtension(manifest)],
+    },
+  };
 }
 
 function capabilities(value: unknown): void {
