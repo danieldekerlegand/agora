@@ -8,7 +8,8 @@
  * - `json.ts`     — the JSON value type everything off the wire starts as
  * - `planes.ts`   — the three protocol planes (KCB §2.1)
  * - `identity.ts` — KINP compact identifiers (KINP §3.2)
- * - `manifest.ts` — the KCB capability manifest (KCB §2), what the registry indexes
+ * - `agent-card.ts` — the A2A AgentCard + KCB manifest extension (KCB §2), the served document
+ * - `manifest.ts` — the KCB capability manifest (KCB §2), narrowed out of the card extension
  * - `scenario.ts` — the KCS conformance-scenario document (KCS §2/§3), what the console runs
  * - `relation-registry.ts` — where the shared relation registry lives (koine) and which
  *   `registryVersion` this build speaks
@@ -92,10 +93,19 @@ export {
   type KinpKind,
 } from './identity.ts';
 export {
+  KCB_MANIFEST_EXTENSION_URI,
+  type AgentCapabilities,
+  type AgentCard,
+  type AgentExtension,
+} from './agent-card.ts';
+export {
+  embedManifest,
   isCapabilityManifest,
   isCompatibleKcbVersion,
   ManifestError,
   parseManifest,
+  parseManifestBody,
+  toAgentCardExtension,
   type Capability,
   type CapabilityCost,
   type CapabilityManifest,

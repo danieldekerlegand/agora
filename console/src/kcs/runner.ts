@@ -26,7 +26,7 @@ import type { Resolver } from '@agora/resolver';
 import { createLocalResolver } from '@agora/resolver';
 import {
   isJsonObject,
-  parseManifest,
+  parseManifestBody,
   parseScenario,
   SPEC_VERSIONS,
   type AssertStep,
@@ -264,7 +264,7 @@ function indexStandin(
 ): string | undefined {
   if (manifest === undefined) return undefined;
   try {
-    const parsed = parseManifest(manifest);
+    const parsed = parseManifestBody(manifest);
     if (parsed.identity !== identity) {
       return `its fixture publishes a manifest for ${parsed.identity}, not for ${identity}`;
     }

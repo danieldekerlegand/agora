@@ -16,7 +16,7 @@
  */
 import { addressOf, endpointFor, type ProviderAddress } from '@agora/kcb-client';
 import {
-  parseManifest,
+  parseManifestBody,
   type Capability,
   type CapabilityManifest,
   type Plane,
@@ -122,7 +122,7 @@ export class CapabilityRegistry {
    * new provider.
    */
   register(manifest: unknown, options: RegisterOptions = {}): Registration {
-    const parsed = parseManifest(manifest);
+    const parsed = parseManifestBody(manifest);
     const previous = this.entries.get(parsed.identity);
     const registration: Registration = {
       identity: parsed.identity,

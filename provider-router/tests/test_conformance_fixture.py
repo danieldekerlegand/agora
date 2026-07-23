@@ -24,7 +24,7 @@ from fastapi.testclient import TestClient
 
 from agora_provider_router.app import app, get_router
 from agora_provider_router.config import RouterConfig
-from agora_provider_router.manifest import capability_manifest
+from agora_provider_router.manifest import manifest_body
 from agora_provider_router.router import Router
 
 FIXTURE = (
@@ -63,7 +63,9 @@ def captured_session() -> dict[str, Any]:
         app.dependency_overrides.pop(get_router, None)
     return {
         "captured_from": "http://127.0.0.1:8000",
-        "manifest": capability_manifest(router),
+        # The console replays the crawled KCB manifest *body* (its runner reads a bare body,
+        # not the AgentCard wrapper — the card migration of the console is a separate story).
+        "manifest": manifest_body(router),
         "exchange": {
             "method": "POST",
             "path": PATH,

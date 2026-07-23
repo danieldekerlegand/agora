@@ -6,6 +6,12 @@ endpoints, the ports it produces and consumes, and one invocable capability per 
 carrying a `cost` (§2.1) so the registry (US-AG4) can prefer cheap routes and a caller can
 gate spend before invoking (§3, §5).
 
+Post-0.3.0 the manifest no longer rides on its own ``/.well-known/kcb-manifest.json``; it is a
+named **extension** of the provider's A2A AgentCard (§2/§6), served at
+``/.well-known/agent-card.json``. The full body below becomes the ``params`` of the single
+extension whose ``uri`` is :data:`KCB_MANIFEST_EXTENSION_URI` (mirrored from
+``schemas/src/agent-card.ts``); the card is the document a peer or the registry fetches.
+
 Two deliberate choices:
 
 * **Cost is advertised for the tier that is actually resolved right now.** A keyless router
@@ -32,8 +38,19 @@ from .ladder import MODALITIES
 from .placeholder import MEDIA_TYPES
 from .router import Router
 
-#: Where the manifest is served, and how a crawler finds it (KCB §3, pull population).
-MANIFEST_PATH = "/.well-known/kcb-manifest.json"
+#: The stable URI of the KCB capability-manifest extension on an AgentCard (capability-bus.md
+#: §2, 0.3.0). Mirrors ``KCB_MANIFEST_EXTENSION_URI`` in ``schemas/src/agent-card.ts`` — the two
+#: are the same literal across the polyglot split, exactly as ``KCB_VERSION`` is.
+KCB_MANIFEST_EXTENSION_URI = "https://koine.dev/kcb/manifest/0.3"
+
+#: Where the AgentCard (carrying the KCB extension) is served, and how a crawler finds it
+#: (KCB §3, pull population — the registry reads the extension off this card, §6).
+MANIFEST_PATH = "/.well-known/agent-card.json"
+
+#: The pre-0.3.0 standalone manifest path. Kept only as a permanent redirect to
+#: :data:`MANIFEST_PATH` so a 0.2.0 crawler is pointed at the authoritative card rather than a
+#: dead address (capability-bus.md §6 folds the standalone document onto the card).
+LEGACY_MANIFEST_PATH = "/.well-known/kcb-manifest.json"
 
 #: The router's own public address, for the endpoints it publishes. Part of the ``AGORA_*``
 #: block the config keeps, so it needs no separate plumbing.
@@ -86,7 +103,33 @@ def capability_name(modality: str) -> str:
 
 
 def capability_manifest(router: Router) -> dict[str, Any]:
-    """The full manifest for ``router``'s current configuration. Never raises."""
+    """The A2A AgentCard for ``router``, carrying the KCB manifest as its one extension.
+
+    Post-0.3.0 wire shape (capability-bus.md §2/§6): the full manifest body is the ``params``
+    of the single :data:`KCB_MANIFEST_EXTENSION_URI` extension under the card's
+    ``capabilities.extensions[]``. ``name`` is the router's KINP agent id. No ``url`` (A2A
+    service endpoint) is advertised because the router serves none yet — the same "no endpoint
+    that is not served" rule that keeps ``a2a``/``mcp`` out of the body's ``endpoints``. Never
+    raises.
+    """
+    return {
+        "name": ROUTER_IDENTITY,
+        "capabilities": {
+            "extensions": [
+                {
+                    "uri": KCB_MANIFEST_EXTENSION_URI,
+                    "description": "KCB capability manifest (koine capability-bus.md §2).",
+                    # §2 example: the KCB extension is advertised, not mandated of a reader.
+                    "required": False,
+                    "params": manifest_body(router),
+                }
+            ]
+        },
+    }
+
+
+def manifest_body(router: Router) -> dict[str, Any]:
+    """The KCB manifest body — the extension ``params`` (capability-bus.md §2). Never raises."""
     base = (router.config.env.get(BASE_URL_ENV) or DEFAULT_BASE_URL).rstrip("/")
     capabilities = [_capability(router, modality, base) for modality in MODALITIES]
     return {

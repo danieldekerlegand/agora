@@ -13,11 +13,24 @@ from agora_provider_router.app import app, get_router
 from agora_provider_router.backends import Backend
 from agora_provider_router.cost import BUDGET_HEADER
 from agora_provider_router.ladder import MODALITIES, PLACEHOLDER
-from agora_provider_router.manifest import MANIFEST_PATH
+from agora_provider_router.manifest import (
+    KCB_MANIFEST_EXTENSION_URI,
+    LEGACY_MANIFEST_PATH,
+    MANIFEST_PATH,
+)
 from agora_provider_router.router import Router
 from conftest import config_for, recording_transport, router_for
 
 MLX = "http://localhost:8080/v1"
+
+
+def kcb_params(card: dict[str, Any]) -> dict[str, Any]:
+    """The KCB manifest body served under the AgentCard's one KCB extension (§2/§6)."""
+    extensions = card["capabilities"]["extensions"]
+    (extension,) = [e for e in extensions if e["uri"] == KCB_MANIFEST_EXTENSION_URI]
+    params = extension["params"]
+    assert isinstance(params, dict)
+    return params
 
 
 @pytest.fixture(autouse=True)
@@ -96,11 +109,23 @@ def test_no_endpoint_leaks_a_configured_key() -> None:
         assert "sk-super-secret" not in client.get(path).text, path
 
 
-def test_the_kcb_manifest_is_served_for_the_registry_to_crawl(zero_spend: TestClient) -> None:
-    manifest = zero_spend.get(MANIFEST_PATH).json()
+def test_the_agent_card_is_served_for_the_registry_to_crawl(zero_spend: TestClient) -> None:
+    card = zero_spend.get(MANIFEST_PATH).json()
+    assert card["name"] == ROUTER_IDENTITY
+    manifest = kcb_params(card)
     assert manifest["identity"] == ROUTER_IDENTITY
     assert manifest["kcb_version"] == KCB_VERSION
     assert [c["name"] for c in manifest["capabilities"]] == [f"generate.{m}" for m in MODALITIES]
+
+
+def test_the_legacy_manifest_path_redirects_to_the_agent_card(zero_spend: TestClient) -> None:
+    """A pre-0.3.0 crawler is pointed at the card, not left on a dead address (§6)."""
+    response = zero_spend.get(LEGACY_MANIFEST_PATH, follow_redirects=False)
+    assert response.status_code == 308
+    assert response.headers["location"] == MANIFEST_PATH
+
+    followed = zero_spend.get(LEGACY_MANIFEST_PATH).json()
+    assert kcb_params(followed)["kcb_version"] == KCB_VERSION
 
 
 def test_a_bare_deployment_prices_every_capability_at_the_placeholder(
@@ -118,7 +143,7 @@ def test_a_bare_deployment_prices_every_capability_at_the_placeholder(
     for modality in MODALITIES:
         assert doctor["modalities"][modality]["resolves_to"]["tier"] == PLACEHOLDER
 
-    manifest = zero_spend.get(MANIFEST_PATH).json()
+    manifest = kcb_params(zero_spend.get(MANIFEST_PATH).json())
     assert [c["name"] for c in manifest["capabilities"]] == [f"generate.{m}" for m in MODALITIES]
     for capability in manifest["capabilities"]:
         assert capability["cost"]["tier"] == PLACEHOLDER

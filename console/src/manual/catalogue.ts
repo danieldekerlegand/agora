@@ -17,7 +17,7 @@
 import { addressOf, endpointFor } from '@agora/kcb-client';
 import type { CapabilityRegistry } from '@agora/registry';
 import {
-  parseManifest,
+  parseManifestBody,
   type Capability,
   type CapabilityManifest,
   type Json,
@@ -116,7 +116,7 @@ function manifestIn(
   try {
     const fixture = parseFixture(document, path);
     if (fixture.manifest === undefined) return undefined;
-    return { fixture, manifest: parseManifest(fixture.manifest) };
+    return { fixture, manifest: parseManifestBody(fixture.manifest) };
   } catch {
     // A fixture that does not carry a readable manifest is simply not browsable. It is not
     // an error here: it may still be perfectly good at standing in for a scenario's peer.

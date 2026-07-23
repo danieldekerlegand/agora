@@ -1,4 +1,4 @@
-import { parseManifest, type CapabilityManifest, type JsonObject } from '@agora/schemas';
+import { parseManifestBody, type CapabilityManifest, type JsonObject } from '@agora/schemas';
 import { describe, expect, it } from 'vitest';
 
 import { CAPTURED_EXCHANGE, CAPTURED_MANIFEST } from '../fixtures/session.ts';
@@ -12,7 +12,7 @@ import {
   type WireIO,
 } from './wire.ts';
 
-const MANIFEST: CapabilityManifest = parseManifest(CAPTURED_MANIFEST);
+const MANIFEST: CapabilityManifest = parseManifestBody(CAPTURED_MANIFEST);
 
 function capability(name: string) {
   const found = (MANIFEST.capabilities ?? []).find((entry) => entry.name === name);
