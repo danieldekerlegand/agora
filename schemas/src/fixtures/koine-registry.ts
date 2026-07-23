@@ -1,23 +1,21 @@
 /**
  * A snapshot of the real koine relation registry, for tests only.
  *
+ * GENERATED — do not edit by hand. Regenerated verbatim from the koine sibling checkout by
+ * `schemas/scripts/regen-koine-fixture.mjs` (`npm run -w @agora/schemas regen:koine-fixture`).
+ * That regenerator is the ONLY supported way to refresh this fixture: a second AUTHORED copy of
+ * the registry is how the registry forks (ADR-0001 — koine specifies, agora implements; agora
+ * holds the tooling, not a copy), so the snapshot is derived from koine and never pasted in.
+ *
  * The registry itself lives in koine and is fetched over the wire (`relation-registry.ts`);
- * nothing in `@agora/schemas`'s library surface reads what is here, and this module is
- * exported as `@agora/schemas/fixtures` rather than from `./index.ts` so it cannot become the
- * vendored second copy the registry exists to prevent. It is here because the validator has to
- * be tested against the *real* registry — a hand-written sample proves only that the validator
- * accepts hand-written samples.
+ * nothing in `@agora/schemas`'s library surface reads what is here, and this module is exported
+ * as `@agora/schemas/fixtures` (never from `./index.ts`) so it cannot become the vendored second
+ * copy the registry exists to prevent. It is here because the validator has to be tested against
+ * the *real* registry — a hand-written sample proves only that the validator accepts hand-written
+ * samples.
  *
- * Refresh it from a koine checkout when `registryVersion` moves:
- *
- * ```sh
- * cp ../koine/registry/predicate-mapping.json schemas/src/fixtures/koine-registry/
- * # then paste the TSVs below and bump RELATION_REGISTRY.version to match
- * ```
- *
- * A stale snapshot is caught rather than tolerated: `registry-schema.test.ts` asserts the
- * snapshot's `registryVersion` equals the version this build claims to speak, so a koine bump
- * that skips the refresh goes red in the same place the version bump does.
+ * To refresh after a koine bump: run the regenerator. `--check` mode (`npm run -w @agora/schemas
+ * regen:koine-fixture:check`) fails when the committed snapshot has drifted from koine.
  */
 import mapping from './koine-registry/predicate-mapping.json';
 import type { VocabularyFile } from '../registry-schema.ts';
