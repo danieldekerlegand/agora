@@ -35,6 +35,10 @@ dependencies = [
     "pydantic-settings>=2.3",
     # Outbound calls to the paid / mlx-serve / Ollama tiers (US-AG2).
     "httpx>=0.27",
+    # The Python half of the dual interchange validator (legacy-absorbed, ADR-0003):
+    # draft-2020-12 validation of the ported koine schemas, the twin of @agora/schemas's ajv.
+    "jsonschema>=4.21",
+    "referencing>=0.30",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +46,8 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.6",
     "mypy>=1.11",
+    # Types for the interchange validator's jsonschema dependency (referencing ships its own).
+    "types-jsonschema>=4.21",
 ]
 
 [project.urls]

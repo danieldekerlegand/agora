@@ -15,6 +15,7 @@
  * - `axes.ts`     — dialect (KGP §5) / egress (§7.2) / trust, and the egress enforcement
  * - `registry-schema.ts` — the registry's own schema and validator, over both its artifacts
  * - `validator.ts` — the ajv validator over the ported koine interchange schemas (legacy-absorbed)
+ * - `validate.ts`  — the CLI over `validator.ts` (exit 0/1/2), twin of the Python validator's CLI
  *
  * `./fixtures` is a second entry point, carrying a snapshot of the real koine registry for
  * tests. It is deliberately not re-exported here: it is test data, not a library surface.
