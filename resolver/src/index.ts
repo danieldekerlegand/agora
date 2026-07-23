@@ -74,6 +74,15 @@ export {
   type ServiceAddress,
 } from './server.ts';
 export {
+  DEFAULT_RESOLVER_HOST,
+  DEFAULT_RESOLVER_PORT,
+  resolverLaunchFromEnv,
+  startResolver,
+  type ResolverEnv,
+  type ResolverLaunch,
+  type StartedResolver,
+} from './main.ts';
+export {
   closureOver,
   createPinakesResolver,
   PINAKES_IDENTITY,
