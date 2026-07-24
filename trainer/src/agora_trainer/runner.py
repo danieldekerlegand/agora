@@ -1,0 +1,123 @@
+"""Run orchestration — admit a job, walk the §9 engine, stream §6 telemetry.
+
+This is the one place the four-step adapter lifecycle (prepare_data → launch → emit_telemetry →
+export) is sequenced, written against the :mod:`~agora_trainer.engine` interface so it is
+engine-agnostic. It composes the pieces US-2 / US-3 build:
+
+1. **Admit** — :func:`~agora_trainer.admission.admit` runs *every* admission check (shape +
+   modality×method, FT-F; the §4.2 egress gate + SkyPilot placement, FT-B/FT-J; the §7 spend
+   ceiling, FT-E). A rejected job raises :class:`RunRejected` carrying the structured report,
+   *before* any engine is selected or any compute is committed (KFT §3/§4.2/§7).
+2. **Select** — :func:`~agora_trainer.engine.select_adapter` picks the engine from
+   ``modality`` + ``method`` (§9); a compatible-but-unwired pair raises
+   :class:`~agora_trainer.engine.UnsupportedJob`.
+3. **Stream** — the returned generator yields one §6 telemetry event per training step, in
+   monotonic ``step`` order, then exactly one terminal event announcing the finetuned-model id
+   (§5.1) and its weight/export asset ids (§5.3).
+
+Admission and selection run **eagerly** (the returned value is already past them), so a caller
+learns a rejection at call time — not part-way through streaming a response.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Iterator
+from typing import Any
+
+from . import KFT_VERSION, lineage
+from .admission import AdmissionPlan, admit
+from .diffusers import DiffusersAdapter
+from .engine import EngineAdapter, select_adapter
+from .grant import UNGATED, Grant
+from .llama_factory import LlamaFactoryAdapter
+from .resolve import Resolver, default_resolver
+from .telemetry import TelemetryEvent
+from .validate import Report
+
+#: The §9 engine ladder in preference order: the LLaMA-Factory rung (text-generation + VLM) and the
+#: diffusers rung (text-to-image / -video). Selection is by ``modality`` × ``method`` (KFT §9).
+LADDER: tuple[EngineAdapter, ...] = (LlamaFactoryAdapter(), DiffusersAdapter())
+
+
+class RunRejected(Exception):
+    """A job failed admission (KFT §3/§4.2/§7) — carries the structured :class:`Report`."""
+
+    def __init__(self, report: Report) -> None:
+        self.report = report
+        super().__init__(f"job rejected at admission ({report.status.name.lower()})")
+
+
+def _terminal(
+    job: dict[str, Any], last_step: int, result: Any, bundle: lineage.ArtifactBundle
+) -> TelemetryEvent:
+    """The single completion event that closes the stream (KFT §6).
+
+    Its wire shape stays id-only (the finetuned-model id + weight asset ids); the full §5 artifact
+    ``bundle`` — lineage (§5.3) + egress/license inheritance (§5.4) — rides on the event for the
+    provider to register (§8) / persist, out of band from the telemetry wire.
+    """
+    return TelemetryEvent(
+        job=str(job["job"]),
+        step=last_step + 1,  # one past the last training step — monotonic, distinct event id
+        ts=result.ts,
+        metrics={},
+        terminal=True,
+        model=bundle.model.id,
+        weights=bundle.weight_ids,
+        spent_units=result.spent_units,
+        artifacts=bundle,
+    )
+
+
+def _build_bundle(job: dict[str, Any], plan: AdmissionPlan, result: Any) -> lineage.ArtifactBundle:
+    """The run's complete §5 artifact bundle, built from the resolved ``{data ∪ base}`` facts.
+
+    Engine-agnostic: minting (§5.2 anchor), the §5.3 lineage graph, and the §5.4 egress/license
+    inheritance are the same for every rung, so they live here rather than in each adapter — the
+    adapter only decides *which* weight/export formats it produced. ``kft_version`` is pinned from
+    the job so the model records the profile it was trained under (KFT §11).
+    """
+    return lineage.mint_artifacts(
+        job,
+        plan.resolved,
+        spent_units=result.spent_units,
+        kft_version=str(job.get("kft_version") or KFT_VERSION),
+    )
+
+
+def run(
+    job: dict[str, Any],
+    *,
+    ladder: Iterable[EngineAdapter] = LADDER,
+    grant: Grant = UNGATED,
+    resolver: Resolver = default_resolver,
+) -> Iterator[TelemetryEvent]:
+    """Admit + run ``job``, returning the §6 telemetry stream as a generator.
+
+    ``grant`` is the §7 spend ceiling and ``resolver`` the §4.2/§7 input-facts resolver (both
+    default to the offline stand-ins). Raises :class:`RunRejected` (any admission failure —
+    shape, egress, placement, or budget) or :class:`~agora_trainer.engine.UnsupportedJob` (no
+    engine) eagerly; iterating the result only streams events.
+    """
+    admission = admit(job, grant=grant, resolver=resolver)
+    if not admission.ok or admission.plan is None:
+        raise RunRejected(admission.report)
+    plan = admission.plan
+    adapter = select_adapter(str(job["modality"]), str(job["method"]), ladder)
+    prepared = adapter.prepare_data(job)
+
+    def _events() -> Iterator[TelemetryEvent]:
+        # Step records are tiny (a step index + a few floats), never the weights — buffering
+        # them so `export` sees the same run the stream emitted is cheap and keeps `launch` a
+        # single-use generator (a live LLaMA-Factory launch cannot be replayed).
+        records = []
+        last_step = -1
+        for record in adapter.launch(job, prepared):
+            last_step = record.step
+            records.append(record)
+            yield adapter.emit_telemetry(job, record)
+        result = adapter.export(job, prepared, records)
+        bundle = _build_bundle(job, plan, result)
+        yield _terminal(job, last_step, result, bundle)
+
+    return _events()

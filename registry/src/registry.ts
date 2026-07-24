@@ -27,6 +27,11 @@ import { compareByCost, costOf } from './cost.ts';
 import { findCapabilityPathIndexed } from './path-index.ts';
 import type { CapabilityPath, PathQuery } from './path.ts';
 import { matchesPort, type PortQuery } from './ports.ts';
+import {
+  selectFinetuneProvider,
+  type FinetuneJobSpec,
+  type ProviderSelection,
+} from './select.ts';
 import type { ManifestStore } from './store.ts';
 
 /** How a manifest reached the index (§3 population: push register, or crawl). */
@@ -203,6 +208,17 @@ export class CapabilityRegistry {
    */
   path(query: PathQuery): CapabilityPath | undefined {
     return findCapabilityPathIndexed(this.list(), query);
+  }
+
+  /**
+   * Disambiguate a `finetune` job across the providers that serve it (KFT §8/§9, FT-K):
+   * prefer the more specialized provider, then lower cost; honor an explicit target; surface
+   * an unbroken tie. Discovery-only — the winner carries an address the caller dials directly.
+   */
+  selectFinetune(job: FinetuneJobSpec = {}): ProviderSelection {
+    const query: FindQuery = { capability: 'finetune' };
+    if (job.modality !== undefined) query.produces = { entityType: job.modality };
+    return selectFinetuneProvider(this.find(query), job);
   }
 }
 

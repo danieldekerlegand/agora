@@ -1,0 +1,86 @@
+[project]
+name = "agora-trainer"
+version = "0.1.0"
+description = "The general finetune trainer — agora's KFT `finetune` capability, a long-running GPU training leaf on the bus, distinct from (never merged with) the provider-router."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = [
+    "finetune",
+    "kft",
+    "training",
+    "lora",
+    "fastapi",
+    "kcb",
+    "agora",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    # Lazy KMI `fetch:asset` of media training data + weight assets (KMI §7, US-4), and what
+    # FastAPI's TestClient dials the in-process app through.
+    "httpx>=0.27",
+    # Admission validation of the finetune-job payload against the vendored koine schema
+    # (KFT §3, FT-F) — draft-2020-12 with `referencing` resolving the cross-schema $refs.
+    "jsonschema>=4.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
+[project.urls]
+Homepage = "https://github.com/agora-commons/agora"
+Repository = "https://github.com/agora-commons/agora"
+Issues = "https://github.com/agora-commons/agora/issues"
+
+[project.scripts]
+agora-trainer = "agora_trainer.__main__:main"
+# The admission validator as a CLI — 0 valid / 1 invalid / 2 usage (KFT §3, FT-F).
+agora-trainer-validate = "agora_trainer.validate:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agora_trainer"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src", "tests"]
+strict = true
+
+# jsonschema ships no complete type surface for its validator classes; the admission validator
+# (validate.py) is the only user and is itself strictly typed at its boundary.
+[[tool.mypy.overrides]]
+module = "jsonschema.*"
+ignore_missing_imports = true

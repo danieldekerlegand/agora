@@ -8,6 +8,10 @@ PY_DIR := provider-router
 # Run uv from inside the area: ruff, mypy and pytest all read their config from the
 # nearest pyproject.toml, so `uv --project <dir>` alone would leave them unconfigured.
 UV     := cd $(PY_DIR) && uv
+# The trainer is the second Python area (KFT `finetune` capability), distinct from the
+# provider-router per ADR-0001 decision 1 — its own package, its own gate.
+TRAINER_DIR := trainer
+UV_TRAINER  := cd $(TRAINER_DIR) && uv
 # npm workspace selectors for the TS areas.
 TS_AREAS := schemas clients/kcb-client clients/relation-registry-client registry resolver console
 
@@ -21,8 +25,9 @@ TS_AREAS := schemas clients/kcb-client clients/relation-registry-client registry
 ARTIFACTS := grounding-pack canonical-world-export entity-grounding-snapshot analyzer-canonical-export dataset-jsonl-header finetune-job
 FIXTURES  := $(CURDIR)/schemas/src/conformance/fixtures
 
-.PHONY: help install install-py install-ts check check-provider-router check-router-erl \
-        check-ts check-schemas check-clients check-registry check-resolver check-console \
+.PHONY: help install install-py install-trainer install-ts check check-provider-router \
+        check-router-erl check-trainer check-ts \
+        check-schemas check-clients check-registry check-resolver check-console \
         check-conformance check-translation build fmt clean
 
 # The Erlang provider-router (agora:80, ADR-0004) — supersedes provider-router/ (agora:50).
@@ -31,15 +36,18 @@ ROUTER_ERL_DIR := provider-router-erl
 help:  ## List the available targets
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN{FS=":.*?## "}{printf "  %-24s %s\n", $$1, $$2}'
 
-install: install-py install-ts  ## Install every area's dependencies
+install: install-py install-trainer install-ts  ## Install every area's dependencies
 
 install-py:  ## Install the provider-router's Python deps
 	$(UV) sync --extra dev
 
+install-trainer:  ## Install the trainer's Python deps
+	$(UV_TRAINER) sync --extra dev
+
 install-ts:  ## Install the TypeScript workspace deps
 	npm install
 
-check: check-provider-router check-router-erl check-ts check-conformance check-translation  ## Run every area's gate (what CI runs)
+check: check-provider-router check-router-erl check-trainer check-ts check-conformance check-translation  ## Run every area's gate (what CI runs)
 
 # --- provider-router (Python / uv) ---
 # Superseded by provider-router-erl (see below), and kept green: it is the executable
@@ -65,6 +73,13 @@ check-router-erl:  ## Gate: THE provider-router — Erlang (rebar3 compile + dia
 	else \
 		echo "rebar3 not found — skipping Erlang provider-router gate (agora:80; install Erlang/OTP + rebar3 to run it)"; \
 	fi
+
+# --- trainer (Python / uv) — the general KFT `finetune` capability ---
+check-trainer: install-trainer  ## Gate: lint + typecheck + test the trainer
+	$(UV_TRAINER) run ruff check .
+	$(UV_TRAINER) run ruff format --check .
+	$(UV_TRAINER) run mypy
+	$(UV_TRAINER) run pytest -q
 
 # --- TypeScript areas (npm workspaces) ---
 # The whole workspace at once: one install, one lint pass, then per-package typecheck+test.
@@ -127,13 +142,17 @@ ts-area: install-ts
 	npm run typecheck $(addprefix -w ,$(PKG))
 	npm run test $(addprefix -w ,$(PKG))
 
-build: install  ## Produce the distributable artifacts (console bundle, router wheel)
+build: install  ## Produce the distributable artifacts (console bundle, router + trainer wheels)
 	npm run build
 	$(UV) build
+	$(UV_TRAINER) build
 
-fmt:  ## Auto-format the Python area (the TS areas are lint-only)
+fmt:  ## Auto-format the Python areas (the TS areas are lint-only)
 	$(UV) run ruff format .
 	$(UV) run ruff check --fix .
+	$(UV_TRAINER) run ruff format .
+	$(UV_TRAINER) run ruff check --fix .
 
 clean:  ## Remove build output and installed deps
-	rm -rf node_modules */node_modules clients/*/node_modules console/dist $(PY_DIR)/dist $(PY_DIR)/.venv
+	rm -rf node_modules */node_modules clients/*/node_modules console/dist \
+		$(PY_DIR)/dist $(PY_DIR)/.venv $(TRAINER_DIR)/dist $(TRAINER_DIR)/.venv

@@ -1,0 +1,400 @@
+{
+  "kcb_version": "0.2.0",
+  "identity": "agora:agent:trainer",
+  "version": "0.1.0",
+  "endpoints": {
+    "a2a": "http://127.0.0.1:8001/.well-known/agent-card.json",
+    "health": "http://127.0.0.1:8001/health",
+    "manifest": "http://127.0.0.1:8001/.well-known/kcb-manifest.json"
+  },
+  "produces": [
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "text-generation"
+      ],
+      "shape": "finetuned-model"
+    },
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "image-text-to-text"
+      ],
+      "shape": "finetuned-model"
+    },
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "video-text-to-text"
+      ],
+      "shape": "finetuned-model"
+    },
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "text-to-image"
+      ],
+      "shape": "finetuned-model"
+    },
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "text-to-video"
+      ],
+      "shape": "finetuned-model"
+    },
+    {
+      "plane": "media",
+      "media_types": [
+        "application/vnd.koine.model+safetensors",
+        "application/vnd.koine.model+gguf"
+      ],
+      "world_pattern": "*",
+      "shape": "weights"
+    }
+  ],
+  "consumes": [
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "text-generation"
+      ],
+      "shape": "base-model"
+    },
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "image-text-to-text"
+      ],
+      "shape": "base-model"
+    },
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "video-text-to-text"
+      ],
+      "shape": "base-model"
+    },
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "text-to-image"
+      ],
+      "shape": "base-model"
+    },
+    {
+      "plane": "entity",
+      "types": [
+        "model",
+        "text-to-video"
+      ],
+      "shape": "base-model"
+    },
+    {
+      "plane": "knowledge",
+      "dialect": "grounding-only",
+      "shape": "training-set"
+    },
+    {
+      "plane": "media",
+      "media_types": [
+        "image/*"
+      ],
+      "shape": "training-set"
+    },
+    {
+      "plane": "media",
+      "media_types": [
+        "video/*"
+      ],
+      "shape": "training-set"
+    }
+  ],
+  "capabilities": [
+    {
+      "name": "finetune",
+      "modality": "text-generation",
+      "methods": [
+        "sft",
+        "lora",
+        "qlora",
+        "full",
+        "dpo"
+      ],
+      "inputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "text-generation"
+          ],
+          "shape": "base-model"
+        },
+        {
+          "plane": "knowledge",
+          "dialect": "grounding-only",
+          "shape": "training-set"
+        }
+      ],
+      "outputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "text-generation"
+          ],
+          "shape": "finetuned-model"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.model+safetensors",
+            "application/vnd.koine.model+gguf"
+          ],
+          "world_pattern": "*",
+          "shape": "weights"
+        }
+      ],
+      "cost": {
+        "tier": "local",
+        "meter": "gpu-seconds",
+        "est_units": 1800000,
+        "basis": "nominal single run; admission recomputes per job (KFT \u00a77, FT-E)",
+        "unpriced": false
+      }
+    },
+    {
+      "name": "finetune",
+      "modality": "image-text-to-text",
+      "methods": [
+        "lora",
+        "qlora"
+      ],
+      "inputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "image-text-to-text"
+          ],
+          "shape": "base-model"
+        },
+        {
+          "plane": "knowledge",
+          "dialect": "grounding-only",
+          "shape": "training-set"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "image/*"
+          ],
+          "shape": "training-set"
+        }
+      ],
+      "outputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "image-text-to-text"
+          ],
+          "shape": "finetuned-model"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.model+safetensors",
+            "application/vnd.koine.model+gguf"
+          ],
+          "world_pattern": "*",
+          "shape": "weights"
+        }
+      ],
+      "cost": {
+        "tier": "local",
+        "meter": "gpu-seconds",
+        "est_units": 1200000,
+        "basis": "nominal single run; admission recomputes per job (KFT \u00a77, FT-E)",
+        "unpriced": false
+      }
+    },
+    {
+      "name": "finetune",
+      "modality": "video-text-to-text",
+      "methods": [
+        "lora",
+        "qlora"
+      ],
+      "inputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "video-text-to-text"
+          ],
+          "shape": "base-model"
+        },
+        {
+          "plane": "knowledge",
+          "dialect": "grounding-only",
+          "shape": "training-set"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "video/*"
+          ],
+          "shape": "training-set"
+        }
+      ],
+      "outputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "video-text-to-text"
+          ],
+          "shape": "finetuned-model"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.model+safetensors",
+            "application/vnd.koine.model+gguf"
+          ],
+          "world_pattern": "*",
+          "shape": "weights"
+        }
+      ],
+      "cost": {
+        "tier": "local",
+        "meter": "gpu-seconds",
+        "est_units": 3600000,
+        "basis": "nominal single run; admission recomputes per job (KFT \u00a77, FT-E)",
+        "unpriced": false
+      }
+    },
+    {
+      "name": "finetune",
+      "modality": "text-to-image",
+      "methods": [
+        "lora",
+        "full"
+      ],
+      "inputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "text-to-image"
+          ],
+          "shape": "base-model"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "image/*"
+          ],
+          "shape": "training-set"
+        }
+      ],
+      "outputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "text-to-image"
+          ],
+          "shape": "finetuned-model"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.model+safetensors",
+            "application/vnd.koine.model+gguf"
+          ],
+          "world_pattern": "*",
+          "shape": "weights"
+        }
+      ],
+      "cost": {
+        "tier": "local",
+        "meter": "gpu-seconds",
+        "est_units": 900000,
+        "basis": "nominal single run; admission recomputes per job (KFT \u00a77, FT-E)",
+        "unpriced": false
+      }
+    },
+    {
+      "name": "finetune",
+      "modality": "text-to-video",
+      "methods": [
+        "lora"
+      ],
+      "inputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "text-to-video"
+          ],
+          "shape": "base-model"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "video/*"
+          ],
+          "shape": "training-set"
+        }
+      ],
+      "outputs": [
+        {
+          "plane": "entity",
+          "types": [
+            "model",
+            "text-to-video"
+          ],
+          "shape": "finetuned-model"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.model+safetensors",
+            "application/vnd.koine.model+gguf"
+          ],
+          "world_pattern": "*",
+          "shape": "weights"
+        }
+      ],
+      "cost": {
+        "tier": "local",
+        "meter": "gpu-seconds",
+        "est_units": 5400000,
+        "basis": "nominal single run; admission recomputes per job (KFT \u00a77, FT-E)",
+        "unpriced": false
+      }
+    }
+  ],
+  "auth": {
+    "scheme": "capability-token",
+    "grants_required": [
+      "invoke:finetune"
+    ],
+    "budget_units": {
+      "supported": true,
+      "currency": "budget_units",
+      "meter": "gpu-seconds"
+    }
+  }
+}

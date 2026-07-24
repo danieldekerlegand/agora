@@ -55,6 +55,9 @@ export interface CapabilityCost {
   /** Which rung of the provider's own ladder that estimate is for, when it has one. */
   tier?: string;
   unit?: string;
+  /** The meter `est_units` counts, when the provider names one (KFT §2/§7 prices in
+   * `gpu-seconds`). Pass-through, like `unit`; the narrower only checks `est_units`. */
+  meter?: string;
   quantity?: number;
   /** Human-readable statement of the request the estimate prices — costs only compare
    * between providers when the basis does. */
@@ -75,6 +78,13 @@ export interface Capability {
   endpoint?: string;
   provider?: string;
   model?: string;
+  /** KFT §3.1 fine-tune modality this capability serves (`text-generation`, `text-to-image`,
+   * …). A pass-through refinement the narrower leaves untouched; the finetune registry reads
+   * it for FT-K provider selection and modality discovery. */
+  modality?: string;
+  /** KFT §3.1 methods this capability serves (`sft`, `lora`, `qlora`, …). Pass-through; FT-K
+   * selection reads it to filter candidates by the job's `method`. */
+  methods?: string[];
 }
 
 export interface ManifestAuth {

@@ -37,11 +37,21 @@ Each directory is a **buildable unit with its own gate**:
 |---|---|---|
 | `provider-router-erl/` | Erlang/OTP (rebar3) | **the** model-backend gateway — the sacred ladder as a supervision tree (agora:80, ADR-0004) |
 | `provider-router/` | Python (uv) | the same gateway, superseded — the contract of record it was extracted from (agora:50) |
+| `trainer/` | Python (uv) | the general KFT `finetune` capability — GPU fine-tuning jobs (separate from the provider-router, ADR-0001 §1) |
 | `registry/` | TypeScript | the thin KCB discovery registry |
 | `resolver/` | TypeScript | the KINP resolver reference implementation |
 | `console/` | TypeScript + React | the conformance console (scenario runner + UI) |
 | `schemas/` | TypeScript | shared koine manifest schemas / protocol types |
 | `clients/*` | TypeScript | shared protocol client libraries (`@agora/kcb-client`, `@agora/relation-registry-client`) |
+
+`trainer/` is the **general** `finetune` provider **only** (KFT §9, FT-K). Training is
+multi-provider: Pinakes runs its own **specialized** `finetune` provider on the bus (not an adapter
+inside agora), and the registry disambiguates between them (`registry/src/select.ts` — prefer the
+more specialized, then lower cost, surface an unbroken tie). Three runtime follow-ups are handed to
+their own repos and **not built here** — Pinakes's specialized provider (`pinakes:90-finetune-provider`),
+Orchestrator's KCB client replacing `Runner::Stub` (`orchestrator:90-finetune-client`), and the
+finetune-job validator CI (`agora:41-finetune-job-validator`); see `trainer/README.md` and the koine
+program map (`../koine/tasks/chief/README.md`, Tranche D).
 
 ## The provider-router supersession (ADR-0004)
 
@@ -217,6 +227,7 @@ Per area, when a change touches only one:
 |---|---|
 | `provider-router-erl/` | `make check-router-erl` — `rebar3 compile` + `dialyzer` + `eunit` + `ct`. **The router's gate** (agora:80 / ADR-0004), including the byte-for-byte conformance suite; skips cleanly when the Erlang toolchain is absent |
 | `provider-router/` | `make check-provider-router` — `ruff check` + `ruff format --check` + `mypy` + `pytest` (the superseded Python router, kept green until the cutover completes) |
+| `trainer/` | `make check-trainer` — `ruff check` + `ruff format --check` + `mypy` + `pytest` |
 | `schemas/` | `make check-schemas` |
 | `clients/*` | `make check-clients` |
 | `registry/` | `make check-registry` |
