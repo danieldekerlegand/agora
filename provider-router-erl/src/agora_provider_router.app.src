@@ -11,5 +11,5 @@
     cowboy]},
   {env, [{port, 8080}]},
   {modules, []},
-  {licenses, ["Apache-2.0"]}
+  {licenses, ["MIT"]}
  ]}.

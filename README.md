@@ -371,3 +371,11 @@ encoded as runnable scenarios — `kcs:worlds-to-fabric` (US-CS2) and `kcs:media
 (US-CS3); the full KINP resolver dialing a resolution authority (US-CS4); the content-addressed
 conformance report and the scenario-library UI (US-CS5); the manual capability explorer
 (US-CS6). Next: the passive live fabric monitor.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). Every buildable unit declares the same: the Python areas
+(`provider-router/`, `trainer/`), the Rust workspaces (`translation/`, `registry/path-index/`),
+the Erlang router and the TypeScript root. Sharing one license across the tree is what makes a
+capability here safe to vendor, self-host or fork; a unit that needs a different one does not
+belong in the commons.

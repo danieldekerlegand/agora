@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Runtime commons for the ecosystem — TypeScript areas (schemas, clients, registry, resolver, console).",
+  "license": "MIT",
+  "description": "Runtime commons for koine-conformant systems — TypeScript areas (schemas, clients, registry, resolver, console).",
   "workspaces": [
     "schemas",
     "clients/*",
