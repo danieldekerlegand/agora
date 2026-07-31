@@ -1,0 +1,110 @@
+{
+  "identity": "curator:agent:resolver",
+  "invoke": {
+    "resolve.reconcile": {
+      "body": {
+        "candidates": 2,
+        "links": [
+          {
+            "world": "producer:world:sample",
+            "subject": "processor:ent:c-4410",
+            "relation": "based_on",
+            "object": "curator:ent:reference-alpha",
+            "confidence": 0.83,
+            "prov": {
+              "agent": "curator:agent:resolver",
+              "activity": "processor:src:run-1a2b",
+              "asserted": "2026-07-18T06:20:00Z"
+            }
+          },
+          {
+            "world": "producer:world:sample",
+            "subject": "processor:ent:c-4410",
+            "relation": "same_as",
+            "object": "producer:world:sample:ent:item-alpha",
+            "confidence": 0.9,
+            "prov": {
+              "agent": "curator:agent:resolver",
+              "activity": "processor:src:run-1a2b",
+              "asserted": "2026-07-18T06:20:00Z"
+            }
+          }
+        ]
+      }
+    },
+    "query.lineage": {
+      "body": {
+        "assertions": [
+          {
+            "id": "curator:claim:sha256-77e0b4",
+            "world": "curator:world:baseline",
+            "subject": "curator:ent:reference-alpha",
+            "relation": "same_as",
+            "object": "external:ent:ref-0001",
+            "confidence": 1,
+            "prov": {
+              "agent": "curator:agent:resolver",
+              "activity": "curator:src:external-anchor",
+              "asserted": "2026-07-01T00:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    "query.facts": {
+      "body": {
+        "world": "curator:world:baseline",
+        "assertions": [
+          {
+            "id": "curator:claim:sha256-11aa22",
+            "world": "curator:world:baseline",
+            "subject": "curator:ent:reference-alpha",
+            "relation": "contains",
+            "object": "curator:ent:reference-assembly",
+            "confidence": 0.99,
+            "prov": {
+              "agent": "curator:agent:resolver",
+              "activity": "curator:src:external-anchor",
+              "asserted": "2026-07-01T00:00:00Z"
+            }
+          },
+          {
+            "id": "curator:claim:sha256-33bb44",
+            "world": "curator:world:baseline",
+            "subject": "curator:ent:site-north",
+            "relation": "located_in",
+            "object": "curator:ent:region-north",
+            "confidence": 0.99,
+            "prov": {
+              "agent": "curator:agent:resolver",
+              "activity": "curator:src:external-anchor",
+              "asserted": "2026-07-01T00:00:00Z"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "emit": {
+    "body": {
+      "pack_id": "sha256-7b1e44",
+      "accepted": 0,
+      "deduplicated": 1,
+      "assertions": [
+        {
+          "id": "producer:claim:sha256-9f3c1a",
+          "world": "producer:world:sample",
+          "subject": "producer:world:sample:ent:item-alpha",
+          "relation": "contains",
+          "object": "producer:world:sample:ent:assembly-alpha",
+          "confidence": 0.9,
+          "prov": {
+            "agent": "curator:agent:resolver",
+            "activity": "curator:src:merge-review",
+            "asserted": "2026-07-18T06:22:00Z"
+          }
+        }
+      ]
+    }
+  }
+}

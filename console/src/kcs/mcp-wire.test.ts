@@ -16,12 +16,12 @@ import { ObservationLog } from './log.ts';
 import { mcpWire } from './mcp-wire.ts';
 import type { WireContext } from './wire.ts';
 
-const ENDPOINT = 'https://analyzer.example/mcp';
+const ENDPOINT = 'https://processor.example/mcp';
 const SESSION = 'sess-abc123';
 
 const MANIFEST = {
   kcb_version: SPEC_VERSIONS.kcb,
-  identity: 'analyzer:agent:filmstudio',
+  identity: 'processor:agent:filmstudio',
   endpoints: { mcp: ENDPOINT },
   auth: { budget_units: { header: 'X-Agora-Budget-Units' } },
   capabilities: [{ name: 'run_pipeline' }],
@@ -86,7 +86,7 @@ const TOOLS = ok(2, { tools: [{ name: 'run_pipeline' }, { name: 'edit_timeline' 
 const CALL = ok(3, {
   content: [
     { type: 'text', text: 'a one-minute film' },
-    { type: 'resource', resource: { uri: 'analyzer:asset:sha256-abc123def456', mimeType: 'video/mp4' } },
+    { type: 'resource', resource: { uri: 'processor:asset:sha256-abc123def456', mimeType: 'video/mp4' } },
     // A base64 image block — its media type is recorded, never its bytes (KMI §7).
     { type: 'image', mimeType: 'image/png', data: 'iVBORw0KGgo=' },
   ],

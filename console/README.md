@@ -100,23 +100,28 @@ dialed for real either way, because the runner prefers a live registration over 
 
 - **`kcs:provider-router-roundtrip`** — a completion served by the zero-spend tier under a
   ceiling of zero budget units, with the resolved tier and cost surfaced in the UI. Live.
-- **`kcs:worlds-to-fabric`** — the executable form of
-  `../../koine/scenarios/e2e-worlds-to-fabric.md` (KCS §6): an Insimul fiction → Analyzer
-  ingest → Pinakes reconcile → cross-project queries, asserting the identity firewall.
-  Insimul, Analyzer and Pinakes have published no manifest yet, so all three run as stand-ins
-  (delta N) and the report says `stubbed`; the runner prefers a live registration over a
-  fixture, so adoption deletes fixtures rather than rewriting the scenario.
-- **`kcs:media-transform`** — the other pressure test,
-  `../../koine/scenarios/e2e-media-transform.md`: a playthrough → a cut + narration → a
-  Composer score → a multitrack EDL → a DaVinci projection, over four projects. It asserts the
-  control and media planes where `worlds-to-fabric` asserts identity — a cross-plane route
-  planned before anything is dialed (delta F/J), a CAS `fetch` by id (delta G), per-asset
-  `source_world` with `null` for everything generated (delta H), a spend ceiling on the one
-  paid hop (delta K), a dangling reference tolerated (delta L) — and ends on the result the
-  pressure test called the key one: analysis of a *generated composite* is attributed to its
-  footage's world, traced through the lineage graph. Four stand-ins, all stubbed.
+- **`kcs:sample-pipeline`** — a **neutral sample** over three generic peers (`producer` →
+  `processor` → `curator`): the producer publishes a world-scoped claim and a `based_on` link
+  into the baseline world, the processor ingests a recording of that world and extracts
+  knowledge from it, the curator reconciles and answers queries in both worlds. It asserts the
+  identity firewall (KINP §4.3/§5) — world-scoped claims, `same_as`-vs-`based_on` across
+  worlds, cross-producer dedup, an immutable-claim retraction — plus a `source_world` that
+  travels with the asset and a fork that overrides a baseline fact. None of the three has
+  published a manifest, so all three run as stand-ins (delta N) and the report says `stubbed`;
+  the runner prefers a live registration over a fixture, so adoption deletes fixtures rather
+  than rewriting the scenario.
 
-All three are in the library and runnable on demand from the UI.
+Both are in the library and runnable on demand from the UI.
+
+### Where the ecosystem's real scenarios live
+
+The commons is public and ships the **agnostic KCS runner** plus the neutral sample above.
+A particular deployment's conformance scenarios — its own participants, worlds, fixtures and
+the koine `e2e-*` documents they encode — live in the **private `legacy` integration repo**
+(`scenarios/`, with `scenarios/fixtures/`). They are loaded from there and run against the
+same runner, unchanged: nothing in `kcs/` knows a cast. Add a deployment scenario there, not
+here — a scenario bundled into this package puts that deployment's cast into a public
+runtime.
 
 ## Manual mode — the capability explorer
 
@@ -182,8 +187,8 @@ to be rewritten against a spec rather than to define one.
 
 Watch targets are configured, not discovered by accident: registrations that publish a `subscribe`
 address, plus the fixtures in `src/fixtures/monitor/` for the peers that have not adopted the bus
-(a registration always wins over a fixture of the same identity). `monitor/analyzer.json` emits
-exchange telemetry and `monitor/insimul.json` does not — so the documented limitation is on screen,
+(a registration always wins over a fixture of the same identity). `monitor/processor.json` emits
+exchange telemetry and `monitor/producer.json` does not — so the documented limitation is on screen,
 not only in this file. A provider that publishes no subscribe address is listed as unwatchable
 rather than dialed at a guessed URL.
 
@@ -193,20 +198,20 @@ was asked of the fabric, so there is nothing to conform to — only what was see
 
 ### On stand-in fixtures
 
-`src/fixtures/<scenario>/<project>.json` are **fabric-shaped** — KGP delta packs, KMI
+`src/fixtures/<scenario>/<peer>.json` are **fabric-shaped** — KGP delta packs, KMI
 envelopes and KINP links exactly as the specs write them — and are read through the same
 `facts.ts` extraction as live traffic. A fixture in console-flavoured JSON would make a
-green run meaningless.
+green run meaningless. The ones bundled here are the neutral sample's; a deployment's own
+fixtures live beside its scenarios in the private `legacy` repo.
 
-A fixture may also declare the **`manifest`** its peer has not published (KCB §2). Without
-it a stand-in covers only the data planes, and the control plane — path planning, which is
-Step 1 of `kcs:media-transform` — would be unassertable for every peer off the bus. The
+A fixture may also declare the **`manifest`** its peer has not published (KCB §2) — see
+`src/fixtures/sample-provider.json`. Without it a stand-in covers only the data planes, and
+the control plane — path planning — would be unassertable for every peer off the bus. The
 runner indexes those manifests into an index built for the run and discarded with it, never
 into the registry other peers query: it may describe a route, and nobody may dial it.
 
 Each scenario's assertions are paired with the injury they are supposed to catch (see
-`worlds-to-fabric.test.ts` and `media-transform.test.ts`): damage one fixture field — drop
-an asset's `source_world`, type a transform's port back to media-only, report spend past a
-ceiling, reconcile into `same_as` instead of `based_on`, leak one fiction claim into a
-consensus-reality answer — and the run must go red on exactly the assertion that names that
-property. A conformance scenario that cannot fail is a demo.
+`sample-pipeline.test.ts`): damage one fixture field — drop an asset's `source_world`,
+reconcile into `same_as` instead of `based_on`, leak one scoped-world claim into a baseline
+answer — and the run must go red on exactly the assertion that names that property. A
+conformance scenario that cannot fail is a demo.

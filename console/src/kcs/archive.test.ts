@@ -3,15 +3,15 @@
  *
  * A content address is only worth anything if it is taken over what a *run* actually
  * produced, so every report here comes out of the production runner driving
- * `kcs:worlds-to-fabric` over its stand-ins. Hand-writing a `ConformanceReport` literal
+ * `kcs:sample-pipeline` over its stand-ins. Hand-writing a `ConformanceReport` literal
  * would test the projection against itself.
  */
 import { createRegistry } from '@agora/registry';
 import type { Json } from '@agora/schemas';
 import { describe, expect, it } from 'vitest';
 
-import { bundledFixtures, WORLDS_TO_FABRIC_PINAKES } from '../fixtures/standins.ts';
-import { WORLDS_TO_FABRIC } from '../scenarios/worlds-to-fabric.ts';
+import { bundledFixtures, SAMPLE_PIPELINE_CURATOR } from '../fixtures/standins.ts';
+import { SAMPLE_PIPELINE } from '../scenarios/sample-pipeline.ts';
 import { archiveReport, reportId, serializeArchive, verifyArchive } from './archive.ts';
 import type { ConformanceReport } from './outcome.ts';
 import { runScenario } from './runner.ts';
@@ -24,11 +24,11 @@ async function run(
 ): Promise<ConformanceReport> {
   const bundled = bundledFixtures();
   let tick = 0;
-  return await runScenario(WORLDS_TO_FABRIC, {
+  return await runScenario(SAMPLE_PIPELINE, {
     registry: createRegistry(),
     fixtures: async (path: string): Promise<Json> => {
       const document = JSON.parse(JSON.stringify(await bundled(path))) as Json;
-      if (path === WORLDS_TO_FABRIC_PINAKES) options.injury?.(document);
+      if (path === SAMPLE_PIPELINE_CURATOR) options.injury?.(document);
       return document;
     },
     now: () => options.at ?? '2026-07-22T00:00:00.000Z',
@@ -51,7 +51,7 @@ describe('the report is content-addressable (KCS §4.4)', () => {
   });
 
   it('moves the address when the fabric answered differently', async () => {
-    // Delta C's injury: Pinakes reconciles the fiction entity into `same_as` instead of
+    // Delta C's injury: the curator reconciles the scoped-world entity into `same_as` instead of
     // `based_on`. Same scenario, same participants, red run — and a different address.
     const green = await run();
     const red = await run({
@@ -68,7 +68,7 @@ describe('an archive', () => {
   it('carries the address, the verdict and the report itself', async () => {
     const archive = await archiveReport(await run(), { now: () => '2026-07-22T12:00:00.000Z' });
     expect(archive).toMatchObject({
-      scenario: 'kcs:worlds-to-fabric',
+      scenario: 'kcs:sample-pipeline',
       green: true,
       stubbed: true,
       archived_at: '2026-07-22T12:00:00.000Z',

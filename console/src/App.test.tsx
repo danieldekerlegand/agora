@@ -6,11 +6,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './App.tsx';
 import { runConformance, type ConformanceRun, type Discovery } from './commons.ts';
 import { CAPTURED_FROM, replaySession } from './fixtures/session.ts';
-import { bundledFixtures, monitorStandins, MEDIA_TRANSFORM_FORMANT } from './fixtures/standins.ts';
+import { bundledFixtures, monitorStandins, SAMPLE_PROVIDER } from './fixtures/standins.ts';
 import { FabricMonitor } from './monitor/monitor.ts';
 import { SCENARIO_LIBRARY } from './scenarios/library.ts';
 import { PROVIDER_ROUTER_ROUNDTRIP } from './scenarios/provider-router-roundtrip.ts';
-import { WORLDS_TO_FABRIC } from './scenarios/worlds-to-fabric.ts';
+import { SAMPLE_PIPELINE } from './scenarios/sample-pipeline.ts';
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -72,15 +72,15 @@ describe('the scenario library', () => {
     // over the same plumbing, and its report replaces the last one.
     render(<App run={replay} />);
     await screen.findByTestId('verdict');
-    fireEvent.click(runButtonFor(WORLDS_TO_FABRIC.id));
+    fireEvent.click(runButtonFor(SAMPLE_PIPELINE.id));
 
     const scenario = await screen.findByTestId('report-scenario');
-    expect(scenario.textContent).toContain(WORLDS_TO_FABRIC.id);
+    expect(scenario.textContent).toContain(SAMPLE_PIPELINE.id);
     // Three projects, none of them on the bus — the report has to say so out loud.
     expect(scenario.textContent).toContain('stood in for');
     const report = reportSection();
     expect(within(report).getByRole('heading', { level: 2 }).textContent).toContain(
-      WORLDS_TO_FABRIC.title,
+      SAMPLE_PIPELINE.title,
     );
     expect(within(report).getByTestId('verdict').textContent).toBe('green');
   });
@@ -104,9 +104,9 @@ const noRegistrations = (): Promise<Discovery> =>
   Promise.resolve({ registry: createRegistry(), providers: [], problems: [] });
 
 /** Open the explorer on the stand-in composer and return its only capability's form. */
-function chooseFormant(): void {
+function chooseSampleProvider(): void {
   fireEvent.change(screen.getByRole('combobox', { name: /provider/ }), {
-    target: { value: 'composer:agent:composer' },
+    target: { value: 'consumer:agent:composer' },
   });
 }
 
@@ -120,7 +120,7 @@ describe('the capability explorer (manual mode)', () => {
   it('browses the plane-typed ports a provider advertises, priced and addressed', async () => {
     render(<App mode="manual" run={replay} discover={noRegistrations} />);
     await screen.findByRole('combobox', { name: /provider/ });
-    chooseFormant();
+    chooseSampleProvider();
     // Everything the composer shows comes off the manifest, including what the provider
     // will demand of a caller before it grants anything (KCB §2 `auth`).
     expect(screen.getByTestId('grants-required').textContent).toBe('none stated');
@@ -139,7 +139,7 @@ describe('the capability explorer (manual mode)', () => {
     // link → observation log → report plumbing, and the exchange on screen.
     render(<App mode="manual" run={replay} discover={noRegistrations} />);
     await screen.findByRole('combobox', { name: /provider/ });
-    chooseFormant();
+    chooseSampleProvider();
     fireEvent.change(screen.getByRole('textbox', { name: /input 1 · knowledge/ }), {
       target: { value: '{"mood":"elegiac"}' },
     });
@@ -156,11 +156,11 @@ describe('the capability explorer (manual mode)', () => {
     expect(screen.getByTestId('manual-grant').textContent).toContain('granted');
     expect(screen.getByTestId('manual-request').textContent).toContain('"capability": "compose"');
     expect(screen.getByTestId('manual-response').textContent).toContain(
-      'composer:asset:blake3-5c0e33',
+      'consumer:asset:blake3-5c0e33',
     );
     // Stood in for, and the report says so — a manual green is not a claim about a live peer.
     expect(within(report).getByTestId('report-scenario').textContent).toContain('stood in for');
-    expect(within(report).getAllByText(MEDIA_TRANSFORM_FORMANT, { exact: false })).not.toHaveLength(
+    expect(within(report).getAllByText(SAMPLE_PROVIDER, { exact: false })).not.toHaveLength(
       0,
     );
     expect(within(report).getAllByTestId(/^observation-/).length).toBeGreaterThan(1);
@@ -169,7 +169,7 @@ describe('the capability explorer (manual mode)', () => {
   it('refuses to send a port payload that is not JSON, before anybody is dialed', async () => {
     render(<App mode="manual" run={replay} discover={noRegistrations} />);
     await screen.findByRole('combobox', { name: /provider/ });
-    chooseFormant();
+    chooseSampleProvider();
     fireEvent.change(screen.getByRole('textbox', { name: /input 1 · knowledge/ }), {
       target: { value: '{oops' },
     });
@@ -200,7 +200,7 @@ describe('the live fabric monitor (passive mode)', () => {
     // A KGP delta and a media event, from two platforms, neither of them asked for here.
     expect(within(feed).getAllByText('claim').length).toBeGreaterThan(0);
     expect(within(feed).getAllByText('asset').length).toBeGreaterThan(0);
-    expect(within(feed).getAllByText(/insimul:world:alderforest:ent:npc-renaud/).length,
+    expect(within(feed).getAllByText(/producer:world:sample:ent:item-alpha/).length,
     ).toBeGreaterThan(0);
     // Nothing was run, so there is no report — a watch produces observations, not verdicts.
     expect(screen.queryByTestId('verdict')).toBeNull();
@@ -209,7 +209,7 @@ describe('the live fabric monitor (passive mode)', () => {
   it('renders an exchange between two other peers, from the telemetry its server emitted', async () => {
     render(<App mode="monitor" run={replay} observe={watchStandins} />);
     const feed = await screen.findByRole('table', { name: 'fabric events' });
-    expect(within(feed).getByText(/composer:agent:composer → analyzer:agent:ingest/)).toBeTruthy();
+    expect(within(feed).getByText(/consumer:agent:composer → processor:agent:ingest/)).toBeTruthy();
     expect(within(feed).getAllByText('control').length).toBe(1);
   });
 
@@ -219,9 +219,9 @@ describe('the live fabric monitor (passive mode)', () => {
     expect(limitation.textContent).toMatch(/absent at the invoke level/);
     // Which peers are invisible at the invoke level is on screen per source, not just in prose.
     expect(
-      screen.getByTestId('source-insimul:agent:world-server').textContent,
+      screen.getByTestId('source-producer:agent:publisher').textContent,
     ).toContain('no exchange telemetry');
-    expect(screen.getByTestId('source-analyzer:agent:ingest').textContent).toContain(
+    expect(screen.getByTestId('source-processor:agent:ingest').textContent).toContain(
       'emits exchange telemetry',
     );
   });
@@ -238,7 +238,7 @@ describe('the live fabric monitor (passive mode)', () => {
 
     fireEvent.change(screen.getByRole('combobox', { name: /plane/ }), { target: { value: '' } });
     fireEvent.change(screen.getByRole('combobox', { name: /participant/ }), {
-      target: { value: 'insimul:agent:world-server' },
+      target: { value: 'producer:agent:publisher' },
     });
     expect(screen.getByTestId('feed-count').textContent).toBe('1 of 4 events');
 

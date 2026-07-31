@@ -143,11 +143,16 @@ dialed and logged exactly as an authored scenario is.
 | Scenario | From | What it proves |
 |---|---|---|
 | `kcs:provider-router-roundtrip` | the commons itself | discover the provider-router through the registry, dial its own address, ask for a completion with a ceiling of **zero** budget units, and assert the zero-spend tier served it for nothing (`tier_resolved`, `cost_within_ceiling`, `capability_path_exists`, `always_completes`) |
-| `kcs:worlds-to-fabric` | [`../koine/scenarios/e2e-worlds-to-fabric.md`](../koine/scenarios/e2e-worlds-to-fabric.md) | the identity firewall across the media→knowledge bridge: an Insimul fiction → Analyzer ingest → Pinakes reconcile → cross-project queries, asserting that facts-about-the-real-Napoleon return nothing from the fiction (`firewall_holds`), that every claim is world-scoped (`claim_in_world`), and that cross-world lineage stays `based_on` (`no_sameas_across_worlds`) |
-| `kcs:media-transform` | [`../koine/scenarios/e2e-media-transform.md`](../koine/scenarios/e2e-media-transform.md) | the four-project transform chain: an Insimul playthrough → Analyzer cut + narration → a Composer score → EDL → a DaVinci projection, asserting that a route across planes is plannable before anything is dialed (`capability_path_exists`), that generated assets declare no world while ingested ones do (`source_world_is`), that the one paid hop stayed inside its grant (`cost_within_ceiling`), and that analysis of a *generated composite* is still attributed to its footage's world (`analysis_attributed_to_constituent`) |
+| `kcs:sample-pipeline` | the commons itself (a **neutral sample**) | the identity firewall across the media→knowledge bridge, over three generic peers — a `producer` publishes a world-scoped claim and a `based_on` link into the baseline world, a `processor` ingests a recording of that world and extracts knowledge from it, a `curator` reconciles and queries both — asserting that facts about the baseline entity return nothing from the scoped world (`firewall_holds`), that every claim is world-scoped (`claim_in_world`), and that cross-world lineage stays `based_on` (`no_sameas_across_worlds`) |
 
-None of Insimul, Analyzer, Composer or Pinakes has published a manifest yet, so both scenarios
-run them as `standin` participants (KCS delta N) and their reports say `stubbed`. A stand-in
+**Where a deployment's own scenarios live.** The commons is public and ships the *agnostic*
+KCS runner plus the neutral sample above. The ecosystem's real conformance scenarios — their
+participants, worlds and fixtures, and the koine `e2e-*` documents they encode — live in the
+private **`legacy`** integration repo under `scenarios/`, and run against this same runner
+unchanged: nothing in `console/src/kcs/` knows a cast.
+
+Neither of the sample's peers has published a manifest, so the scenario runs all three as
+`standin` participants (KCS delta N) and its report says `stubbed`. A stand-in
 fixture may also carry the **`manifest`** its peer has not published: a provider off the bus
 is missing from the *control* plane too, and `capability_path_exists` would otherwise have
 nothing to plan over. The runner indexes those manifests into a **scenario-local** index
@@ -163,8 +168,8 @@ still reports as *pending*, which never counts as a pass — a scenario assertin
 this build cannot check goes red rather than green-by-omission.
 
 **One gap is KCS's, not this console's.** KMI delta I gives every NLE projection an
-asset-id ↔ path media map, and §5 has no predicate that can read one — so
-`kcs:media-transform` carries the map into its observation log and nothing checks it. A
+asset-id ↔ path media map, and §5 has no predicate that can read one — so a scenario
+carrying that map into its observation log has nothing to check it with. A
 `media_map_complete(projection)` predicate is the koine follow-up.
 
 Assertions are evaluated over **plane-typed observations, never generated text** (§7 Q2):
@@ -343,8 +348,9 @@ search and the resolver interface stub (US-AG4); the conformance console — the
 model, runner and UI, running `kcs:provider-router-roundtrip` end to end (US-AG5).
 
 From [`tasks/chief/30-agora-console-scenarios.json`](tasks/chief/30-agora-console-scenarios.json):
-the KCS runner and its cross-plane assertion vocabulary (US-CS1); both koine pressure tests
-encoded as runnable scenarios — `kcs:worlds-to-fabric` (US-CS2) and `kcs:media-transform`
-(US-CS3); the full KINP resolver dialing the Pinakes authority (US-CS4); the content-addressed
+the KCS runner and its cross-plane assertion vocabulary (US-CS1); the koine pressure tests
+encoded as runnable scenarios (US-CS2, US-CS3 — since moved to the private `legacy` repo,
+leaving `kcs:sample-pipeline` as the neutral sample); the full KINP resolver dialing the
+entity authority (US-CS4); the content-addressed
 conformance report and the scenario-library UI (US-CS5); the manual capability explorer
 (US-CS6). Next: the passive live fabric monitor.

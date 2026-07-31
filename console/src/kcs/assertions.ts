@@ -292,7 +292,7 @@ const EVALUATORS: Record<string, Evaluator> = {
   },
 
   /**
-   * "Facts-about-real-X never return fiction claims" (§5), evaluated over what a query
+   * "Facts about a baseline X never return scoped-world claims" (§5), evaluated over what a query
    * step actually returned: every claim it produced is in the named world.
    *
    * The world is named by the assertion rather than inferred, because a world's
@@ -349,7 +349,7 @@ const EVALUATORS: Record<string, Evaluator> = {
   /**
    * KMI delta H: an ingested asset that depicts a world declares it; a generated one
    * declares `null`. An envelope that declares neither is a *failure*, not a null — the
-   * silence is what would let extracted knowledge land in consensus reality by default.
+   * silence is what would let extracted knowledge land in the baseline world by default.
    */
   source_world_is(args, context) {
     const [id, world] = args;
@@ -380,7 +380,7 @@ const EVALUATORS: Record<string, Evaluator> = {
    * KMI §5 delta H: analysis of a *composite* is attributed to its constituents' worlds,
    * traced through the lineage links — never to the composite's own. A render has
    * `source_world: null`, so scoping its analysis to the composite would drop every claim
-   * out of the fictional world it actually came from, and the firewall would fail open.
+   * out of the scoped world it actually came from, and the firewall would fail open.
    */
   analysis_attributed_to_constituent(args, context) {
     const [id] = args;

@@ -6,24 +6,24 @@ const PACK = {
   kgp_version: '0.4.0',
   pack_id: 'sha256-de17a0',
   kind: 'delta',
-  worlds: ['insimul:world:alderforest'],
+  worlds: ['producer:world:sample'],
   assertions: [
     {
-      id: 'insimul:claim:sha256-9f3c1a',
-      world: 'insimul:world:alderforest',
-      subject: 'insimul:world:alderforest:ent:npc-renaud',
-      relation: 'commands',
-      object: 'insimul:world:alderforest:ent:army-of-ash',
+      id: 'producer:claim:sha256-9f3c1a',
+      world: 'producer:world:sample',
+      subject: 'producer:world:sample:ent:item-alpha',
+      relation: 'contains',
+      object: 'producer:world:sample:ent:assembly-alpha',
       confidence: 0.9,
-      prov: { agent: 'insimul:agent:world-server' },
+      prov: { agent: 'producer:agent:publisher' },
     },
   ],
   links: [
     {
-      world: 'insimul:world:alderforest',
-      subject: 'insimul:world:alderforest:ent:npc-renaud',
+      world: 'producer:world:sample',
+      subject: 'producer:world:sample:ent:item-alpha',
       relation: 'based_on',
-      object: 'pinakes:ent:napoleon-i',
+      object: 'curator:ent:reference-alpha',
       confidence: 0.7,
     },
   ],
@@ -34,13 +34,13 @@ describe('reading a GroundingPack (KGP §2)', () => {
     const facts = readFacts(PACK);
     expect(facts.packs).toEqual(['sha256-de17a0']);
     expect(facts.claims[0]).toMatchObject({
-      id: 'insimul:claim:sha256-9f3c1a',
-      world: 'insimul:world:alderforest',
-      relation: 'commands',
-      subject: 'insimul:world:alderforest:ent:npc-renaud',
+      id: 'producer:claim:sha256-9f3c1a',
+      world: 'producer:world:sample',
+      relation: 'contains',
+      subject: 'producer:world:sample:ent:item-alpha',
       confidence: 0.9,
     });
-    expect(facts.claims[0]?.prov?.agent).toBe('insimul:agent:world-server');
+    expect(facts.claims[0]?.prov?.agent).toBe('producer:agent:publisher');
   });
 
   it('reads a reserved relation as a link as well as a claim (KINP §4.2)', () => {
@@ -51,17 +51,17 @@ describe('reading a GroundingPack (KGP §2)', () => {
     expect(facts.links).toEqual([
       {
         relation: 'based_on',
-        from: 'insimul:world:alderforest:ent:npc-renaud',
-        to: 'pinakes:ent:napoleon-i',
-        world: 'insimul:world:alderforest',
+        from: 'producer:world:sample:ent:item-alpha',
+        to: 'curator:ent:reference-alpha',
+        world: 'producer:world:sample',
         confidence: 0.7,
       },
     ]);
   });
 
   it('stamps every id the pack touched, for the log to record', () => {
-    expect(idsIn(readFacts(PACK))).toContain('pinakes:ent:napoleon-i');
-    expect(idsIn(readFacts(PACK))).toContain('insimul:world:alderforest');
+    expect(idsIn(readFacts(PACK))).toContain('curator:ent:reference-alpha');
+    expect(idsIn(readFacts(PACK))).toContain('producer:world:sample');
   });
 });
 
@@ -69,44 +69,44 @@ describe('reading an asset envelope (KMI §2)', () => {
   it('keeps stated-null apart from never-stated for source_world (delta H)', () => {
     // The distinction the firewall rests on: `null` says "generated, depicts no world";
     // silence says nothing at all, and must not be read as a null.
-    const generated = readFacts({ id: 'composer:asset:blake3-aa', source_world: null }).assets[0];
-    const silent = readFacts({ id: 'composer:asset:blake3-bb', media_type: 'audio/wav' }).assets[0];
+    const generated = readFacts({ id: 'consumer:asset:blake3-aa', source_world: null }).assets[0];
+    const silent = readFacts({ id: 'consumer:asset:blake3-bb', media_type: 'audio/wav' }).assets[0];
     expect(generated?.source_world).toBeNull();
     expect(silent?.source_world).toBeUndefined();
   });
 
   it('folds lineage links into the composite they describe (KMI §3)', () => {
     const facts = readFacts({
-      id: 'analyzer:asset:blake3-c0de99',
+      id: 'processor:asset:blake3-c0de99',
       media_type: 'video/mp4',
       source_world: null,
-      excerpt: { source: 'insimul:asset:blake3-a1b2c3', start_ms: 0, end_ms: 4000 },
+      excerpt: { source: 'producer:asset:blake3-a1b2c3', start_ms: 0, end_ms: 4000 },
       links: [
         {
-          subject: 'analyzer:asset:blake3-c0de99',
+          subject: 'processor:asset:blake3-c0de99',
           relation: 'media:derived_from',
-          object: 'analyzer:asset:blake3-master',
+          object: 'processor:asset:blake3-master',
         },
       ],
     });
     expect(facts.assets[0]?.constituents).toEqual([
-      'insimul:asset:blake3-a1b2c3',
-      'analyzer:asset:blake3-master',
+      'producer:asset:blake3-a1b2c3',
+      'processor:asset:blake3-master',
     ]);
   });
 
   it('reads attaches_to, media type and byte count — and never the bytes', () => {
     const facts = readFacts({
-      id: 'insimul:asset:blake3-a1b2c3',
+      id: 'producer:asset:blake3-a1b2c3',
       media_type: 'video/mp4',
       bytes: 104857600,
-      attaches_to: ['insimul:world:alderforest:ent:npc-renaud'],
+      attaches_to: ['producer:world:sample:ent:item-alpha'],
       b64_json: 'ZmFrZSBieXRlcw==',
     });
     expect(facts.assets[0]).toMatchObject({
       media_type: 'video/mp4',
       bytes: 104857600,
-      attaches_to: ['insimul:world:alderforest:ent:npc-renaud'],
+      attaches_to: ['producer:world:sample:ent:item-alpha'],
       present: true,
     });
     expect(JSON.stringify(facts)).not.toContain('ZmFrZSBieXRlcw==');
@@ -123,7 +123,7 @@ describe('what is not a fact', () => {
           message: {
             role: 'assistant',
             content:
-              'Renaud commands the army of ash in insimul:world:alderforest, and is based_on Napoleon.',
+              'item-alpha contains assembly-alpha in producer:world:sample, and is based_on reference-alpha.',
           },
         },
       ],

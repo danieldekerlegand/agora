@@ -606,7 +606,7 @@ export function collect(summary: Subscription, facts: Facts): void {
  * A delta stream, read whichever way the producer serves it.
  *
  * NDJSON and SSE are sequences of JSON documents, so `json()` cannot read them; a producer
- * that answers one JSON body with a `frames`/`deltas` array is equally conformant (KCB §4
+ * that answers one JSON body with a `frames`/`deltas` array is equally conconsumer (KCB §4
  * fixes the verb, not the framing). Both are read here so a scenario does not have to
  * know which its peer chose.
  */

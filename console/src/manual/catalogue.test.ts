@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import routerSession from '../fixtures/provider-router.session.json';
 import { bundledStandins } from '../fixtures/standins.ts';
-import { MEDIA_TRANSFORM_FORMANT } from '../fixtures/standins.ts';
+import { SAMPLE_PROVIDER } from '../fixtures/standins.ts';
 import { catalogue, describePort, fieldsFor } from './catalogue.ts';
 
 const ROUTER = (routerSession as { manifest: unknown }).manifest;
@@ -43,9 +43,9 @@ describe('the capability catalogue', () => {
 
   it('catalogues a peer that has not adopted the bus, and stamps it as a stand-in', () => {
     const providers = catalogue({ registry: createRegistry(), standins: bundledStandins() });
-    const composer = providers.find((entry) => entry.identity === 'composer:agent:composer');
-    expect(composer?.standin).toBe(MEDIA_TRANSFORM_FORMANT);
-    expect(composer?.capabilities.map((entry) => entry.name)).toEqual(['compose']);
+    const consumer = providers.find((entry) => entry.identity === 'consumer:agent:composer');
+    expect(consumer?.standin).toBe(SAMPLE_PROVIDER);
+    expect(consumer?.capabilities.map((entry) => entry.name)).toEqual(['compose']);
   });
 
   it('prefers the registration over a fixture of the same identity', () => {
@@ -53,13 +53,13 @@ describe('the capability catalogue', () => {
     // that is on the network would read its canned answer as the fabric's.
     const registry = createRegistry();
     registry.register(
-      { kcb_version: '0.2.0', identity: 'composer:agent:composer', endpoints: {}, capabilities: [] },
+      { kcb_version: '0.2.0', identity: 'consumer:agent:composer', endpoints: {}, capabilities: [] },
       { source: 'push' },
     );
     const providers = catalogue({ registry, standins: bundledStandins() });
-    const composer = providers.filter((entry) => entry.identity === 'composer:agent:composer');
-    expect(composer).toHaveLength(1);
-    expect(composer[0]?.standin).toBeUndefined();
+    const consumer = providers.filter((entry) => entry.identity === 'consumer:agent:composer');
+    expect(consumer).toHaveLength(1);
+    expect(consumer[0]?.standin).toBeUndefined();
   });
 
   it('skips a fixture that publishes no manifest rather than failing the catalogue', () => {

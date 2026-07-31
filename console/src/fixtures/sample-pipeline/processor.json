@@ -1,0 +1,64 @@
+{
+  "identity": "processor:agent:pipeline",
+  "fetch": {
+    "processor:asset:blake3-a1b2c3": {
+      "body": {
+        "kmi_version": "0.3.0",
+        "id": "processor:asset:blake3-a1b2c3",
+        "media_type": "video/mp4",
+        "bytes": 734003200,
+        "source_world": "producer:world:sample",
+        "attaches_to": ["producer:world:sample:ent:item-alpha"],
+        "produced_by": "producer:src:session-7f",
+        "prov": {
+          "agent": "processor:agent:pipeline",
+          "activity": "processor:src:ingest-1a2b",
+          "asserted": "2026-07-17T18:40:00Z"
+        }
+      }
+    }
+  },
+  "invoke": {
+    "extract.knowledge": {
+      "body": {
+        "world": "producer:world:sample",
+        "assertions": [
+          {
+            "id": "processor:claim:sha256-c31d70",
+            "world": "producer:world:sample",
+            "subject": "processor:ent:c-4410",
+            "relation": "contains",
+            "object": "processor:ent:c-4410-army",
+            "confidence": 0.55,
+            "prov": {
+              "agent": "processor:agent:pipeline",
+              "activity": "processor:src:run-1a2b",
+              "method": "analysis@2.3",
+              "asserted": "2026-07-18T02:05:00Z"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "emit": {
+    "body": {
+      "pack_id": "sha256-4c9b02",
+      "accepted": 1,
+      "assertions": [
+        {
+          "id": "processor:claim:sha256-b0f7d1",
+          "world": "producer:world:sample",
+          "subject": "processor:claim:sha256-c31d70",
+          "relation": "retracts",
+          "reason": "misdetection",
+          "prov": {
+            "agent": "processor:agent:pipeline",
+            "activity": "processor:src:review-9c4d",
+            "asserted": "2026-07-20T11:30:00Z"
+          }
+        }
+      ]
+    }
+  }
+}

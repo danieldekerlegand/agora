@@ -65,8 +65,8 @@ export interface RunOptions {
   fetch?: HttpFetch | undefined;
   /**
    * Defaults to the local resolver, which answers only what needs no authority (§6).
-   * Pass `createPinakesResolver({ endpoint })` — the address the registry hands back for
-   * `pinakes:agent:resolver` — to run a scenario against the canonical authority.
+   * Pass `createPinakesResolver({ endpoint })` — the address the registry hands back for the
+   * ecosystem's entity authority — to run a scenario against that canonical authority.
    */
   resolver?: Resolver | undefined;
   /** How a `standin` participant's fixtures are loaded (delta N). Defaults to fetching
@@ -255,7 +255,7 @@ function copyOf(registry: CapabilityRegistry): CapabilityRegistry {
  *
  * A fixture may only speak for the participant that declared it: a manifest naming somebody
  * else would let one scenario's fixture silently redefine another provider's capabilities,
- * and every path assertion downstream would be planning against a fiction.
+ * and every path assertion downstream would be planning against a fabrication.
  */
 function indexStandin(
   index: CapabilityRegistry,

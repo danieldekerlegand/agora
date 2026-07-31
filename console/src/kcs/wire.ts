@@ -8,7 +8,7 @@
  * protocol, so there is no console-flavoured envelope in between.
  *
  * Three wires are implemented — the provider-router's OpenAI-compatible surface, an MCP
- * client (Analyzer `/mcp`) and an A2A client (a Orchestrator/Analyzer agent card). {@link wireFor}
+ * client (a provider's `/mcp`) and an A2A client (a peer's agent card). {@link wireFor}
  * picks between them from what a provider *serves*; a transport this build cannot speak is
  * still named and *refused* rather than mis-dialed, so the day a peer advertises a fourth
  * the failure says which wire to write.

@@ -6,27 +6,27 @@ import { readSpan } from '../kcs/spans.ts';
 import { eventsFrom, feedFacets, filterFeed } from './feed.ts';
 
 const CLAIM = {
-  id: 'analyzer:claim:sha256-1d90ee',
-  world: 'insimul:world:alderforest',
-  subject: 'analyzer:asset:blake3-7c19ab',
+  id: 'processor:claim:sha256-1d90ee',
+  world: 'producer:world:sample',
+  subject: 'processor:asset:blake3-7c19ab',
   relation: 'depicts',
-  object: 'insimul:world:alderforest:ent:npc-renaud',
+  object: 'producer:world:sample:ent:item-alpha',
 };
 
 const ASSET = {
-  id: 'analyzer:asset:blake3-7c19ab',
+  id: 'processor:asset:blake3-7c19ab',
   media_type: 'video/mp4',
-  source_world: 'insimul:world:alderforest',
-  attaches_to: ['insimul:world:alderforest:ent:npc-renaud'],
+  source_world: 'producer:world:sample',
+  attaches_to: ['producer:world:sample:ent:item-alpha'],
 };
 
 const SPAN = {
   kind: 'exchange',
-  provider: 'analyzer:agent:ingest',
-  caller: 'composer:agent:composer',
+  provider: 'processor:agent:ingest',
+  caller: 'consumer:agent:composer',
   verb: 'invoke',
   capability: 'media.analyse',
-  world: 'insimul:world:alderforest',
+  world: 'producer:world:sample',
 };
 
 /** A log with one frame per producer, as a sweep would have recorded them. */
@@ -34,27 +34,27 @@ function loggedSweep(): ObservationLog {
   const log = new ObservationLog(() => '2026-07-22T11:05:00.000Z');
   log.record({
     step: 'monitor',
-    participant: 'insimul:agent:world-server',
+    participant: 'producer:agent:publisher',
     direction: 'frame',
     plane: 'knowledge',
-    entities: ['insimul:agent:world-server'],
+    entities: ['producer:agent:publisher'],
     detail: { standin: true },
     facts: readFacts({ assertions: [CLAIM] }),
   });
   log.record({
     step: 'monitor',
-    participant: 'analyzer:agent:ingest',
+    participant: 'processor:agent:ingest',
     direction: 'frame',
     plane: 'media',
-    entities: ['analyzer:agent:ingest'],
+    entities: ['processor:agent:ingest'],
     detail: {},
     facts: readFacts({ assets: [ASSET] }),
   });
   log.record({
     step: 'monitor',
-    participant: 'analyzer:agent:ingest',
+    participant: 'processor:agent:ingest',
     direction: 'frame',
-    entities: ['analyzer:agent:ingest'],
+    entities: ['processor:agent:ingest'],
     detail: {},
     span: readSpan(SPAN),
   });
@@ -70,9 +70,9 @@ describe('the feed', () => {
 
   it('links every row to the KINP ids it touched', () => {
     const [claim, asset, span] = eventsFrom(loggedSweep().entries());
-    expect(claim?.ids).toContain('analyzer:claim:sha256-1d90ee');
-    expect(asset?.ids).toContain('insimul:world:alderforest:ent:npc-renaud');
-    expect(span?.ids).toContain('composer:agent:composer');
+    expect(claim?.ids).toContain('processor:claim:sha256-1d90ee');
+    expect(asset?.ids).toContain('producer:world:sample:ent:item-alpha');
+    expect(span?.ids).toContain('consumer:agent:composer');
   });
 
   it('files an emitted exchange on the control plane, not the knowledge plane', () => {
@@ -86,7 +86,7 @@ describe('the feed', () => {
   it('stamps the rows that came from a stand-in rather than a live producer', () => {
     const events = eventsFrom(loggedSweep().entries());
     expect(events.filter((event) => event.standin).map((event) => event.participant)).toEqual([
-      'insimul:agent:world-server',
+      'producer:agent:publisher',
     ]);
   });
 
@@ -94,9 +94,9 @@ describe('the feed', () => {
     const log = loggedSweep();
     log.record({
       step: 'monitor',
-      participant: 'analyzer:agent:ingest',
+      participant: 'processor:agent:ingest',
       direction: 'request',
-      entities: ['analyzer:agent:ingest'],
+      entities: ['processor:agent:ingest'],
       detail: { verb: 'subscribe' },
       facts: readFacts({ assertions: [CLAIM] }),
     });
@@ -107,28 +107,28 @@ describe('the feed', () => {
     const log = new ObservationLog(() => '2026-07-22T11:05:00.000Z');
     log.record({
       step: 'monitor',
-      participant: 'insimul:agent:world-server',
+      participant: 'producer:agent:publisher',
       direction: 'frame',
       entities: [],
       detail: {},
       facts: readFacts({
-        assertions: [{ subject: 'insimul:world:alderforest:ent:npc-renaud', relation: 'flees' }],
+        assertions: [{ subject: 'producer:world:sample:ent:item-alpha', relation: 'flees' }],
       }),
     });
-    expect(eventsFrom(log.entries())[0]?.world).toBe('insimul:world:alderforest');
+    expect(eventsFrom(log.entries())[0]?.world).toBe('producer:world:sample');
   });
 
   it('does not turn “depicts no world” into a world', () => {
     // KMI delta H: a stated `null` is a positive claim about a generated asset. A feed that
-    // filed it under some world would put fiction in a real world's stream.
+    // filed it under some world would put one world's claims in another world's stream.
     const log = new ObservationLog(() => '2026-07-22T11:05:00.000Z');
     log.record({
       step: 'monitor',
-      participant: 'composer:agent:composer',
+      participant: 'consumer:agent:composer',
       direction: 'frame',
       entities: [],
       detail: {},
-      facts: readFacts({ assets: [{ id: 'composer:asset:blake3-01', source_world: null }] }),
+      facts: readFacts({ assets: [{ id: 'consumer:asset:blake3-01', source_world: null }] }),
     });
     expect(eventsFrom(log.entries())[0]?.world).toBeUndefined();
   });
@@ -138,10 +138,10 @@ describe('filtering the feed', () => {
   const events = eventsFrom(loggedSweep().entries());
 
   it('narrows by participant, plane and world', () => {
-    expect(filterFeed(events, { participant: 'analyzer:agent:ingest' })).toHaveLength(2);
+    expect(filterFeed(events, { participant: 'processor:agent:ingest' })).toHaveLength(2);
     expect(filterFeed(events, { plane: 'control' })).toHaveLength(1);
-    expect(filterFeed(events, { world: 'insimul:world:alderforest' })).toHaveLength(3);
-    expect(filterFeed(events, { world: 'insimul:world:elsewhere' })).toHaveLength(0);
+    expect(filterFeed(events, { world: 'producer:world:sample' })).toHaveLength(3);
+    expect(filterFeed(events, { world: 'producer:world:elsewhere' })).toHaveLength(0);
   });
 
   it('narrows by time, against the transaction time the log stamped', () => {
@@ -152,15 +152,15 @@ describe('filtering the feed', () => {
 
   it('combines clauses — every stated one must hold', () => {
     expect(
-      filterFeed(events, { participant: 'analyzer:agent:ingest', plane: 'knowledge' }),
+      filterFeed(events, { participant: 'processor:agent:ingest', plane: 'knowledge' }),
     ).toHaveLength(0);
   });
 
   it('offers only the values the feed actually holds', () => {
     expect(feedFacets(events)).toEqual({
-      worlds: ['insimul:world:alderforest'],
+      worlds: ['producer:world:sample'],
       planes: ['knowledge', 'media', 'control'],
-      participants: ['insimul:agent:world-server', 'analyzer:agent:ingest'],
+      participants: ['producer:agent:publisher', 'processor:agent:ingest'],
     });
   });
 });

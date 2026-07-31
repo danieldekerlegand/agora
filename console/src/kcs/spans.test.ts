@@ -5,19 +5,19 @@ import { idsInSpan, readSpan, summariseSpan } from './spans.ts';
 /** A provider's own record of an exchange it served for somebody else. */
 const EXCHANGE = {
   kind: 'exchange',
-  id: 'analyzer:span:sha256-3f77c1',
-  provider: 'analyzer:agent:ingest',
-  caller: 'composer:agent:composer',
+  id: 'processor:span:sha256-3f77c1',
+  provider: 'processor:agent:ingest',
+  caller: 'consumer:agent:composer',
   verb: 'invoke',
   capability: 'media.analyse',
-  world: 'insimul:world:alderforest',
+  world: 'producer:world:sample',
   tier: 'local-model',
   status: 'ok',
   budget_units: 120,
   actual_units: 18,
   started_at: '2026-07-22T11:04:31.018Z',
   duration_ms: 2140,
-  entities: ['analyzer:asset:blake3-7c19ab'],
+  entities: ['processor:asset:blake3-7c19ab'],
 };
 
 describe('reading emitted exchange telemetry', () => {
@@ -26,20 +26,20 @@ describe('reading emitted exchange telemetry', () => {
     expect(span).toMatchObject({
       verb: 'invoke',
       capability: 'media.analyse',
-      caller: 'composer:agent:composer',
-      provider: 'analyzer:agent:ingest',
+      caller: 'consumer:agent:composer',
+      provider: 'processor:agent:ingest',
       tier: 'local-model',
       status: 'ok',
       actual_units: 18,
       duration_ms: 2140,
-      entities: ['analyzer:asset:blake3-7c19ab'],
+      entities: ['processor:asset:blake3-7c19ab'],
     });
   });
 
   it('reads a span out of an envelope as readily as a flat frame', () => {
-    const span = readSpan({ span: { verb: 'fetch', provider: 'analyzer:agent:ingest' } });
+    const span = readSpan({ span: { verb: 'fetch', provider: 'processor:agent:ingest' } });
     expect(span?.verb).toBe('fetch');
-    expect(span?.provider).toBe('analyzer:agent:ingest');
+    expect(span?.provider).toBe('processor:agent:ingest');
   });
 
   it('does not read a KGP delta as an invocation', () => {
@@ -49,13 +49,13 @@ describe('reading emitted exchange telemetry', () => {
       readSpan({
         kgp_version: '0.4.0',
         kind: 'delta',
-        assertions: [{ relation: 'commands', subject: 'insimul:world:w:ent:a' }],
+        assertions: [{ relation: 'contains', subject: 'producer:world:w:ent:a' }],
       }),
     ).toBeUndefined();
   });
 
   it('refuses a telemetry frame that says neither what was done nor to what', () => {
-    expect(readSpan({ kind: 'exchange', provider: 'analyzer:agent:ingest' })).toBeUndefined();
+    expect(readSpan({ kind: 'exchange', provider: 'processor:agent:ingest' })).toBeUndefined();
   });
 
   it('keeps a stated ceiling of none apart from an emitter that mentioned no ceiling', () => {
@@ -68,17 +68,17 @@ describe('reading emitted exchange telemetry', () => {
   it('names every KINP id the exchange touched, once each', () => {
     const span = readSpan(EXCHANGE);
     expect(span && idsInSpan(span)).toEqual([
-      'analyzer:agent:ingest',
-      'composer:agent:composer',
-      'insimul:world:alderforest',
-      'analyzer:asset:blake3-7c19ab',
+      'processor:agent:ingest',
+      'consumer:agent:composer',
+      'producer:world:sample',
+      'processor:asset:blake3-7c19ab',
     ]);
   });
 
   it('summarises an exchange as who asked whom for what, and what it cost', () => {
     const span = readSpan(EXCHANGE);
     expect(span && summariseSpan(span)).toBe(
-      'invoke media.analyse (composer:agent:composer → analyzer:agent:ingest) · tier local-model · 18 units · ok',
+      'invoke media.analyse (consumer:agent:composer → processor:agent:ingest) · tier local-model · 18 units · ok',
     );
   });
 
