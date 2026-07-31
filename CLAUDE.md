@@ -1,8 +1,16 @@
 # CLAUDE.md — agora (Chief harness)
 
-`agora` is the **runtime commons** for the ecosystem — sibling to `../koine` (koine
-specifies, agora implements). See `README.md` and
+`agora` is the **runtime commons** for koine-conformant systems — sibling to `../koine` (koine
+specifies, agora implements). It is reference implementations of the contracts (a model
+gateway, a KCB discovery registry, a KINP resolver, a translation engine, a conformance
+console) that **any** project speaking the koine protocols can call, self-host, or judge its
+own implementation against. See `README.md` and
 `../koine/decisions/ADR-0001-control-plane-topology.md`.
+
+**Write everything here by capability, never by caller.** No project name belongs in agora's
+code as a literal — a participant is whatever publishes a KCB manifest, the cast is learned at
+runtime from data, and any project name that survives in this tree is either sample data or an
+attributed historical reference, marked as such.
 
 ## Your task (per iteration)
 
@@ -36,6 +44,7 @@ more than one. Zero errors, exit 0. `make help` lists everything.
 | `registry/` | `make check-registry` |
 | `resolver/` | `make check-resolver` |
 | `console/` | `make check-console` |
+| `translation/` | `make check-translation` |
 
 Dependencies install themselves (`make install`, or implicitly via any `check-*` target).
 
@@ -57,9 +66,8 @@ never as cross-language source). See README "Stack" for the rationale.
   capability. Package `agora_trainer` under `src/`. Distinct from `provider-router/` per ADR-0001
   decision 1 (two routers, never merged) — it imports nothing from it. **General provider only**
   (KFT §9/FT-K): training is multi-provider, the registry disambiguates general-vs-specialized
-  (`registry/src/select.ts`), and three follow-ups are NOT built here — Pinakes's specialized
-  provider (`pinakes:90`), Orchestrator's KCB client replacing `Runner::Stub` (`orchestrator:90`), and
-  `agora:41-finetune-job-validator`. See `trainer/README.md` §"Scope boundary".
+  (`registry/src/select.ts`), and a caller's own **specialized** provider is that caller's repo's
+  work, never an adapter in here. See `trainer/README.md` §"Scope boundary".
 - **everything else** — TypeScript, Node 22, npm workspaces at the repo root. React 19 + Vite for
   the console. Lint `eslint` (one flat config at the root), types `tsc -p tsconfig.json`
   (`--noEmit`), tests `vitest`. Packages are **source-first**: `exports` points at
@@ -89,6 +97,7 @@ console/           TS + React — conformance scenario runner + UI (observer, no
 schemas/           TS — @agora/schemas, shared manifest schemas / protocol types
 clients/kcb-client/  TS — @agora/kcb-client, returns ADDRESSES, never relays payloads
 clients/relation-registry-client/  TS — loads koine's relation registry; never mirrors it
+translation/       Rust — the KMI/KGP translation engine (one core, several facades)
 ```
 
 The relation registry is koine's data and agora's tooling: `schemas/src/registry-schema.ts`

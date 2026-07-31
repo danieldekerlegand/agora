@@ -1,10 +1,10 @@
 # provider-router
 
 A gateway to **model backends** — OpenAI-compatible, always-completes. One leaf capability on
-the KCB bus, **not** the path other platforms route through (ADR-0001 decision 1).
+the KCB bus, **not** the path other participants route through (ADR-0001 decision 1).
 
-The tier ladder is ported from Analyzer's "sacred ladder" (`~/Development/analyzer`,
-`src/filmstudio/core/ladders.py`). Per modality, in order:
+The tier ladder is ported from a pre-existing media-pipeline "sacred ladder". Per modality,
+in order:
 
 1. **paid** — a configured API key
 2. **mlx-serve** — `MLX_SERVE_BASE_URL`

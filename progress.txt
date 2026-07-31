@@ -49,8 +49,8 @@
   .github/workflows/ci.yml. `.chief/verify.sh` now runs `make check`.
 - Stack rationale recorded in README "Stack"; per-area gate commands in README, CLAUDE.md and
   .chief/agent-context.md. `make check` and `make build` both green on the skeleton.
-- Next: US-AG2 — port the sacred ladder from ~/Development/analyzer
-  (`src/filmstudio/core/ladders.py`, `mlx_serve.py`; cost lives in `cost.py`/`cost_gate.py`).
+- Next: US-AG2 — port the sacred ladder from the upstream media-pipeline reference
+  (`core/ladders.py`, `mlx_serve.py`; cost lives in `cost.py`/`cost_gate.py`).
 ---
 ## US-AG2 — Provider-router: the sacred ladder, OpenAI-compatible, always-completes
 - New modules under `provider-router/src/agora_provider_router/`: `ladder.py` (tier order as
@@ -63,8 +63,8 @@
   (paid/mlx/local + terminal placeholder) rather than vendor names, because here the router
   *is* the ladder; and the local tiers require a CONFIGURED base URL — no implicit localhost
   probe, or "no local servers" would depend on what happens to be listening on the box.
-- Next: US-AG3 — budget ceilings + the KCB manifest. Analyzer's cost logic is in
-  `~/Development/analyzer/src/filmstudio/core/cost.py` / `cost_gate.py`. Seams already in place:
+- Next: US-AG3 — budget ceilings + the KCB manifest. The upstream cost logic is in
+  its `core/cost.py` / `cost_gate.py`. Seams already in place:
   `Backend`/`TierResolution` are where a per-capability `cost` hangs, `Completion.routing()`
   is where projected/actual cost joins the response, and the placeholder already reports
   zero-token usage so an estimator can read every tier the same way.
@@ -111,8 +111,8 @@
   the best affordable rung. Cheapest-wins applies only where the ladder expresses no preference —
   between two usable paid vendors (`rank`).
 - **Costs are KCB budget units, not USD** (anchored 1 unit = US$0.00001): a grant crosses projects
-  that share no billing account, so the bus needs one comparable scalar. Rates ported from Analyzer's
-  USD table, which is at `~/Development/analyzer/src/filmstudio/cost.py` — NOT `core/`, as US-AG2's
+  that share no billing account, so the bus needs one comparable scalar. Rates ported from the
+  upstream USD table, which lives at its `cost.py` — NOT `core/cost.py`, as US-AG2's
   note said. `unpriced` is deliberately not `free`: an unknown vendor prices 0.0 but is flagged,
   and `within()` refuses it under any ceiling, or it would become the ladder's cheapest route.
 - **The manifest advertises the CURRENTLY RESOLVED tier's cost**, so a keyless router publishes
