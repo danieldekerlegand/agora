@@ -278,11 +278,15 @@ accepts hand-written samples. It is reachable as `@agora/schemas/fixtures`, neve
 library surface, and a test asserts its `registryVersion` is the one this build claims to speak,
 so it cannot quietly go stale.
 
-Which projects a bridge layer covers is **that registry's data**, not agora's. In the one koine
-ships today the bridged side is `analyzer` (as lifted) and `insimul` (added at registryVersion
-0.4.0), each mapping its own predicates onto a canonical vocabulary a third project hosts; the
-host is the canonical *side* rather than a bridged project, which is why it is absent from
-`bridgedProjects`. Another deployment declares another cast.
+Which projects a bridge layer covers is **that registry's data**, not agora's. A loaded document
+declares its own cast — the canonical host in `canonicalProject`, the bridged projects as the
+keys of its `projects` block (`bridgedProjectsOf`) — and the validator checks that the
+declaration is **well-formed and self-consistent**, never that it matches a set pinned in this
+build: the canonical host may not also appear as a bridged project (it hosts the vocabulary the
+mappings target, so it is the canonical *side* of the bridge), every mapping entry must be
+well-formed, and every declared mirror must be derived rather than authored. A registry naming
+projects agora has never heard of loads unchanged. What `RELATION_REGISTRY` pins is the
+registry's *version and layout*, and nothing about who is in it.
 
 A registry entry classifies a relation on **three orthogonal axes**, modelled in
 `schemas/src/axes.ts`: its **dialect** tier (KGP §5 — what logic a consumer may evaluate:
@@ -310,9 +314,10 @@ that silently re-hashes every claim id derived from it (KGP §3); a change means
 
 ```ts
 const registry = await loadRelationRegistry('https://koine.example');
-registry.signature('soc:parent_of');      // 'soc:parent_of · 2 · parent|child · false'
-const analyzer = registry.egressFor('analyzer'); // predicate → KGP §7.2 class
-filterPackForEgress(pack, analyzer);          // …which is what the producer filter takes
+registry.signature('soc:parent_of');                       // 'soc:parent_of · 2 · parent|child · false'
+for (const project of bridgedProjectsOf(registry.document)) {  // the cast is the registry's data
+  filterPackForEgress(pack, registry.egressFor(project));   // predicate → KGP §7.2 class
+}
 ```
 
 It fetches `predicate-mapping.json`, follows it to the vocabulary files it names, validates

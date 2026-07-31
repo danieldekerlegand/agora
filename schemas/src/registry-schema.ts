@@ -133,12 +133,43 @@ export interface VocabularyIndex {
   readonly domains: readonly string[];
 }
 
+/** A copy of the registry that is generated from the canonical one, never authored. */
+export interface RegistryMirror {
+  /** The project holding the mirror (a KINP namespace). */
+  readonly project: string;
+  /** Its path within that project's repo. */
+  readonly path: string;
+  /** How it is kept honest: regenerated from the canonical copy, with a drift gate. */
+  readonly mode: 'generated-mirror';
+  readonly [key: string]: unknown;
+}
+
 /** `predicate-mapping.json`, validated. */
 export interface RegistryDocument {
   readonly registryVersion: string;
   readonly relationRegistry: VocabularyIndex;
+  /**
+   * The project hosting the canonical vocabulary every mapping targets, where the registry
+   * names it. It is the canonical *side* of the bridge, so it is never one of `projects`:
+   * its coverage is the vocabulary itself. Optional — a registry that declares no canonical
+   * host is read as a bridge layer over a vocabulary nobody claims to own.
+   */
+  readonly canonicalProject?: string;
+  /** Copies declared derived from this one. Regenerated; a hand edit is how a registry forks. */
+  readonly mirrors?: readonly RegistryMirror[];
+  /** The bridged projects, keyed by KINP namespace — whichever cast *this* registry covers. */
   readonly projects: Readonly<Record<string, ProjectMappings>>;
   readonly [key: string]: unknown;
+}
+
+/**
+ * The bridged projects a registry covers, in declaration order. This is the registry's data:
+ * agora pins the registry's *version and layout* (`relation-registry.ts`), never its cast, so
+ * a deployment whose registry bridges an entirely different set of projects loads here
+ * unchanged.
+ */
+export function bridgedProjectsOf(document: RegistryDocument): readonly string[] {
+  return Object.keys(document.projects);
 }
 
 /** Both artifacts as one loaded registry — what a stability check compares. */
@@ -289,6 +320,11 @@ function parseVocabularyRow(line: string, path: string, lineNumber: number): Rel
  * Validate `predicate-mapping.json`, narrowing it in place. Unknown keys survive: the
  * registry is a contract this build reads, not one it rebuilds, so a newer key it does not
  * model must pass through rather than be dropped.
+ *
+ * What is checked is **structure and self-consistency**, never membership in a cast of
+ * projects: which projects a registry bridges is that registry's own declaration (see {@link
+ * bridgedProjectsOf}), so a document naming projects this build has never heard of is a
+ * registry it can read, not one it may reject.
  */
 export function parseRegistry(value: unknown): RegistryDocument {
   const doc = object(value, 'registry');
@@ -300,24 +336,28 @@ export function parseRegistry(value: unknown): RegistryDocument {
     );
   }
   vocabularyIndex(doc.relationRegistry);
-  const projects = object(doc.projects, 'registry.projects');
-  if (Object.hasOwn(projects, RELATION_REGISTRY.canonicalProject)) {
-    throw new RegistryError(
-      `registry.projects must not carry ${RELATION_REGISTRY.canonicalProject}: it hosts the ` +
-        `canonical vocabulary every mapping targets, so it is the canonical side of the ` +
-        `bridge and never a bridged project`,
+  const canonical =
+    doc.canonicalProject === undefined
+      ? undefined
+      : string(doc.canonicalProject, 'registry.canonicalProject');
+  if (doc.mirrors !== undefined) {
+    array(doc.mirrors, 'registry.mirrors').forEach((value_, index) =>
+      mirror(value_, `registry.mirrors[${String(index)}]`),
     );
   }
-  for (const name of RELATION_REGISTRY.bridgedProjects) {
-    if (!Object.hasOwn(projects, name)) {
-      throw new RegistryError(`registry.projects is missing the bridged project ${name}`);
-    }
-  }
+  const projects = object(doc.projects, 'registry.projects');
   for (const name of Object.keys(projects)) {
-    if (!(RELATION_REGISTRY.bridgedProjects as readonly string[]).includes(name)) {
+    if (name === '') {
       throw new RegistryError(
-        `registry.projects.${name} is not a bridged project this build speaks ` +
-          `(${RELATION_REGISTRY.bridgedProjects.join(', ')})`,
+        `registry.projects has an entry with an empty name — a key here is the project's KINP ` +
+          `namespace, which is what a consumer's mappings are looked up by`,
+      );
+    }
+    if (name === canonical) {
+      throw new RegistryError(
+        `registry.projects must not carry ${name}: the registry declares it the canonical ` +
+          `project, so it hosts the vocabulary every mapping targets and is the canonical ` +
+          `side of the bridge, never a bridged one`,
       );
     }
     project(projects[name], `registry.projects.${name}`);
@@ -341,6 +381,18 @@ function vocabularyIndex(value: unknown): void {
   array(index.domains, 'registry.relationRegistry.domains').forEach((path, i) =>
     string(path, `registry.relationRegistry.domains[${String(i)}]`),
   );
+}
+
+function mirror(value: unknown, at: string): void {
+  const entry = object(value, at);
+  string(entry.project, `${at}.project`);
+  string(entry.path, `${at}.path`);
+  if (entry.mode !== 'generated-mirror') {
+    throw new RegistryError(
+      `${at}.mode must be \`generated-mirror\`, got ${show(entry.mode)} — a declared copy that ` +
+        `may be authored is how the registry forks`,
+    );
+  }
 }
 
 function project(value: unknown, at: string): void {

@@ -22,10 +22,11 @@
  * tests. It is deliberately not re-exported here: it is test data, not a library surface.
  */
 export { SPEC_VERSIONS } from './versions.ts';
-export { RELATION_REGISTRY, type RegistryMirror } from './relation-registry.ts';
+export { RELATION_REGISTRY } from './relation-registry.ts';
 export {
   assertRelationsResolve,
   assertSignatureStability,
+  bridgedProjectsOf,
   CANONICAL_KINDS,
   CLAIM_KINDS,
   crossesAsClaim,
@@ -43,6 +44,7 @@ export {
   type MappingEntry,
   type ProjectMappings,
   type RegistryDocument,
+  type RegistryMirror,
   type RegistrySnapshot,
   type RelationRow,
   type SignatureChange,

@@ -5,6 +5,7 @@ import { RELATION_REGISTRY } from './relation-registry.ts';
 import {
   assertRelationsResolve,
   assertSignatureStability,
+  bridgedProjectsOf,
   crossesAsClaim,
   diffSignatures,
   isRegistryDocument,
@@ -22,6 +23,9 @@ const document = parseRegistry(KOINE_PREDICATE_MAPPING);
 const relations = parseVocabulary(KOINE_VOCABULARY);
 const registry: RegistrySnapshot = { document, relations };
 
+/** The cast *this* registry declares — read from the document, never pinned by the build. */
+const bridged = bridgedProjectsOf(document);
+
 function entriesOf(project: string): readonly MappingEntry[] {
   const mappings = document.projects[project];
   if (!mappings) throw new Error(`no such project: ${project}`);
@@ -34,6 +38,8 @@ function entriesOf(project: string): readonly MappingEntry[] {
  */
 interface Draft {
   registryVersion: string;
+  canonicalProject?: string;
+  mirrors?: Record<string, unknown>[];
   projects: Record<string, { relations: Record<string, unknown>[] } | undefined>;
 }
 
@@ -64,16 +70,26 @@ describe('the real koine registry', () => {
 
   it('validates as it ships — mappings and vocabulary together', () => {
     expect(isRegistryDocument(KOINE_PREDICATE_MAPPING)).toBe(true);
-    expect(Object.keys(document.projects).sort()).toEqual([...RELATION_REGISTRY.bridgedProjects]);
+    // The cast is the bundled sample registry's data, asserted here as a fact about *it*.
+    expect([...bridged].sort()).toEqual(['analyzer', 'insimul']);
     // One vocabulary: every relation a mapping normalizes to has a row of its own.
     expect(() => {
       assertRelationsResolve(document, relations);
     }).not.toThrow();
   });
 
+  it('declares its mirrors as derived copies, never second sources', () => {
+    // A declared copy that may be authored is how the registry forks, so `generated-mirror` is
+    // the only mode the validator accepts — and the mirrors are the registry's data too.
+    expect(document.mirrors?.length).toBeGreaterThan(0);
+    for (const declared of document.mirrors ?? []) {
+      expect(declared.mode).toBe('generated-mirror');
+    }
+  });
+
   it('keeps the mapping layer from coining vocabulary', () => {
     // The rule that makes the two artifacts one registry: only a claim names relations.
-    for (const project of RELATION_REGISTRY.bridgedProjects) {
+    for (const project of bridged) {
       for (const published of entriesOf(project)) {
         expect(published.koineRelations.length > 0).toBe(crossesAsClaim(published.canonicalKind));
       }
@@ -83,7 +99,7 @@ describe('the real koine registry', () => {
   it('names a filterable predicate for everything it marks local-only', () => {
     // §7.2 is the producer's obligation, and a producer filters by predicate name. An entry
     // whose `external` is prose cannot be filtered, so it may not be local-only.
-    const localOnly = RELATION_REGISTRY.bridgedProjects.flatMap((project) =>
+    const localOnly = bridged.flatMap((project) =>
       entriesOf(project).filter((published) => published.egress === 'local-only'),
     );
     expect(localOnly.length).toBeGreaterThan(0);
@@ -162,14 +178,26 @@ describe('parseRegistry', () => {
     expect(() => parseRegistry(prose)).toThrow(/local-only but names no machine-readable/);
   });
 
-  it('rejects a projects block that carries the canonical project or an unknown one', () => {
+  it('rejects a projects block that carries the canonical project the registry declares', () => {
+    // Self-consistency, not membership: the offending name is whatever *this* document called
+    // its canonical host, because that project hosts the vocabulary the mappings target.
     const forked = draft();
-    forked.projects.pinakes = forked.projects.analyzer;
+    forked.canonicalProject = 'atlas';
+    forked.projects.atlas = forked.projects.analyzer;
     expect(() => parseRegistry(forked)).toThrow(/canonical side/);
+  });
 
+  it('rejects a mirror that is not declared derived', () => {
+    const authored = draft();
+    authored.mirrors = [{ project: 'atlas', path: 'shared/mapping.json', mode: 'authored' }];
+    expect(() => parseRegistry(authored)).toThrow(/generated-mirror/);
+  });
+
+  it('accepts a registry that covers fewer projects than the one it shipped with', () => {
+    // A cast is not a quorum: dropping a bridge is a registry change, never a load failure.
     const partial = draft();
     partial.projects = { analyzer: partial.projects.analyzer };
-    expect(() => parseRegistry(partial)).toThrow(/missing the bridged project insimul/);
+    expect(() => parseRegistry(partial)).not.toThrow();
   });
 
   it('rejects a mapping that names a relation the vocabulary does not have', () => {
@@ -179,6 +207,77 @@ describe('parseRegistry', () => {
     ];
     expect(() => {
       assertRelationsResolve(parseRegistry(invented), relations);
+    }).toThrow(/add it to the TSV/);
+  });
+});
+
+/**
+ * A registry from a deployment with no connection to the one koine ships: its own canonical
+ * host, its own bridged project, its own predicates, its own vocabulary. This is the case the
+ * validator used to reject outright — the loaded cast was pinned in the build, so any registry
+ * but one was unreadable. Nothing here may be recognizable to agora.
+ */
+const FOREIGN_VOCABULARY = [
+  {
+    path: 'registry/relations.tsv',
+    text:
+      `relation\tarity\targ_roles\tsymmetric\ttier\tdomain\tinverse\tdescription\n` +
+      `moored_in\t2\tvessel|harbour\tfalse\thorn-safe\tcore\t\tA vessel is moored in a harbour\n`,
+  },
+];
+
+const FOREIGN_REGISTRY = {
+  registryVersion: RELATION_REGISTRY.version,
+  canonicalProject: 'atlas',
+  relationRegistry: { core: 'relations.tsv', domains: [] },
+  mirrors: [{ project: 'atlas', path: 'shared/mapping.json', mode: 'generated-mirror' }],
+  projects: {
+    harbour: {
+      title: 'Harbour ⇄ the canonical vocabulary',
+      direction: { 'H->C': 'harbour predicates cross into the canonical vocabulary' },
+      relations: [
+        {
+          id: 1,
+          external: 'berths(vessel, quay)',
+          canonicalKind: 'edge',
+          direction: 'H->C',
+          dialect: 'horn-safe',
+          egress: 'exportable',
+          koineRelations: ['moored_in'],
+          pending: false,
+        },
+        {
+          id: 2,
+          external: 'crew_roster/2',
+          canonicalKind: 'none',
+          direction: 'H->C',
+          dialect: null,
+          egress: 'local-only',
+          koineRelations: [],
+          pending: false,
+        },
+      ],
+    },
+  },
+};
+
+describe('a registry whose cast this build has never heard of', () => {
+  it('loads, and reports the cast it declares', () => {
+    const foreign = parseRegistry(FOREIGN_REGISTRY);
+    expect(bridgedProjectsOf(foreign)).toEqual(['harbour']);
+    expect(foreign.canonicalProject).toBe('atlas');
+    expect(foreign.projects.harbour?.relations).toHaveLength(2);
+  });
+
+  it('cross-checks against its own vocabulary, not the one koine ships', () => {
+    const foreign = parseRegistry(FOREIGN_REGISTRY);
+    const vocabulary = parseVocabulary(FOREIGN_VOCABULARY);
+    expect(() => {
+      assertRelationsResolve(foreign, vocabulary);
+    }).not.toThrow();
+    // The rules still bite — they are just structural, so they bite in any deployment.
+    expect(() => {
+      assertRelationsResolve(foreign, relations);
     }).toThrow(/add it to the TSV/);
   });
 });

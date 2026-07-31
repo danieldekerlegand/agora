@@ -12,10 +12,15 @@
  *   may appear in a claim, with the arity/arg-order/symmetry that make claim normalization
  *   deterministic across producers (KGP §3.2 rule 1);
  * - the **bridge mappings** (`predicate-mapping.json`) — how each bridged project's own
- *   predicates cross into the canonical node/edge vocabulary. Lifted verbatim out of pinakes
- *   (merged `17f0713`) per the ADR-0002 amendment, then extended with the insimul vocabulary.
- *   It coins no relation names: a mapping that crosses as a claim names the vocabulary relation
- *   it normalizes to.
+ *   predicates cross into the canonical node/edge vocabulary. It coins no relation names: a
+ *   mapping that crosses as a claim names the vocabulary relation it normalizes to.
+ *
+ * **Which projects those two artifacts cover is the registry's own data, never this build's.**
+ * A loaded document declares its cast — the canonical host it names in `canonicalProject`, the
+ * bridged projects its `projects` block carries — and `registry-schema.ts` validates that the
+ * declaration is well-formed and self-consistent, not that it matches a set pinned here. That
+ * is the difference between a commons any conformant deployment can load its registry into and
+ * one that speaks a single ecosystem's registry.
  *
  * A relation's signature is immutable once published — changing arity, argument order or
  * symmetry silently changes every dependent claim id (KGP §3), so a change means a new
@@ -25,16 +30,6 @@
  * §7.2 enforcement that hangs off `egress` — is `axes.ts`.
  */
 
-/** A copy of the registry that is generated from the canonical one, never authored. */
-export interface RegistryMirror {
-  /** The project holding the mirror (a KINP namespace). */
-  readonly project: string;
-  /** Its path within that project's repo. */
-  readonly path: string;
-  /** How it is kept honest: regenerated from koine, with a drift gate comparing the two. */
-  readonly mode: 'generated-mirror';
-}
-
 /**
  * The registry contract this build implements. `version` is the `registryVersion` of
  * `koine/registry/predicate-mapping.json`; the loader refuses a registry it does not speak.
@@ -43,30 +38,16 @@ export const RELATION_REGISTRY = {
   /**
    * `registryVersion` of the canonical registry (koine). 0.3.0 split the old
    * `portabilityClasses` key into the two axes `axes.ts` models — a registry at 0.2.0 still
-   * says `portability: [...]` and cannot be read by this build. 0.4.0 added the insimul
-   * bridge mappings (additive: no analyzer entry changed, no signature moved). 0.4.1/0.4.2 are
-   * further additive bridge-mapping changes only — 0.4.1 added the Bridge-1 `_name/2` seed
-   * predicates (country_name/2, settlement_name/2, item_name/2), and 0.4.2 landed the insimul
-   * Bridge-2 mappings (their `pending` flags flipped to false, the pending-schema lists
-   * emptied). No bridged project was added and no relation signature moved, so the vocabulary
-   * and `bridgedProjects` are unchanged.
+   * says `portability: [...]` and cannot be read by this build. 0.4.0 added a second bridged
+   * project's mappings (additive: no existing entry changed, no signature moved). 0.4.1/0.4.2
+   * are further additive bridge-mapping changes only — 0.4.1 added a set of `_name/2` seed
+   * predicates and 0.4.2 landed the rest of that second bridge (its `pending` flags flipped to
+   * false, the pending-schema lists emptied). No bridged project was added and no relation
+   * signature moved, so the vocabulary is unchanged.
    */
   version: '0.4.2',
   /** The repo that holds the authoritative copy. There is exactly one. */
   repo: 'koine',
-  /**
-   * The project hosting the canonical node/edge schema every mapping targets. It is the
-   * canonical *side* of the bridge, so it is not itself a bridged project: its coverage is the
-   * relation vocabulary, not a `projects` entry.
-   */
-  canonicalProject: 'pinakes',
-  /**
-   * The bridged projects the registry's `projects` block covers at `version` — the ones whose
-   * own predicates cross into the canonical vocabulary. A loader that finds a project here with
-   * no mappings, or mappings for a project not listed here, is reading a registry this build
-   * does not speak.
-   */
-  bridgedProjects: ['analyzer', 'insimul'],
   /** The relation vocabulary: the shared core plus namespaced domain extensions. */
   vocabulary: {
     core: 'registry/relations.tsv',
@@ -74,8 +55,4 @@ export const RELATION_REGISTRY = {
   },
   /** The bridge layer: bridged-project predicates ⇄ the canonical vocabulary. */
   mappings: 'registry/predicate-mapping.json',
-  /** Declared mirrors. Regenerated from koine — a hand edit here is how a registry forks. */
-  mirrors: [
-    { project: 'pinakes', path: 'shared/predicate-mapping.json', mode: 'generated-mirror' },
-  ] as readonly RegistryMirror[],
 } as const;
