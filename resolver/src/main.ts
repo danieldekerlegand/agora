@@ -11,14 +11,14 @@
  *
  *   AGORA_RESOLVER_HOST      bind host        (default 127.0.0.1)
  *   AGORA_RESOLVER_PORT      bind port        (default 8788)
- *   AGORA_RESOLVER_AUTHORITY authority base URL — dials Pinakes when set, local when not
+ *   AGORA_RESOLVER_AUTHORITY authority base URL — dials it when set, stays local when not
  *   AGORA_RESOLVER_IDENTITY  KINP identity of the authority (provenance / error messages)
  *   AGORA_RESOLVER_CACHE     durable cache path — offline replays come back authority:'cache'
  *   AGORA_RESOLVER_LINKS     durable same_as/based_on + review-queue store path
  *
  * Nothing here relaxes the invariant the service is built on: the routes are `resolve` and
  * `reconcile`, the service carries identity and never a payload, and a cache replay is
- * labelled `cache`, never `pinakes` (§8, §11 decision 1).
+ * labelled `cache`, never `authority` (§8, §11 decision 1).
  */
 import { pathToFileURL } from 'node:url';
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createRegistry, selectFinetuneProvider, TRAINER_IDENTITY } from './index.ts';
-import { PINAKES_FINETUNE } from './fixtures/providers.ts';
+import { SPECIALIZED_FINETUNE } from './fixtures/providers.ts';
 import TRAINER_MANIFEST from './fixtures/trainer.manifest.json';
 
 const PINAKES_IDENTITY = 'pinakes:agent:finetune';
@@ -10,12 +10,12 @@ const PINAKES_IDENTITY = 'pinakes:agent:finetune';
  * FT-K: more than one `finetune` provider can match a job — agora's general trainer and
  * Pinakes's specialized provider both accept `text-generation`. These drive the registry's
  * disambiguation (KFT §8/§9): specialized first, then cheaper, explicit target honored, an
- * unbroken tie surfaced. `PINAKES_FINETUNE` is the stub specialized provider manifest.
+ * unbroken tie surfaced. `SPECIALIZED_FINETUNE` is the stub specialized provider manifest.
  */
 function bothProviders() {
   const registry = createRegistry();
   registry.register(TRAINER_MANIFEST);
-  registry.register(PINAKES_FINETUNE);
+  registry.register(SPECIALIZED_FINETUNE);
   return registry;
 }
 
@@ -36,7 +36,7 @@ describe('finetune provider selection (FT-K)', () => {
     // is the pricier one (1_800_000 vs 900_000). Neither order nor price is why Pinakes wins.
     const registry = createRegistry();
     registry.register(TRAINER_MANIFEST);
-    registry.register(PINAKES_FINETUNE);
+    registry.register(SPECIALIZED_FINETUNE);
     const selection = registry.selectFinetune({ modality: 'text-generation' });
     expect(selection.outcome).toBe('selected');
     if (selection.outcome !== 'selected') return;
@@ -87,9 +87,9 @@ describe('finetune provider selection (FT-K)', () => {
   it('surfaces an unbroken tie to the caller — never resolved by registration order', () => {
     // Two equally specialized, equally priced specialists for the same job.
     const registry = createRegistry();
-    registry.register(PINAKES_FINETUNE);
+    registry.register(SPECIALIZED_FINETUNE);
     registry.register({
-      ...PINAKES_FINETUNE,
+      ...SPECIALIZED_FINETUNE,
       identity: 'other:agent:finetune',
       endpoints: { a2a: 'https://other.example/.well-known/agent-card.json' },
     });
@@ -104,14 +104,14 @@ describe('finetune provider selection (FT-K)', () => {
 
   it('breaks a specialization tie by lower cost (delta K)', () => {
     const registry = createRegistry();
-    registry.register(PINAKES_FINETUNE); // est_units 900_000
+    registry.register(SPECIALIZED_FINETUNE); // est_units 900_000
     registry.register({
-      ...PINAKES_FINETUNE,
+      ...SPECIALIZED_FINETUNE,
       identity: 'dear:agent:finetune',
       endpoints: { a2a: 'https://dear.example/.well-known/agent-card.json' },
       capabilities: [
         {
-          ...PINAKES_FINETUNE.capabilities![0],
+          ...SPECIALIZED_FINETUNE.capabilities![0],
           cost: { tier: 'local', meter: 'gpu-seconds', est_units: 5_000_000 },
         },
       ],

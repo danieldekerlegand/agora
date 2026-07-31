@@ -10,16 +10,16 @@ import { startResolver, type ResolvedIdentity, type StartedResolver } from './in
 
 /**
  * The resolver's slice of the composed run (US-6): boot the real entry point against a live
- * authority, resolve an ent id (authority:'pinakes', cache populated), then restart the same
+ * authority, resolve an ent id (authority:'authority', cache populated), then restart the same
  * entry point with the authority gone — the durable cache replays the answer as
- * authority:'cache', never 'pinakes' (§8, §11 decision 1). The same_as/based_on firewall
+ * authority:'cache', never 'authority' (§8, §11 decision 1). The same_as/based_on firewall
  * holds through the round-trip: the persisted based_on edge never leaks into the same_as
  * closure recomputed on reload (§4.3).
  */
 describe('cross-service: the resolver replays its durable cache offline', () => {
-  const ENT_ID = 'insimul:world:alderforest:ent:npc-renaud';
-  const SAME_AS = 'insimul:world:alderforest:ent:renaud-the-elder';
-  const BASED_ON = 'pinakes:ent:napoleon';
+  const ENT_ID = 'worldsim:world:alderforest:ent:npc-renaud';
+  const SAME_AS = 'worldsim:world:alderforest:ent:renaud-the-elder';
+  const BASED_ON = 'refkb:ent:napoleon';
 
   const started: StartedResolver[] = [];
   const authorities: Server[] = [];
@@ -33,7 +33,7 @@ describe('cross-service: the resolver replays its durable cache offline', () => 
     rmSync(dir, { recursive: true, force: true });
   });
 
-  /** A minimal Pinakes-shaped authority: answers §8's resolve body for the one ent id. */
+  /** A minimal §8-shaped authority: answers §8's resolve body for the one ent id. */
   function bootAuthority(): Promise<string> {
     const server = createServer((req, res) => {
       if (req.url?.startsWith('/resolve/')) {
@@ -73,7 +73,7 @@ describe('cross-service: the resolver replays its durable cache offline', () => 
     const live = (await (
       await fetch(`${onlineBase}/resolve?id=${encodeURIComponent(ENT_ID)}`)
     ).json()) as ResolvedIdentity;
-    expect(live.authority).toBe('pinakes');
+    expect(live.authority).toBe('authority');
     expect(live.sameAs).toContain(SAME_AS);
     expect(live.basedOn).toContain(BASED_ON);
 
@@ -93,7 +93,7 @@ describe('cross-service: the resolver replays its durable cache offline', () => 
       await fetch(`${offlineBase}/resolve?id=${encodeURIComponent(ENT_ID)}`)
     ).json()) as ResolvedIdentity;
 
-    // Replayed from cache, labelled 'cache' — never relabelled 'pinakes'.
+    // Replayed from cache, labelled 'cache' — never relabelled 'authority'.
     expect(replayed.authority).toBe('cache');
     expect(replayed.id).toBe(ENT_ID);
     // The firewall survived the disk round-trip: based_on stays out of the same_as closure.

@@ -1,13 +1,14 @@
 /**
  * The KINP resolver reference implementation (`koine/specs/identity.md` §8).
  *
- * Resolves identifiers and reconciles duplicate entity references, backed by Pinakes as the
- * authoritative store for real-world entities (§11 decision 1). Like the registry it is a
- * *lookup* service (ADR-0001 decision 3) — it returns identity, never relayed payloads.
+ * Resolves identifiers and reconciles duplicate entity references, backed by whichever service
+ * the deployment names as its authoritative store for real-world entities (§11 decision 1).
+ * Like the registry it is a *lookup* service (ADR-0001 decision 3) — it returns identity,
+ * never relayed payloads.
  *
  * Two implementations, one seam:
  *
- * - {@link createPinakesResolver} — dials the authority, computes the `same_as` closure
+ * - {@link createAuthorityResolver} — dials the authority, computes the `same_as` closure
  *   without ever crossing a `based_on` edge (§4.3), matches descriptors in the
  *   OpenRefine/Wikidata shape (§4.5), applies the hybrid merge policy (§11 decision 2), and
  *   falls back to a local cache when the authority is unreachable (§8).
@@ -16,8 +17,8 @@
  *   loudly rather than guessing, because a resolver that quietly invented ids would seed the
  *   fabric with entities nothing else can join against — the precise failure §4 prevents.
  *
- * The console defaults to the local one and takes the Pinakes one when it is given an
- * authority address, so a run with no Pinakes in it is degraded, not broken.
+ * The console defaults to the local one and takes the dialing one when it is given an
+ * authority address, so a run with no authority in it is degraded, not broken.
  */
 import { kindOf, worldOf, SPEC_VERSIONS } from '@agora/schemas';
 
@@ -84,15 +85,14 @@ export {
 } from './main.ts';
 export {
   closureOver,
-  createPinakesResolver,
-  PINAKES_IDENTITY,
+  createAuthorityResolver,
   readCandidates,
   readResolution,
   type AuthorityFetch,
+  type AuthorityOptions,
   type AuthorityRequestInit,
   type AuthorityResponse,
-  type PinakesOptions,
-} from './pinakes.ts';
+} from './authority.ts';
 
 /**
  * A resolver with no backing store: it recognises ids, and refuses to invent them.

@@ -25,19 +25,22 @@ const SCHEMAS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'koine-schemas
 /**
  * The interchange artifacts agora validates, mapped to the koine schema file that governs each —
  * the five names legacy's `validate.mjs` exposed (grounding-pack, canonical-world-export,
- * entity-grounding-snapshot, analyzer-canonical-export, dataset-jsonl-header) plus `finetune-job`, the
+ * entity-grounding-snapshot, canonical-graph-export, dataset-jsonl-header) plus `finetune-job`, the
  * KFT §3 job manifest agora:41 added (it `$ref`s provenance + dataset-jsonl-header, both already
  * registered). This validator checks STRUCTURE only — required fields, enums, types, `$ref`
  * resolution; the SEMANTIC admission rules KFT defines (modality×method compatibility, egress
- * feasibility, cost ceiling) are PROVIDER behavior enforced at invoke (agora:90 / pinakes:90), not
+ * feasibility, cost ceiling) are PROVIDER behavior enforced by the provider at invoke, not by
  * schema validation. `provenance.schema.json` is deliberately absent: it is the shared `$defs`
  * library every artifact `$ref`s, not a top-level artifact anyone validates against directly.
+ *
+ * Every name here is a CAPABILITY, never a producer: `canonical-graph-export` is *any* producer's
+ * predicate web projected onto the canonical graph, whoever produced it.
  */
 export const ARTIFACT_SCHEMAS = {
   'grounding-pack': 'grounding-pack.schema.json',
   'canonical-world-export': 'canonical-world-export.schema.json',
   'entity-grounding-snapshot': 'entity-grounding-snapshot.schema.json',
-  'analyzer-canonical-export': 'analyzer-canonical-export.schema.json',
+  'canonical-graph-export': 'canonical-graph-export.schema.json',
   'dataset-jsonl-header': 'dataset-jsonl-header.schema.json',
   'finetune-job': 'finetune-job.schema.json',
 } as const;

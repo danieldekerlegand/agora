@@ -73,7 +73,7 @@ export function inheritsIdentity(observed: string, candidate: string, policy: Me
   return policy.identityInheriting.includes(candidate);
 }
 
-/** `insimul:world:alderforest#save-7f` and `insimul:world:alderforest` — same canon (§5). */
+/** `worldsim:world:alderforest#save-7f` and `worldsim:world:alderforest` — same canon (§5). */
 export function isForkOf(a: string, b: string): boolean {
   return a !== b && baseWorld(a) === baseWorld(b);
 }

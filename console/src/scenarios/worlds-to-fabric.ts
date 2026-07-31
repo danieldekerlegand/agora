@@ -1,4 +1,10 @@
 /**
+ * **SAMPLE SCENARIO — not a contract.** The participants named below are the cast of the
+ * ecosystem agora was extracted from, carried over verbatim so the scenario stays a faithful
+ * executable of koine's own worked example. agora knows none of them: the runner resolves
+ * whatever the registry indexes, and a conformant deployment writes its own scenario with its
+ * own cast. Treat every project name here as fixture text.
+ *
  * `kcs:worlds-to-fabric` — the identity firewall, encoded (KCS §6).
  *
  * This is `koine/scenarios/e2e-worlds-to-fabric.md` made executable: an Insimul designer

@@ -13,6 +13,14 @@ import { KOINE_PREDICATE_MAPPING, KOINE_VOCABULARY } from './fixtures/koine-regi
 // the regen — the same field drifting on both sides of that check — slips through. This test
 // closes that gap: it byte-compares the committed fixture against koine's canonical files, so a
 // stale fixture is red here (the same failure the regenerator's `--check` mode reports).
+//
+// It pins each file only for as long as koine PUBLISHES it. koine keeps the relation VOCABULARY
+// (`relations.tsv` + `relations/<domain>.tsv`) — the contract — and has moved the bridged-project
+// `predicate-mapping.json` out as deployment instance data, which is the same split the loader
+// makes (a registry declares its own cast; agora validates structure, never membership). A file
+// koine no longer publishes has no upstream to fork from, so the fixture's copy is a bundled
+// SAMPLE and is reported as such rather than compared against a path that is not there. The pin
+// re-arms by itself the day koine publishes one again.
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // schemas/src
 const SCHEMAS_DIR = resolve(HERE, '..'); // schemas
@@ -24,6 +32,10 @@ const SCHEMAS_DIR = resolve(HERE, '..'); // schemas
  * whose own `../koine` does not exist — still finds the one checkout that does. Mirrors
  * `findKoineRegistryDir` in regen-koine-fixture.mjs. Throws (never returns a bogus path) so an
  * absent koine is a loud failure with a reason, never a green no-op.
+ *
+ * The checkout is recognised by `relations.tsv` — the relation VOCABULARY, which is koine's
+ * contract and always published. Recognising it by a file koine may retire would turn "koine
+ * moved that file out" into "koine is not checked out", which are different failures.
  */
 function koineRegistryDir(): string {
   const roots = [resolve(SCHEMAS_DIR, '..')]; // this working tree's repo root
@@ -39,10 +51,10 @@ function koineRegistryDir(): string {
   }
   for (const root of roots) {
     const dir = join(dirname(root), 'koine', 'registry');
-    if (existsSync(join(dir, 'predicate-mapping.json'))) return dir;
+    if (existsSync(join(dir, 'relations.tsv'))) return dir;
   }
   throw new Error(
-    'koine sibling checkout not found: expected `koine/registry/predicate-mapping.json` beside ' +
+    'koine sibling checkout not found: expected `koine/registry/relations.tsv` beside ' +
       'the agora working tree (../koine, ADR-0001). This test compares the committed fixture ' +
       'against koine and cannot silently pass without it — clone koine next to agora and re-run.',
   );
@@ -57,21 +69,42 @@ function koinePathFor(fixturePath: string): string {
 describe('koine fixture drift', () => {
   const koineDir = koineRegistryDir();
 
-  it('pins predicate-mapping.json deep-equal to koine, registryVersion and all', () => {
-    const koineMapping: unknown = JSON.parse(
-      readFileSync(join(koineDir, 'predicate-mapping.json'), 'utf8'),
-    );
-    // Deep-equal covers every delta, registryVersion included: a koine version bump alone — same
-    // mappings, newer number — still drifts here even though it would touch no other assertion.
-    expect(
-      KOINE_PREDICATE_MAPPING,
-      'src/fixtures/koine-registry/predicate-mapping.json drifted from koine/registry/predicate-mapping.json — regenerate (npm run -w @agora/schemas regen:koine-fixture)',
-    ).toEqual(koineMapping);
+  const koineMappingPath = join(koineDir, 'predicate-mapping.json');
+  const koinePublishesMapping = existsSync(koineMappingPath);
 
-    const fixtureVersion = (KOINE_PREDICATE_MAPPING as { registryVersion?: unknown }).registryVersion;
-    const koineVersion = (koineMapping as { registryVersion?: unknown }).registryVersion;
-    expect(fixtureVersion, 'fixture registryVersion drifted from koine').toBe(koineVersion);
-  });
+  it.runIf(koinePublishesMapping)(
+    'pins predicate-mapping.json deep-equal to koine, registryVersion and all',
+    () => {
+      const koineMapping: unknown = JSON.parse(readFileSync(koineMappingPath, 'utf8'));
+      // Deep-equal covers every delta, registryVersion included: a koine version bump alone —
+      // same mappings, newer number — still drifts here even though it would touch no other
+      // assertion.
+      expect(
+        KOINE_PREDICATE_MAPPING,
+        'src/fixtures/koine-registry/predicate-mapping.json drifted from koine/registry/predicate-mapping.json — regenerate (npm run -w @agora/schemas regen:koine-fixture)',
+      ).toEqual(koineMapping);
+
+      const fixtureVersion = (KOINE_PREDICATE_MAPPING as { registryVersion?: unknown })
+        .registryVersion;
+      const koineVersion = (koineMapping as { registryVersion?: unknown }).registryVersion;
+      expect(fixtureVersion, 'fixture registryVersion drifted from koine').toBe(koineVersion);
+    },
+  );
+
+  // The other side of the same fact, so the retirement is asserted rather than merely skipped:
+  // with no koine copy the fixture's mapping is a bundled SAMPLE, and it must still be one this
+  // build can read (parsing/validation is registry-schema.test.ts's job — this pins that the
+  // file did not simply vanish along with its upstream).
+  it.runIf(!koinePublishesMapping)(
+    'reports predicate-mapping.json as a bundled sample once koine retires its copy',
+    () => {
+      expect(existsSync(koineMappingPath)).toBe(false);
+      expect(KOINE_PREDICATE_MAPPING).toBeTypeOf('object');
+      expect(
+        (KOINE_PREDICATE_MAPPING as { registryVersion?: unknown }).registryVersion,
+      ).toBeTypeOf('string');
+    },
+  );
 
   it('pins each vocabulary TSV byte-identical to koine', () => {
     for (const file of KOINE_VOCABULARY) {

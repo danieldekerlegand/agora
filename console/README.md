@@ -100,15 +100,17 @@ dialed for real either way, because the runner prefers a live registration over 
 
 - **`kcs:provider-router-roundtrip`** — a completion served by the zero-spend tier under a
   ceiling of zero budget units, with the resolved tier and cost surfaced in the UI. Live.
-- **`kcs:worlds-to-fabric`** — the executable form of
-  `../../koine/scenarios/e2e-worlds-to-fabric.md` (KCS §6): an Insimul fiction → Analyzer
-  ingest → Pinakes reconcile → cross-project queries, asserting the identity firewall.
-  Insimul, Analyzer and Pinakes have published no manifest yet, so all three run as stand-ins
-  (delta N) and the report says `stubbed`; the runner prefers a live registration over a
-  fixture, so adoption deletes fixtures rather than rewriting the scenario.
-- **`kcs:media-transform`** — the other pressure test,
+- **`kcs:worlds-to-fabric`** *(sample)* — the executable form of
+  `../../koine/scenarios/e2e-worlds-to-fabric.md` (KCS §6): a fiction → an ingest → a
+  reconcile → cross-project queries, asserting the identity firewall. The cast is the
+  ecosystem agora was extracted from, kept as fixture text so the scenario stays faithful to
+  koine's worked example — the runner knows none of them. None has published a manifest, so
+  all three run as stand-ins (delta N) and the report says `stubbed`; the runner prefers a
+  live registration over a fixture, so adoption deletes fixtures rather than rewriting the
+  scenario.
+- **`kcs:media-transform`** *(sample, same caveat)* — the other pressure test,
   `../../koine/scenarios/e2e-media-transform.md`: a playthrough → a cut + narration → a
-  Composer score → a multitrack EDL → a DaVinci projection, over four projects. It asserts the
+  composed score → a multitrack EDL → a DaVinci projection, over four participants. It asserts the
   control and media planes where `worlds-to-fabric` asserts identity — a cross-plane route
   planned before anything is dialed (delta F/J), a CAS `fetch` by id (delta G), per-asset
   `source_world` with `null` for everything generated (delta H), a spend ceiling on the one
@@ -182,8 +184,8 @@ to be rewritten against a spec rather than to define one.
 
 Watch targets are configured, not discovered by accident: registrations that publish a `subscribe`
 address, plus the fixtures in `src/fixtures/monitor/` for the peers that have not adopted the bus
-(a registration always wins over a fixture of the same identity). `monitor/analyzer.json` emits
-exchange telemetry and `monitor/insimul.json` does not — so the documented limitation is on screen,
+(a registration always wins over a fixture of the same identity). Of the two sample monitor
+fixtures one emits exchange telemetry and one does not — so the documented limitation is on screen,
 not only in this file. A provider that publishes no subscribe address is listed as unwatchable
 rather than dialed at a guessed URL.
 

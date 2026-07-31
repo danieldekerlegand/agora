@@ -1,7 +1,7 @@
 //! WASM (wasm-bindgen) bindings for agora's translation core.
 //!
 //! This crate is the embeddable-first facade for TypeScript consumers — the
-//! console, a pinakes client, anything running on Node or in a browser. It exposes
+//! console, any TS participant, anything running on Node or in a browser. It exposes
 //! the full canonical-graph translation matrix
 //! (`toTsv`/`toCsv`/`toCypher`/`toProlog`/`toSouffle`/`toProblog`) so a TS caller
 //! translates *in-process* with zero network hop. It is one facade over the single

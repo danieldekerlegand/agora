@@ -1,10 +1,13 @@
 /**
- * Synthetic providers for the registry's tests.
+ * Synthetic providers for the registry's tests — SAMPLE DATA, not a cast the registry knows.
  *
- * They are the ecosystem's own shapes rather than `foo`/`bar`: the KCB §2 example composer
- * (mood in, MIDI out), an Analyzer narrator, a Composer renderer and a Pinakes describer. That
- * makes the path tests read as the pressure test's real question — "compose a score from a
- * mood" — instead of a graph puzzle.
+ * Nothing in `registry/src/` reads a name from here: selection and path search are driven by
+ * the manifests a caller registers, and these exist only so the tests have shapes. They are
+ * modeled on real ones rather than `foo`/`bar` — the KCB §2 example composer (mood in, MIDI
+ * out), a narrator, a renderer, a describer — so the path tests read as the pressure test's
+ * real question ("compose a score from a mood") instead of a graph puzzle. The namespaces
+ * they are spelled with are the ecosystem agora was extracted from; treat them as fixture
+ * text, exactly like the `.example` hostnames beside them.
  *
  * The provider-router's manifest is *not* here: it is captured verbatim from the running
  * service in `provider-router.manifest.json`, and `provider-router/tests/test_manifest.py`
@@ -103,14 +106,14 @@ export const WORLD_EXPORT: CapabilityManifest = {
 };
 
 /**
- * Pinakes's **specialized** `finetune` provider (KFT §9, FT-K) — the stub the registry's
+ * A caller's own **specialized** `finetune` provider (KFT §9, FT-K) — the stub the registry's
  * multi-provider tiebreak drives against. It advertises a deliberately NARROWER capability
  * than agora's general trainer: a single `modality` (`text-generation`), only its
  * neurosymbolic SLM methods, and — its data being synthetic/personal-tier — a `local-only`
  * tier. For a `text-generation` job both providers serve, the registry must prefer THIS one:
  * more specialized wins over the general trainer, before cost is even consulted (KCB §3).
  */
-export const PINAKES_FINETUNE: CapabilityManifest = {
+export const SPECIALIZED_FINETUNE: CapabilityManifest = {
   kcb_version,
   identity: 'pinakes:agent:finetune',
   endpoints: { a2a: 'https://pinakes.example/.well-known/agent-card.json' },

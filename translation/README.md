@@ -2,7 +2,7 @@
 
 The one place in the commons where Rust earns its keep: CPU-bound serde over the koine
 canonical node/edge graph. A single native core (`crates/core`) is a faithful,
-byte-compatible port of pinakes's culture-scrape exporters, covering the full matrix
+byte-compatible port of the culture-scrape exporters it was extracted from, covering the full matrix
 canonical-graph ↔ {TSV, CSV, Neo4j/Cypher, Prolog, Soufflé-Datalog, ProbLog}. It is a
 verified reimplementation, not an approximation — the golden tests assert byte-for-byte
 equality against culture-scrape's own output on a shared fixture.
@@ -27,9 +27,9 @@ agora is the connective-tissue translation home; it must **not** become an ESB. 
 rule is: **embed the crate; dial the service only across a boundary an embed cannot
 cross.**
 
-- **TypeScript** (the console, a pinakes client): embed `translation-wasm`. It translates
+- **TypeScript** (the console, any TS participant): embed `translation-wasm`. It translates
   **in-process, zero network hop**.
-- **Python** (pinakes, analyzer): embed `translation-py`. Same — in-process, zero hop.
+- **Python** (any Python participant): embed `translation-py`. Same — in-process, zero hop.
 - **Only** when the caller is in a language or process that cannot link the crate do you
   reach for `translation-service`: a directly-dialed KCB leaf that adds transport (and
   nothing else) over the same core.

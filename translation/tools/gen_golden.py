@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Capture goldens from culture-scrape's reference exporters.
 
-Run from a venv where ``culturescrape`` is importable (the pinakes culture-scrape
+Run from a venv where ``culturescrape`` is importable (the culture-scrape
 package). It builds the node/edge schemas from the *same* vendored
 ``canonical-schema.json`` the Rust core reads, loads the shared ``graph.json``
 fixture, and writes:
@@ -18,7 +18,7 @@ the port is verified against the reference, not merely self-consistent.
 
 Usage (from repo root)::
 
-    cd /path/to/pinakes/packages/culture-scrape && \
+    cd /path/to/culture-scrape && \
       uv run python /path/to/agora/translation/tools/gen_golden.py
 """
 

@@ -16,11 +16,11 @@ import {
   type ResolverService,
 } from './index.ts';
 
-const ALDERFOREST = 'insimul:world:alderforest';
+const ALDERFOREST = 'worldsim:world:alderforest';
 const RENAUD = `${ALDERFOREST}:ent:npc-renaud`;
 const ANALYZER = 'analyzer:ent:e-8842';
-const NAPOLEON = 'pinakes:ent:napoleon-i';
-const ENDPOINT = 'https://pinakes.example/resolver';
+const NAPOLEON = 'refkb:ent:napoleon-i';
+const ENDPOINT = 'https://refkb.example/resolver';
 
 /** The §4.3 worked case: `analyzer` is the same as `renaud`, which is *based on* Napoleon. */
 const EQUIVALENCE_LAYER = {
@@ -88,7 +88,7 @@ describe('the durable resolver cache (§8: offline replay as authority:cache)', 
     const live = (await (
       await fetch(`${base}/resolve?id=${encodeURIComponent(RENAUD)}`)
     ).json()) as ResolvedIdentity;
-    expect(live.authority).toBe('pinakes');
+    expect(live.authority).toBe('authority');
 
     const applied = (await (
       await fetch(`${base}/reconcile`, {
@@ -123,7 +123,7 @@ describe('the durable resolver cache (§8: offline replay as authority:cache)', 
     const offline = (await (
       await fetch(`${base}/resolve?id=${encodeURIComponent(RENAUD)}`)
     ).json()) as ResolvedIdentity;
-    // The cached view replays — never relabelled 'pinakes' (§8, §11 decision 1).
+    // The cached view replays — never relabelled 'authority' (§8, §11 decision 1).
     expect(offline.authority).toBe('cache');
     expect(offline.id).toBe(RENAUD);
     expect(offline.sameAs).toEqual([ANALYZER]);
@@ -159,7 +159,7 @@ describe('the firewall holds through persistence (§4.3)', () => {
     const record: ResolvedIdentity = {
       id: RENAUD,
       kind: 'ent',
-      authority: 'pinakes',
+      authority: 'authority',
       confidence: 1,
       world: ALDERFOREST,
       sameAs: [ANALYZER],

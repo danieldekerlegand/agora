@@ -6,9 +6,10 @@ Because fine-tuning is the most expensive capability class on the bus, the ceili
 admission gate**: a run whose admission-time estimate (:mod:`agora_trainer.cost`) exceeds
 ``budget_units`` is rejected **before** provisioning (FT-E), never partway through a run.
 
-Issuing and signing the token is Orchestrator workforce governance (KCB §5/§6, US-6); here the grant
-is the ceiling the admission gate reads. A grant with no ceiling (``budget_units`` ``None``) is
-**ungated** — the offline default, so a run invoked without a supplied grant still streams.
+Issuing and signing the token is the calling workforce's governance (KCB §5/§6, US-6); here
+the grant is the ceiling the admission gate reads. A grant with no ceiling (``budget_units``
+``None``) is **ungated** — the offline default, so a run invoked without a supplied grant
+still streams.
 """
 
 from __future__ import annotations

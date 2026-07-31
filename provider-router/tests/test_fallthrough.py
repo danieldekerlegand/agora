@@ -103,7 +103,7 @@ def test_prefer_local_never_dials_the_paid_tier() -> None:
 
 
 def test_a_disabled_provider_is_skipped_even_with_a_key() -> None:
-    router = router_for(CUNEIFORM_PROVIDER_OPENAI_ENABLED="0", **FULL_LADDER)
+    router = router_for(AGORA_PROVIDER_OPENAI_ENABLED="0", **FULL_LADDER)
     assert router.resolve("text").tier == "mlx"
 
 

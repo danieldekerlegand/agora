@@ -3,9 +3,8 @@
  *
  * KCB §4 maps the `invoke` verb onto an "A2A task" (capability-bus.md §4/§6): the console
  * fetches the peer's Agent Card at `endpoints.a2a` (KCB §2 `/.well-known/agent-card.json`,
- * §6 the Orchestrator host / Analyzer `src/filmstudio/a2a.py`), reads the JSON-RPC endpoint the
- * card advertises, and sends one `message/send` there. It speaks the exact wire shapes
- * Orchestrator serves in `orchestrator-engine/src/a2a/protocol.rs`: camelCase keys, a Message of
+ * §6), reads the JSON-RPC endpoint the card advertises, and sends one `message/send` there.
+ * It speaks the standard's wire shapes verbatim: camelCase keys, a Message of
  * `kind`-tagged Parts (text/data/file) carrying `messageId`/`contextId`, and a returned Task
  * whose `status.state` is the kebab-case {@link https://google.github.io/A2A/ TaskState}.
  *
@@ -27,16 +26,15 @@ import {
 } from './wire.ts';
 
 /**
- * The A2A wire-protocol versions this build speaks, oldest → newest — Orchestrator's
- * `A2A_PROTOCOL_VERSIONS` (`protocol.rs:24`). The wire advertises the latest it supports; a
- * peer negotiates the highest version they both speak.
+ * The A2A wire-protocol versions this build speaks, oldest → newest. The wire advertises the
+ * latest it supports; a peer negotiates the highest version they both speak.
  */
 export const A2A_PROTOCOL_VERSIONS = ['1.0', '1.1'] as const;
 
 /** The newest version this wire advertises on every message it sends (the list is non-empty). */
 const A2A_LATEST_VERSION: string = A2A_PROTOCOL_VERSIONS[A2A_PROTOCOL_VERSIONS.length - 1] as string;
 
-/** How the console names itself when a message carries a sending agent (Orchestrator extension). */
+/** How the console names itself when a message carries a sending agent (an A2A extension). */
 const CLIENT_AGENT = 'agora-console';
 
 /**
@@ -86,7 +84,7 @@ export const a2aWire: Wire = {
   },
 };
 
-/** The JSON-RPC `message/send` request, carrying a Message in Orchestrator's exact wire shape. */
+/** The JSON-RPC `message/send` request, carrying a Message in the standard's exact wire shape. */
 function sendCall(target: string, context: WireContext): WireCall {
   const message: JsonObject = {
     role: 'user',
@@ -138,7 +136,7 @@ function messageMetadata(context: WireContext): JsonObject | undefined {
 }
 
 /**
- * Where a task is sent: the card's own `url` (Orchestrator's `AgentCard.url`), else a JSON-RPC
+ * Where a task is sent: the card's own `url` (A2A's `AgentCard.url`), else a JSON-RPC
  * interface it advertises, else the card address with its well-known suffix stripped. A card
  * that names no address falls back to its own origin — never an invented one.
  */

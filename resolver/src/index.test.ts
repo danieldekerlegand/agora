@@ -36,8 +36,8 @@ describe('the local resolver', () => {
 
   it('reads the world out of a world-scoped id (§5)', async () => {
     await expect(
-      createLocalResolver().resolve({ id: 'insimul:world:alderforest:ent:npc-renaud' }),
-    ).resolves.toMatchObject({ kind: 'ent', world: 'insimul:world:alderforest' });
+      createLocalResolver().resolve({ id: 'worldsim:world:alderforest:ent:npc-renaud' }),
+    ).resolves.toMatchObject({ kind: 'ent', world: 'worldsim:world:alderforest' });
   });
 
   it('refuses to invent an identity for a name', async () => {

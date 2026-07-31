@@ -256,7 +256,7 @@ export function subscribeAddress(manifest: CapabilityManifest): string | undefin
  * The worlds a registration says it holds, read off its knowledge ports.
  *
  * Only concrete `worlds` count. A media port's `world_pattern` (KCB delta J) is a pattern —
- * `insimul:world:*` names no world a consumer can register for, and expanding it into one
+ * `worldsim:world:*` names no world a consumer can register for, and expanding it into one
  * would subscribe to a world that may not exist. A peer that declares none is subscribed to
  * without a world filter, which is KCB §4's other form of the same verb.
  */

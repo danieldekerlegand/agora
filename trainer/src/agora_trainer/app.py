@@ -33,7 +33,7 @@ app = FastAPI(title="agora trainer", version=__version__)
 TELEMETRY_MEDIA_TYPE = "application/x-ndjson"
 
 #: The header carrying the `invoke:finetune` grant's gpu-seconds ceiling (KFT §7). Absent → an
-#: ungated grant (the signed grant token is Orchestrator governance, US-6); a value gates spend.
+#: ungated grant (signing the token is the caller's governance, US-6); a value gates spend.
 BUDGET_HEADER = "X-Agora-Budget-Units"
 
 #: The admission verdict → HTTP status, the transport twin of the CLI exit codes

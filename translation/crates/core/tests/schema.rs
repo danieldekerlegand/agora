@@ -1,7 +1,9 @@
-//! The canonical schema is read as data from `canonical-schema.json`: the node/edge
-//! type vocabularies and the typed column headers all come from the JSON, so a schema
-//! bump is a data change. These assertions pin *what the JSON says*, not a hard-coded
-//! count, so bumping the schema file updates the expectation with no code change.
+//! The canonical schema is read as data from a schema JSON: the node/edge type
+//! vocabularies and the typed column headers all come from it, so a schema bump is a data
+//! change. These assertions pin *what the JSON says*, not a hard-coded count, so bumping
+//! the schema file updates the expectation with no code change — and the last case here
+//! pins the stronger property: the bundled `canonical-schema.json` is a SAMPLE, so a
+//! wholly foreign vocabulary parses and drives the same accessors.
 
 use translation_core::{CanonicalSchema, Column, PropertyType};
 
@@ -74,4 +76,41 @@ fn a_bad_type_suffix_is_rejected() {
     }
     let text = serde_json::to_string(&broken).unwrap();
     assert!(CanonicalSchema::from_json(&text).is_err());
+}
+
+#[test]
+fn a_foreign_vocabulary_parses_the_same_way_the_bundled_sample_does() {
+    // Nothing about the bundled `canonical-schema.json` is privileged: it is a SAMPLE the
+    // crate ships so it translates something out of the box. A caller's own vocabulary —
+    // its own id key, its own node/edge types, its own typed columns — goes through the
+    // identical parse and drives the identical accessors. If this ever needs a special
+    // case, the vocabulary has stopped being data.
+    let foreign = r#"{
+      "version": "0.1.0",
+      "node": { "columns": [
+        { "header": "berth_id:ID" },
+        { "header": ":LABEL" },
+        { "header": "name" },
+        { "header": "draft:float" }
+      ] },
+      "edge": { "columns": [
+        { "header": ":START_ID" },
+        { "header": ":END_ID" },
+        { "header": ":TYPE" },
+        { "header": "since:int" }
+      ] },
+      "nodeTypes": [{ "name": "harbour", "label": "Harbour" }],
+      "edgeTypes": [{ "name": "moored-in", "type": "MOORED_IN" }]
+    }"#;
+
+    let schema = CanonicalSchema::from_json(foreign).unwrap();
+    assert_eq!(schema.version, "0.1.0");
+    assert_eq!(schema.node_id_key().unwrap(), "berth_id");
+    assert_eq!(schema.node_types[0].label, "Harbour");
+    assert_eq!(schema.edge_types[0].type_token, "MOORED_IN");
+    let draft = schema.node_columns.iter().find_map(|c| match c {
+        Column::Property { name, ptype } if name == "draft" => Some(*ptype),
+        _ => None,
+    });
+    assert_eq!(draft, Some(PropertyType::Float));
 }

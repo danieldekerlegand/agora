@@ -8,10 +8,14 @@
 //!   `:TYPE` (edges);
 //! * a property column — `name` (string) or `name:int` / `name:float`.
 //!
-//! The full canonical header, the 21 node-type labels, and the 21 edge-type tokens
-//! are all loaded from `canonical-schema.json` (koine:12 —
-//! pinakes/shared/canonical-schema.json v1.3.0), never hard-coded, so a schema bump
-//! is a data change rather than a code change.
+//! The full canonical header, the node-type labels and the edge-type tokens are all
+//! loaded from a schema JSON, never hard-coded, so a schema bump is a data change
+//! rather than a code change — and so is a schema *swap*: [`CanonicalSchema::from_json`]
+//! parses any well-formed vocabulary, and every codec in this crate takes the schema as
+//! an argument. The `canonical-schema.json` bundled beside this file is one such
+//! vocabulary, shipped as a working **sample** (koine's `registry/canonical-schema.json`
+//! v1.3.0, whose title names the two projects it was first written between) — it is the
+//! engine's default, not the shape a conformant graph is obliged to have.
 
 use crate::error::Error;
 use serde::Deserialize;
@@ -183,11 +187,15 @@ struct RawSchema {
     edge_types: Vec<RawEdgeType>,
 }
 
-/// The vendored canonical schema JSON (koine:12 — a data change bumps this file).
+/// The bundled SAMPLE vocabulary (koine:12 — a data change bumps this file).
 const CANONICAL_SCHEMA_JSON: &str = include_str!("../canonical-schema.json");
 
 impl CanonicalSchema {
-    /// The vendored canonical schema (koine:12, v1.3.0), parsed once.
+    /// The bundled sample vocabulary (koine:12, v1.3.0), parsed once.
+    ///
+    /// A convenience default so the crate translates something out of the box, not the
+    /// normative shape: a caller with its own vocabulary passes it to
+    /// [`CanonicalSchema::from_json`] and every codec here works the same way.
     pub fn canonical() -> Result<CanonicalSchema, Error> {
         CanonicalSchema::from_json(CANONICAL_SCHEMA_JSON)
     }

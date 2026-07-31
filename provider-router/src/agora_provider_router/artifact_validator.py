@@ -16,7 +16,7 @@ Usage:
     python -m agora_provider_router.artifact_validator <schema-name> <artifact.json>
 
 Schema names: grounding-pack, canonical-world-export, entity-grounding-snapshot,
-analyzer-canonical-export, dataset-jsonl-header, finetune-job.
+canonical-graph-export, dataset-jsonl-header, finetune-job.
 
 Exit 0 = valid; exit 1 = invalid (errors printed); exit 2 = usage/load error — the same
 exit-code semantics as ``validator.ts``'s CLI, so a CI smoke can loop both ecosystems.
@@ -45,13 +45,15 @@ SCHEMAS_DIR = _REPO_ROOT / "schemas" / "src" / "koine-schemas"
 #: ``finetune-job``, the KFT §3 job manifest agora:41 added (it ``$ref``s provenance +
 #: dataset-jsonl-header, both already registered). This validator checks STRUCTURE only — the
 #: SEMANTIC admission KFT defines (modality×method compatibility, egress feasibility, cost ceiling)
-#: is PROVIDER behavior at invoke (agora:90 / pinakes:90), not schema shape. ``provenance`` is
-#: absent: it is the shared ``$defs`` library every artifact ``$ref``s, never validated directly.
+#: is PROVIDER behavior at invoke, not schema shape. ``provenance`` is absent: it is the shared
+#: ``$defs`` library every artifact ``$ref``s, never validated directly.
+#: Every name is a CAPABILITY, never a producer: ``canonical-graph-export`` is any producer's
+#: predicate web projected onto the canonical graph, whoever produced it.
 ARTIFACT_SCHEMAS = {
     "grounding-pack": "grounding-pack.schema.json",
     "canonical-world-export": "canonical-world-export.schema.json",
     "entity-grounding-snapshot": "entity-grounding-snapshot.schema.json",
-    "analyzer-canonical-export": "analyzer-canonical-export.schema.json",
+    "canonical-graph-export": "canonical-graph-export.schema.json",
     "dataset-jsonl-header": "dataset-jsonl-header.schema.json",
     "finetune-job": "finetune-job.schema.json",
 }

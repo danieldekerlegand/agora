@@ -331,7 +331,7 @@ single canonical store for real-world entities (§11 decision 1). Which store th
 configuration: an address the registry handed back.
 
 ```ts
-const resolver = createPinakesResolver({ endpoint });   // the address the registry handed back
+const resolver = createAuthorityResolver({ endpoint }); // the address the registry handed back
 await resolver.resolve({ id: 'example:world:alderforest:ent:npc-renaud' });
 await resolver.reconcile({ query: 'Renaud', of: 'example-media:ent:e-8842', world: 'example:world:alderforest' });
 ```

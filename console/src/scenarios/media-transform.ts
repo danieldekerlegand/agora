@@ -1,4 +1,10 @@
 /**
+ * **SAMPLE SCENARIO — not a contract.** The participants named below are the cast of the
+ * ecosystem agora was extracted from, carried over verbatim so the scenario stays a faithful
+ * executable of koine's own worked example. agora knows none of them: the runner resolves
+ * whatever the registry indexes, and a conformant deployment writes its own scenario with its
+ * own cast. Treat every project name here as fixture text.
+ *
  * `kcs:media-transform` — the four-project transform chain, encoded (KCS §6).
  *
  * This is `koine/scenarios/e2e-media-transform.md` made executable. In Analyzer chat a user

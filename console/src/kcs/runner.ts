@@ -65,8 +65,8 @@ export interface RunOptions {
   fetch?: HttpFetch | undefined;
   /**
    * Defaults to the local resolver, which answers only what needs no authority (§6).
-   * Pass `createPinakesResolver({ endpoint })` — the address the registry hands back for
-   * `pinakes:agent:resolver` — to run a scenario against the canonical authority.
+   * Pass `createAuthorityResolver({ endpoint })` — the address the registry hands back for
+   * the deployment's resolution authority — to run a scenario against it.
    */
   resolver?: Resolver | undefined;
   /** How a `standin` participant's fixtures are loaded (delta N). Defaults to fetching

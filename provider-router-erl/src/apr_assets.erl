@@ -12,8 +12,8 @@
 %%%
 %%% Deliberately in-memory and unbounded-in-principle: the router's assets are the media
 %%% artifacts of the generations it has just served, which are small and short-lived. A real
-%%% CAS (Orchestrator infra) is a different address entirely — this is only enough to make the
-%%% reference in a delta resolvable.
+%%% CAS is a different address entirely, run by whoever runs one — this is only enough to
+%%% make the reference in a delta resolvable.
 -module(apr_assets).
 -behaviour(gen_server).
 

@@ -1,4 +1,9 @@
 /**
+ * **SAMPLE FIXTURES — not a contract.** Every project name in this module and the JSON beside
+ * it is fixture text: the cast of the ecosystem agora was extracted from, kept so the sample
+ * scenarios stay faithful to koine's worked examples. Nothing in the console's runtime reads a
+ * name from here — a stand-in is loaded by PATH, and a real deployment points at its own.
+ *
  * Stand-in fixtures for the peers that have not adopted the bus yet (KCS delta N).
  *
  * These are what a scenario's `standin.fixtures` path points at. They are deliberately

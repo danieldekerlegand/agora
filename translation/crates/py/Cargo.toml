@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "PyO3 bindings for agora's translation core — the full canonical-graph translation matrix in-process for Python consumers (pinakes/analyzer), zero network hop."
+description = "PyO3 bindings for agora's translation core — the full canonical-graph translation matrix in-process for Python consumers, zero network hop."
 
 [lib]
 name = "translation_py"

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://koine.ecosystem/schemas/analyzer-canonical-export.schema.json",
-  "title": "ArgosCanonicalExport",
-  "description": "Analyzer to_canonical projection -> Pinakes: the file/media predicate web as a canonical-graph artifact. Every record is personal-tier (KGP §7) and license-labeled (§7.1); co_occurs is excluded (derived, not stored). Node ids follow the shared KINP/KMI id spaces (provenance.schema.json nodeRef). Absorbed from legacy (ADR-0003).",
+  "$id": "https://koine.ecosystem/schemas/canonical-graph-export.schema.json",
+  "title": "CanonicalGraphExport",
+  "description": "A producer's canonical-graph projection handed to a knowledge authority: a node/edge artifact carrying the producer's local predicate web after normalization onto the canonical vocabulary. Every record is personal-tier (KGP §7) and license-labeled (§7.1); derived (non-stored) relations are excluded by the producer. Node ids follow the shared KINP/KMI id spaces (provenance.schema.json nodeRef).",
   "type": "object",
   "properties": {
     "contractVersion": { "$ref": "provenance.schema.json#/$defs/contractVersion" },

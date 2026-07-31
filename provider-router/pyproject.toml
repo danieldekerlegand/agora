@@ -1,7 +1,7 @@
 [project]
 name = "agora-provider-router"
 version = "0.1.0"
-description = "The provider-router — an OpenAI-compatible gateway to model backends, implementing Analyzer's sacred ladder."
+description = "The provider-router — an OpenAI-compatible gateway to model backends, implementing the sacred tier ladder."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
