@@ -38,7 +38,7 @@ VERSION_KEY = {
     "grounding-pack": "kgp_version",
     "canonical-world-export": "contractVersion",
     "entity-grounding-snapshot": "contractVersion",
-    "analyzer-canonical-export": "contractVersion",
+    "canonical-graph-export": "contractVersion",
     "dataset-jsonl-header": "contractVersion",
     "finetune-job": "kft_version",
 }
@@ -70,9 +70,9 @@ def test_missing_contract_version_rejects(name: str) -> None:
 
 
 def test_argos_export_rejects_bad_node_id() -> None:
-    export = copy.deepcopy(load("analyzer-canonical-export"))
+    export = copy.deepcopy(load("canonical-graph-export"))
     export["nodes"][0]["id"] = "not-a-valid-id"
-    assert validate("analyzer-canonical-export", export)
+    assert validate("canonical-graph-export", export)
 
 
 def test_unknown_schema_name_raises_listing_the_valid_names() -> None:
@@ -90,11 +90,11 @@ class TestTheCli:
         assert main(["prog", "grounding-pack", str(FIXTURES / "grounding-pack.json")]) == 0
 
     def test_invalid_artifact_exits_one(self, tmp_path: Path) -> None:
-        broken = copy.deepcopy(load("analyzer-canonical-export"))
+        broken = copy.deepcopy(load("canonical-graph-export"))
         broken["nodes"][0]["id"] = "not-a-valid-id"
         path = tmp_path / "broken.json"
         path.write_text(json.dumps(broken), encoding="utf-8")
-        assert main(["prog", "analyzer-canonical-export", str(path)]) == 1
+        assert main(["prog", "canonical-graph-export", str(path)]) == 1
 
     def test_unknown_name_exits_two(self, tmp_path: Path) -> None:
         path = tmp_path / "any.json"

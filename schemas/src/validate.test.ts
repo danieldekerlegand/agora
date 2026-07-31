@@ -36,7 +36,7 @@ describe('validate CLI exit codes', () => {
     const dir = mkdtempSync(join(tmpdir(), 'agora-validate-'));
     const path = join(dir, 'broken.json');
     writeFileSync(path, JSON.stringify({ contractVersion: '0.1.0' }));
-    expect(main(argv('analyzer-canonical-export', path))).toBe(1);
+    expect(main(argv('canonical-graph-export', path))).toBe(1);
   });
 
   it('exits 2 for an unknown schema name', () => {

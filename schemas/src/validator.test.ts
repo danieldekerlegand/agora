@@ -48,7 +48,7 @@ describe('validate', () => {
     expect(() => validate('nope', {})).toThrow(`unknown schema 'nope' (valid: ${names})`);
     // The five legacy-absorbed artifact names plus finetune-job (KFT §3, agora:41), and only those.
     expect(names).toBe(
-      'analyzer-canonical-export, canonical-world-export, dataset-jsonl-header, ' +
+      'canonical-graph-export, canonical-world-export, dataset-jsonl-header, ' +
         'entity-grounding-snapshot, finetune-job, grounding-pack',
     );
   });

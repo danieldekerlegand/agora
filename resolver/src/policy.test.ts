@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { decideLink, inheritsIdentity, mergePolicy, thresholdFor } from './index.ts';
 import type { ReconciliationCandidate } from './index.ts';
 
-const ALDERFOREST = 'insimul:world:alderforest';
-const REALITY = 'pinakes:world:consensus-reality';
+const ALDERFOREST = 'worldsim:world:alderforest';
+const REALITY = 'refkb:world:consensus-reality';
 
 function candidate(
   id: string,
@@ -32,11 +32,11 @@ describe('same_as vs based_on (identity.md §4.5)', () => {
     const proposal = decideLink({
       world: ALDERFOREST,
       subject: 'analyzer:ent:e-8842',
-      candidates: [candidate('pinakes:ent:napoleon-i', 0.95, REALITY, 'Napoleon I')],
+      candidates: [candidate('refkb:ent:napoleon-i', 0.95, REALITY, 'Napoleon I')],
       policy,
     });
     expect(proposal.relation).toBe('based_on');
-    expect(proposal.object).toBe('pinakes:ent:napoleon-i');
+    expect(proposal.object).toBe('refkb:ent:napoleon-i');
     expect(proposal.why).toMatch(/does not inherit identity/);
   });
 
@@ -66,7 +66,7 @@ describe('same_as vs based_on (identity.md §4.5)', () => {
   it('reviews a configured cross-world same_as — high-impact (§11 decision 2)', () => {
     const proposal = decideLink({
       world: ALDERFOREST,
-      candidates: [candidate('pinakes:ent:napoleon-i', 0.99, REALITY)],
+      candidates: [candidate('refkb:ent:napoleon-i', 0.99, REALITY)],
       policy: mergePolicy({ identityInheriting: [REALITY] }),
     });
     // Configured inheritance is a claim about two different worlds; getting it wrong is the
@@ -79,8 +79,8 @@ describe('same_as vs based_on (identity.md §4.5)', () => {
     const proposal = decideLink({
       world: REALITY,
       subject: `${ALDERFOREST}:ent:npc-renaud`,
-      candidates: [candidate('pinakes:ent:napoleon-i', 0.99, REALITY)],
-      lineageOnly: ['pinakes:ent:napoleon-i'],
+      candidates: [candidate('refkb:ent:napoleon-i', 0.99, REALITY)],
+      lineageOnly: ['refkb:ent:napoleon-i'],
       policy,
     });
     // Same world by the caller's own account, high confidence, and still not `same_as`:
@@ -94,7 +94,7 @@ describe('the hybrid merge policy (§11 decision 2)', () => {
   it('queues a below-threshold match instead of applying it', () => {
     const proposal = decideLink({
       world: ALDERFOREST,
-      candidates: [candidate('pinakes:ent:napoleon-i', 0.83, REALITY)],
+      candidates: [candidate('refkb:ent:napoleon-i', 0.83, REALITY)],
       policy: mergePolicy(),
     });
     expect(proposal).toMatchObject({ relation: 'based_on', review: true, confidence: 0.83 });
@@ -108,7 +108,7 @@ describe('the hybrid merge policy (§11 decision 2)', () => {
     expect(
       decideLink({
         world: ALDERFOREST,
-        candidates: [candidate('pinakes:ent:napoleon-i', 0.83, REALITY)],
+        candidates: [candidate('refkb:ent:napoleon-i', 0.83, REALITY)],
         policy,
       }).review,
     ).toBe(false);
@@ -118,8 +118,8 @@ describe('the hybrid merge policy (§11 decision 2)', () => {
     const proposal = decideLink({
       world: REALITY,
       candidates: [
-        candidate('pinakes:ent:napoleon-i', 0.97, REALITY, 'Napoleon I'),
-        candidate('pinakes:ent:napoleon-iii', 0.95, REALITY, 'Napoleon III'),
+        candidate('refkb:ent:napoleon-i', 0.97, REALITY, 'Napoleon I'),
+        candidate('refkb:ent:napoleon-iii', 0.95, REALITY, 'Napoleon III'),
       ],
       policy: mergePolicy(),
     });

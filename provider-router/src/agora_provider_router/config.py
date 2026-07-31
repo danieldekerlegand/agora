@@ -1,15 +1,17 @@
 """The router's provider configuration — one typed schema, read from the environment.
 
-The wire format is the package-neutral ``AGORA_PROVIDER_<NAME>_<FIELD>`` shape. The
-ecosystem's historical ``CUNEIFORM_PROVIDER_<NAME>_<FIELD>`` spelling (ported from Analyzer's
-``console.env_store``) is retained as a documented legacy alias, so an ``.env`` written by a
-Orchestrator/Analyzer console still configures this router unchanged; the neutral spelling wins
-when both name the same field. ``FIELD`` is one of ``API_KEY``, ``BASE_URL``, ``MODEL``,
-``ENABLED``; the common non-namespaced spellings (``OPENAI_API_KEY``, ``MLX_SERVE_BASE_URL``,
-``OLLAMA_HOST``, …) are accepted as fallbacks, and either namespaced form wins over them.
+The wire format is the package-neutral ``AGORA_PROVIDER_<NAME>_<FIELD>`` shape — one
+namespace, owned by this router, not by whoever configures it. ``FIELD`` is one of
+``API_KEY``, ``BASE_URL``, ``MODEL``, ``ENABLED``; the common non-namespaced spellings
+(``OPENAI_API_KEY``, ``MLX_SERVE_BASE_URL``, ``OLLAMA_HOST``, …) are accepted as fallbacks,
+and the namespaced form wins over them.
 
-The env file is named by ``AGORA_ENV_FILE`` (legacy alias ``CUNEIFORM_ENV_FILE``), else
-``<cwd>/.env``.
+The env file is named by ``AGORA_ENV_FILE``, else ``<cwd>/.env``.
+
+(The historical ``CUNEIFORM_PROVIDER_*`` / ``CUNEIFORM_ENV_FILE`` spelling this ladder was
+first configured by was carried as an alias through agora:50 and dropped here: an env
+namespace named after one caller is exactly the coupling this commons must not have. An
+``.env`` written for it is migrated by renaming the prefix.)
 
 Two rules this module exists to enforce:
 
@@ -35,23 +37,14 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr
 #: Package-neutral namespaced prefix owned by the provider settings block.
 ENV_PREFIX = "AGORA_PROVIDER_"
 
-#: Legacy alias for :data:`ENV_PREFIX`, kept so an Analyzer/Orchestrator ``.env`` still parses.
-LEGACY_ENV_PREFIX = "CUNEIFORM_PROVIDER_"
-
-#: The namespaced prefixes recognised, highest precedence first (neutral beats legacy).
-_NAMESPACED_PREFIXES = (ENV_PREFIX, LEGACY_ENV_PREFIX)
-
 #: Env var naming the file to read provider settings from (else ``<cwd>/.env``).
 ENV_FILE_VAR = "AGORA_ENV_FILE"
-
-#: Legacy alias for :data:`ENV_FILE_VAR`.
-LEGACY_ENV_FILE_VAR = "CUNEIFORM_ENV_FILE"
 
 #: Prefix of the ladder-ordering variables (see :mod:`agora_provider_router.ladder`), the
 #: only part of the environment a :class:`RouterConfig` keeps verbatim.
 LADDER_ENV_PREFIX = "AGORA_"
 
-#: Recognised ``CUNEIFORM_PROVIDER_<NAME>_<FIELD>`` suffixes, longest first so that
+#: Recognised ``AGORA_PROVIDER_<NAME>_<FIELD>`` suffixes, longest first so that
 #: ``..._API_KEY`` is not mis-split as provider ``…_API`` field ``KEY``.
 _FIELDS = ("API_KEY", "BASE_URL", "ENABLED", "MODEL")
 
@@ -193,7 +186,7 @@ def _by_name(provider: ProviderConfig) -> str:
 
 
 def _env_file_path(env: Mapping[str, str]) -> Path:
-    override = env.get(ENV_FILE_VAR) or env.get(LEGACY_ENV_FILE_VAR)
+    override = env.get(ENV_FILE_VAR)
     return Path(override) if override else Path.cwd() / ".env"
 
 
@@ -238,40 +231,27 @@ def _is_secret(key: str) -> bool:
     return upper.endswith(("API_KEY", "_TOKEN", "_SECRET"))
 
 
-def _split_namespaced(key: str) -> tuple[str, str, str] | None:
-    """``AGORA_PROVIDER_MLX_SERVE_BASE_URL`` → ``("mlx-serve", "base_url", <prefix>)``.
-
-    The legacy ``CUNEIFORM_PROVIDER_`` spelling resolves identically; the matched prefix is
-    returned so precedence and ``key_source`` can name where a value came from.
-    """
-    for prefix in _NAMESPACED_PREFIXES:
-        if not key.startswith(prefix):
-            continue
-        rest = key[len(prefix) :]
-        for field in _FIELDS:
-            suffix = f"_{field}"
-            if rest.endswith(suffix) and len(rest) > len(suffix):
-                return _normalise(rest[: -len(suffix)]), field.lower(), prefix
+def _split_namespaced(key: str) -> tuple[str, str] | None:
+    """``AGORA_PROVIDER_MLX_SERVE_BASE_URL`` → ``("mlx-serve", "base_url")``."""
+    if not key.startswith(ENV_PREFIX):
+        return None
+    rest = key[len(ENV_PREFIX) :]
+    for field in _FIELDS:
+        suffix = f"_{field}"
+        if rest.endswith(suffix) and len(rest) > len(suffix):
+            return _normalise(rest[: -len(suffix)]), field.lower()
     return None
 
 
 def _parse_providers(env: Mapping[str, str]) -> dict[str, ProviderConfig]:
     """Fold the namespaced block and the standard fallbacks into one record per provider."""
     fields: dict[str, dict[str, str]] = {}
-    #: (name, field) → rank of the prefix that set it, so the neutral spelling wins over the
-    #: legacy alias regardless of env iteration order (lower rank = higher precedence).
-    field_rank: dict[tuple[str, str], int] = {}
     for key, value in env.items():
         split = _split_namespaced(key)
         if split is None or not str(value).strip():
             continue
-        name, field, prefix = split
-        rank = _NAMESPACED_PREFIXES.index(prefix)
-        slot = (name, field)
-        if field_rank.get(slot, len(_NAMESPACED_PREFIXES)) <= rank:
-            continue
+        name, field = split
         fields.setdefault(name, {})[field] = str(value).strip()
-        field_rank[slot] = rank
 
     sources: dict[str, str] = {}
     for name, names in _STANDARD_API_KEYS.items():
@@ -299,8 +279,8 @@ def _parse_providers(env: Mapping[str, str]) -> dict[str, ProviderConfig]:
         providers[name] = ProviderConfig(
             name=name,
             api_key=SecretStr(api_key) if api_key else None,
-            # Any namespaced spelling reports the neutral prefix, so a legacy-configured and a
-            # neutral-configured provider parse to byte-identical records.
+            # A namespaced value reports the namespace; a fallback reports the exact var it
+            # came from, which is what makes ``/doctor`` able to say where a key was read.
             key_source=(sources.get(name, ENV_PREFIX.rstrip("_")) if api_key else None),
             base_url=values.get("base_url"),
             model=values.get("model"),

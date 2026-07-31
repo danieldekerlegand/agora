@@ -37,7 +37,7 @@ const VERSION_KEY: Record<ArtifactName, string> = {
   'grounding-pack': 'kgp_version',
   'canonical-world-export': 'contractVersion',
   'entity-grounding-snapshot': 'contractVersion',
-  'analyzer-canonical-export': 'contractVersion',
+  'canonical-graph-export': 'contractVersion',
   'dataset-jsonl-header': 'contractVersion',
   // finetune-job stamps the KFT spec version into `kft_version` (a required $ref to
   // provenance.schema.json#/$defs/contractVersion) — deleting it is the missing-version case.
@@ -59,11 +59,11 @@ describe.each(Object.keys(ARTIFACT_SCHEMAS).sort())('%s conformance', (name) => 
   });
 });
 
-describe('analyzer-canonical-export', () => {
+describe('canonical-graph-export', () => {
   it('rejects a non-conforming node id', () => {
-    const instance = loadFixture('analyzer-canonical-export');
+    const instance = loadFixture('canonical-graph-export');
     const nodes = instance.nodes as [{ id: string }, ...{ id: string }[]];
     nodes[0].id = 'not-a-valid-id';
-    expect(validate('analyzer-canonical-export', instance).length).toBeGreaterThan(0);
+    expect(validate('canonical-graph-export', instance).length).toBeGreaterThan(0);
   });
 });

@@ -5,8 +5,8 @@
  *
  * 1. **A durable {@link ResolverCache}** ({@link createFileCache}) — the §8 "local resolver
  *    cache for offline use". It persists prior *authority* answers so a restart with the
- *    authority unreachable replays them as `authority:'cache'` (never `'pinakes'`), which is
- *    what keeps Pinakes-as-authority (§11 decision 1) from being a hard dependency.
+ *    authority unreachable replays them as `authority:'cache'` (never `'authority'`), which is
+ *    what keeps the authority (§11 decision 1) from being a hard dependency.
  * 2. **A durable {@link LinkStore}** ({@link createFileLinkStore}) — the equivalence layer's
  *    two lists (§11 decision 2): `applied` links auto-applied above the per-world threshold,
  *    and the `reviewQueue` of links held for the convergence-QA gate. A resolver that lost the
@@ -24,7 +24,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import type { ResolverCache } from './cache.ts';
-import { closureOver } from './pinakes.ts';
+import { closureOver } from './authority.ts';
 import type { LinkProposal, ResolvedIdentity } from './types.ts';
 
 /**
@@ -108,8 +108,8 @@ function readLinks(path: string): PersistedLinks {
  * What is persisted is the edges, not the merged view: `get` re-runs {@link closureOver} over
  * the stored `same_as` / `based_on` edges every time, so the `same_as` closure is recomputed
  * at read time and a `based_on` edge is never walked into it (§4.3). The `authority` field is
- * stored as the authority stated it (`pinakes`); the *reader* stamps `cache` when it replays
- * one (see `offline` in `pinakes.ts`), so the record of who said what survives the restart.
+ * stored as the authority stated it (`authority`); the *reader* stamps `cache` when it replays
+ * one (see `offline` in `authority.ts`), so the record of who said what survives the restart.
  */
 export function createFileCache(path: string): ResolverCache {
   const entries = readCache(path);

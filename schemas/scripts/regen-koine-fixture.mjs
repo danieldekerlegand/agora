@@ -128,7 +128,11 @@ function main() {
   if (!koineDir) {
     console.error(
       'koine sibling checkout not found: expected a `koine/registry/predicate-mapping.json` ' +
-        'beside the agora working tree (../koine). Clone koine next to agora, then re-run.',
+        'beside the agora working tree (../koine). Clone koine next to agora, then re-run.\n' +
+        'If koine IS checked out and only this file is missing, koine has retired its copy — ' +
+        'the bridge mappings are deployment instance data, not the relation vocabulary. The ' +
+        'committed fixture is then a bundled SAMPLE with no upstream to regenerate from ' +
+        '(koine-fixture-drift.test.ts reports the same split), so there is nothing to do here.',
     );
     process.exit(2);
   }

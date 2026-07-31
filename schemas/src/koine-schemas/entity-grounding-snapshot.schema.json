@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://koine.ecosystem/schemas/entity-grounding-snapshot.schema.json",
   "title": "EntityGroundingSnapshot",
-  "description": "Pinakes -> Analyzer (and any consumer needing offline entity reconciliation): a compact, license-filtered snapshot of canonical entities + reconciliation keys, formalizing the KGP grounding-pack.md §2 entity envelope. Names and keys only — no bulk fields. Absorbed from legacy (ADR-0003).",
+  "description": "A knowledge authority's snapshot for any consumer needing offline entity reconciliation: a compact, license-filtered set of canonical entities + reconciliation keys, formalizing the KGP grounding-pack.md §2 entity envelope. Names and keys only — no bulk fields.",
   "type": "object",
   "properties": {
     "contractVersion": { "$ref": "provenance.schema.json#/$defs/contractVersion" },

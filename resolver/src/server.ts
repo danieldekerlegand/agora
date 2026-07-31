@@ -2,7 +2,7 @@
  * The resolver as an HTTP service — the same seam over the wire instead of only as an
  * `import`. It exposes identity.md §8's two verbs, `resolve` and `reconcile`, delegating to
  * the existing {@link Resolver}: {@link createLocalResolver} by default, and
- * {@link createPinakesResolver} when an authority endpoint is configured — the same wiring
+ * {@link createAuthorityResolver} when an authority endpoint is configured — the same wiring
  * the console does in-process.
  *
  * The invariant here is the resolver's, and it is the registry's too (ADR-0001 decision 3):
@@ -17,7 +17,7 @@
  * delegate to: with no authority, an un-mintable name and `reconcile` are refused loudly as
  * {@link ResolverUnavailableError} (a 400 — like the registry's malformed-manifest refusal);
  * with an authority configured but unreachable, `resolve` replays the cache labelled
- * `authority:'cache'` (never `'pinakes'`) and, with nothing cached, surfaces
+ * `authority:'cache'` (never `'authority'`) and, with nothing cached, surfaces
  * {@link AuthorityUnreachableError} as a 502 — the upstream-authority analogue of the
  * registry's `CrawlError`.
  */
@@ -29,7 +29,7 @@ import type { KinpKind } from '@agora/schemas';
 import { createMemoryCache, type ResolverCache } from './cache.ts';
 import { createLocalResolver, describeResolver } from './index.ts';
 import type { LinkStore } from './persistence.ts';
-import { createPinakesResolver, type AuthorityFetch } from './pinakes.ts';
+import { createAuthorityResolver, type AuthorityFetch } from './authority.ts';
 import type { MergePolicy } from './policy.ts';
 import {
   AuthorityUnreachableError,
@@ -41,10 +41,10 @@ import {
 
 export interface ResolverServerOptions {
   /** The resolver to serve. Takes precedence over {@link ResolverServerOptions.authority};
-   * defaults to {@link createLocalResolver} (or a Pinakes one when an authority is given). */
+   * defaults to {@link createLocalResolver} (or a dialing one when an authority is given). */
   resolver?: Resolver;
   /** The authority's base URL, as the registry would hand it back. When set (and no explicit
-   * `resolver` is passed) the service dials it via {@link createPinakesResolver}; when unset
+   * `resolver` is passed) the service dials it via {@link createAuthorityResolver}; when unset
    * the service is the degraded, authority-free local resolver. */
   authority?: string;
   /** The `fetch` the authority client uses; defaults to the global. Structural, so a test can
@@ -95,14 +95,14 @@ class HttpError extends Error {
 function resolverFor(options: ResolverServerOptions): Resolver {
   if (options.resolver) return options.resolver;
   if (options.authority === undefined) return createLocalResolver();
-  const pinakes: Parameters<typeof createPinakesResolver>[0] = { endpoint: options.authority };
-  if (options.fetch !== undefined) pinakes.fetch = options.fetch;
-  if (options.cache !== undefined) pinakes.cache = options.cache;
-  else pinakes.cache = createMemoryCache();
-  if (options.policy !== undefined) pinakes.policy = options.policy;
-  if (options.authorityIdentity !== undefined) pinakes.identity = options.authorityIdentity;
-  if (options.links !== undefined) pinakes.links = options.links;
-  return createPinakesResolver(pinakes);
+  const dialed: Parameters<typeof createAuthorityResolver>[0] = { endpoint: options.authority };
+  if (options.fetch !== undefined) dialed.fetch = options.fetch;
+  if (options.cache !== undefined) dialed.cache = options.cache;
+  else dialed.cache = createMemoryCache();
+  if (options.policy !== undefined) dialed.policy = options.policy;
+  if (options.authorityIdentity !== undefined) dialed.identity = options.authorityIdentity;
+  if (options.links !== undefined) dialed.links = options.links;
+  return createAuthorityResolver(dialed);
 }
 
 /**

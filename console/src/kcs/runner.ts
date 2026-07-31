@@ -65,7 +65,7 @@ export interface RunOptions {
   fetch?: HttpFetch | undefined;
   /**
    * Defaults to the local resolver, which answers only what needs no authority (§6).
-   * Pass `createPinakesResolver({ endpoint })` — the address the registry hands back for the
+   * Pass `createAuthorityResolver({ endpoint })` — the address the registry hands back for the
    * ecosystem's entity authority — to run a scenario against that canonical authority.
    */
   resolver?: Resolver | undefined;

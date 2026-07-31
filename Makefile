@@ -22,7 +22,7 @@ TS_AREAS := schemas clients/kcb-client clients/relation-registry-client registry
 # (KFT §3, agora:41) joins the same loop so a regression in either validator or its
 # fixture turns `make check` red too. Their golden fixtures live off the
 # @agora/schemas library surface, beside the vitest/pytest conformance suites.
-ARTIFACTS := grounding-pack canonical-world-export entity-grounding-snapshot analyzer-canonical-export dataset-jsonl-header finetune-job
+ARTIFACTS := grounding-pack canonical-world-export entity-grounding-snapshot canonical-graph-export dataset-jsonl-header finetune-job
 FIXTURES  := $(CURDIR)/schemas/src/conformance/fixtures
 
 .PHONY: help install install-py install-trainer install-ts check check-provider-router \

@@ -41,7 +41,7 @@
 
 %% Every environment variable that can change what the surface says. Cleared before each
 %% case so the answer is a function of the fixture, never of the host that runs it.
--define(SCRUBBED_PREFIXES, ["AGORA_", "CUNEIFORM_"]).
+-define(SCRUBBED_PREFIXES, ["AGORA_"]).
 
 all() ->
     [the_bare_surface_is_byte_identical_to_the_python_router,

@@ -66,7 +66,7 @@ NORMATIVE KFT §4.2 egress gate and the §7 spend ceiling over the job's *resolv
   (fetching KMI/KGP metadata as needed — the offline stand-in resolves nominal facts, a deployment
   injects the real `fetch:asset` path) and rejects a run whose estimate exceeds the grant's
   `budget_units` (`budget`) **before** provisioning. The ceiling rides the `X-Agora-Budget-Units`
-  header on `invoke` (the signed `invoke:finetune` grant token is Orchestrator governance, US-6).
+  header on `invoke` (signing the `invoke:finetune` grant token is the caller's governance, US-6).
 
 Every rejection is the same structured report + exit-code semantics as US-2 (0 / 1 / 2 over the
 CLI, 200 / 422 / 400 over HTTP).
@@ -101,7 +101,7 @@ The engine ladder gains its media-plane rung and the run gains its full KFT §5 
 ## Multi-provider routing + scope boundary (US-5)
 
 Training is **multi-provider** (KFT §9, FT-K): agora hosts the **general** `finetune` provider,
-Pinakes runs its **own specialized** one, and more than one can match a job (both accept
+a participant may run its **own specialized** one, and more than one can match a job (both accept
 `text-generation`). The **discovery registry** — not the trainer — disambiguates
 (`registry/src/select.ts`, `CapabilityRegistry.selectFinetune`): it prefers the more **specialized**
 matching provider (the narrower advertised `modality × method` surface), then lower `cost` (KCB §3);
@@ -109,13 +109,18 @@ a job MAY name a target provider explicitly (honored, but rejected if it can't s
 **unbroken tie** (equal specialization *and* cost) is **surfaced to the caller**, never resolved by
 registration order. The trainer's manifest advertises only the **general** modalities/methods it
 serves, which is exactly what lets the registry tell it apart from a narrower specialist (the stub
-`PINAKES_FINETUNE` manifest drives the tiebreak test).
+`SPECIALIZED_FINETUNE` manifest drives the tiebreak test).
 
 ### Scope boundary — what is NOT built here
 
-agora hosts **only the general** provider. Per ADR-0001 (koine specifies, agora implements) and the
-multi-provider decision (FT-K), three runtime tasklists are handed to their own repos and run under
-their own gates — recorded in the koine program map (`../koine/tasks/chief/README.md`, Tranche D):
+agora hosts **only the general** provider: a **specialized** provider is its own repo's work,
+advertised as a distinct capability on the bus, never an adapter in here. Per ADR-0001 (koine
+specifies, agora implements) and the multi-provider decision (FT-K), those follow-ups are handed to
+the participants' own repos and run under their own gates.
+
+The table below is a **historical record** of how that boundary fell for the ecosystem agora was
+extracted from — named there because koine's program map (`../koine/tasks/chief/README.md`,
+Tranche D) is where the live version lives, not because agora knows these callers:
 
 | Follow-up | Repo | Role | `dependsOn` (numbered stems) |
 |---|---|---|---|

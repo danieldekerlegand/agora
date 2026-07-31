@@ -1,5 +1,6 @@
 import {
   assertPackEgress,
+  bridgedProjectsOf,
   filterPackForEgress,
   RegistryError,
   RELATION_REGISTRY,
@@ -61,13 +62,18 @@ describe('loadRelationRegistry', () => {
     expect(registry.signature('soc:befriends')).toBeUndefined();
   });
 
-  it('indexes every bridged project and no other', async () => {
+  it('indexes every project the served registry declares, and no other', async () => {
     const [fetch] = serving();
     const registry = await loadRelationRegistry(BASE, { fetch });
-    for (const project of RELATION_REGISTRY.bridgedProjects) {
+    const bridged = bridgedProjectsOf(registry.document);
+    expect(bridged.length).toBeGreaterThan(0);
+    for (const project of bridged) {
       expect(registry.entries(project).length).toBeGreaterThan(0);
     }
-    expect(registry.entries(RELATION_REGISTRY.canonicalProject)).toEqual([]);
+    // The canonical side hosts the vocabulary rather than bridging into it, so it has no
+    // entries — and neither has any name the loaded registry never mentioned.
+    expect(registry.entries(registry.document.canonicalProject ?? 'nobody')).toEqual([]);
+    expect(registry.entries('a-project-this-registry-never-heard-of')).toEqual([]);
   });
 
   it('reports a failed fetch as a RegistryFetchError naming the url', async () => {

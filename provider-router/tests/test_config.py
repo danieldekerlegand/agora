@@ -11,9 +11,9 @@ from conftest import config_for
 
 def test_the_namespaced_block_parses_into_typed_providers() -> None:
     config = config_for(
-        CUNEIFORM_PROVIDER_OPENAI_API_KEY="sk-namespaced",
-        CUNEIFORM_PROVIDER_OPENAI_MODEL="gpt-4o",
-        CUNEIFORM_PROVIDER_MLX_SERVE_BASE_URL="http://localhost:8080/v1",
+        AGORA_PROVIDER_OPENAI_API_KEY="sk-namespaced",
+        AGORA_PROVIDER_OPENAI_MODEL="gpt-4o",
+        AGORA_PROVIDER_MLX_SERVE_BASE_URL="http://localhost:8080/v1",
     )
     openai = config.provider("openai")
     assert openai.api_key is not None and openai.api_key.get_secret_value() == "sk-namespaced"
@@ -23,30 +23,28 @@ def test_the_namespaced_block_parses_into_typed_providers() -> None:
     assert config.provider("mlx-serve").base_url == "http://localhost:8080/v1"
 
 
-def test_the_legacy_prefix_and_the_neutral_prefix_parse_identically() -> None:
-    fields = {"OPENAI_API_KEY": "sk-x", "OPENAI_MODEL": "gpt-4o", "MLX_SERVE_BASE_URL": "http://l"}
-    neutral = config_for(**{f"AGORA_PROVIDER_{k}": v for k, v in fields.items()})
-    legacy = config_for(**{f"CUNEIFORM_PROVIDER_{k}": v for k, v in fields.items()})
-    # The legacy alias is a spelling of the same wire format — same typed record, key and all.
-    assert neutral.provider("openai") == legacy.provider("openai")
-    assert neutral.provider("mlx-serve") == legacy.provider("mlx-serve")
+def test_only_the_neutral_namespace_is_recognised() -> None:
+    """One namespace, owned by this router — no prefix named after whoever configures it.
 
-
-def test_the_neutral_prefix_wins_when_both_spellings_set_the_same_field() -> None:
+    The ladder was first configured through a caller-named ``CUNEIFORM_PROVIDER_*`` block,
+    carried as an alias through agora:50 and dropped here: an env namespace named after one
+    participant is exactly the coupling the commons must not have. An ``.env`` still spelling
+    it configures nothing — loudly absent rather than quietly half-applied.
+    """
     config = config_for(
-        AGORA_PROVIDER_OPENAI_API_KEY="sk-neutral",
-        CUNEIFORM_PROVIDER_OPENAI_API_KEY="sk-legacy",
+        CUNEIFORM_PROVIDER_OPENAI_API_KEY="sk-x",
+        CUNEIFORM_PROVIDER_MLX_SERVE_BASE_URL="http://l",
     )
-    key = config.provider("openai").api_key
-    assert key is not None and key.get_secret_value() == "sk-neutral"
+    assert not config.provider("openai").has_key
+    assert config.provider("mlx-serve").base_url is None
 
 
-def test_the_legacy_env_file_var_still_names_the_provider_file(tmp_path: Path) -> None:
-    env_file = tmp_path / "legacy.env"
-    env_file.write_text("OPENAI_API_KEY=sk-from-legacy-file\n")
-    config = RouterConfig.from_env({"CUNEIFORM_ENV_FILE": str(env_file)})
+def test_the_env_file_var_names_the_provider_file(tmp_path: Path) -> None:
+    env_file = tmp_path / "provider.env"
+    env_file.write_text("OPENAI_API_KEY=sk-from-file\n")
+    config = RouterConfig.from_env({"AGORA_ENV_FILE": str(env_file)})
     key = config.provider("openai").api_key
-    assert key is not None and key.get_secret_value() == "sk-from-legacy-file"
+    assert key is not None and key.get_secret_value() == "sk-from-file"
 
 
 def test_standard_spellings_are_accepted_and_the_namespaced_form_wins() -> None:
@@ -56,13 +54,13 @@ def test_standard_spellings_are_accepted_and_the_namespaced_form_wins() -> None:
     assert openai.key_source == "OPENAI_API_KEY"
     assert config.provider("ollama").base_url == "http://localhost:11434/v1"
 
-    both = config_for(OPENAI_API_KEY="sk-standard", CUNEIFORM_PROVIDER_OPENAI_API_KEY="sk-block")
+    both = config_for(OPENAI_API_KEY="sk-standard", AGORA_PROVIDER_OPENAI_API_KEY="sk-block")
     key = both.provider("openai").api_key
     assert key is not None and key.get_secret_value() == "sk-block"
 
 
 def test_an_explicit_disable_beats_a_present_key() -> None:
-    config = config_for(OPENAI_API_KEY="sk-live", CUNEIFORM_PROVIDER_OPENAI_ENABLED="0")
+    config = config_for(OPENAI_API_KEY="sk-live", AGORA_PROVIDER_OPENAI_ENABLED="0")
     assert config.provider("openai").has_key
     assert not config.provider("openai").usable
 

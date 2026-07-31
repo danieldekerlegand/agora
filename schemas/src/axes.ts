@@ -66,8 +66,9 @@ export function isEgressClass(value: unknown): value is EgressClass {
 /* ── trust (KGP §7 / KINP §11) — named here only to keep it distinct ─────────────────── */
 
 /**
- * Provenance trust tiers as the projects already ship them: pinakes's admission states plus
- * the bridges' source kinds. **Descriptive** — trust drives the merge-review queue (KINP §11
+ * Provenance trust tiers as conformant projects already ship them: a knowledge authority's
+ * admission states plus the bridges' source kinds. **Descriptive** — trust drives the
+ * merge-review queue (KINP §11
  * decision 2), it never decides whether something may be exported. That is `egress`.
  */
 export const TRUST_TIERS = [

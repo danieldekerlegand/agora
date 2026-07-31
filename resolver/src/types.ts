@@ -15,8 +15,17 @@ import type { KinpKind } from '@agora/schemas';
 /** KINP identity of the resolver service itself. */
 export const RESOLVER_IDENTITY = 'agora:agent:resolver';
 
-/** The canonical world for real-world knowledge (identity.md §5). */
-export const CONSENSUS_REALITY = 'pinakes:world:consensus-reality';
+/**
+ * The canonical world for real-world knowledge (identity.md §5) — "the identity authority's
+ * `…:world:consensus-reality`".
+ *
+ * The namespace is the *deployment's* authority, so this constant is only the default a
+ * merge policy starts from: an operator whose authority is not `refkb` sets
+ * {@link MergePolicy.defaultWorld} and nothing here has an opinion. `refkb` is the namespace
+ * koine's own §5 examples use for a reference knowledge base, which is what keeps the
+ * out-of-the-box default readable rather than naming somebody's project.
+ */
+export const CONSENSUS_REALITY = 'refkb:world:consensus-reality';
 
 /** What a caller knows about a thing it wants an identity for (identity.md §4). */
 export interface EntityRef {
@@ -31,15 +40,16 @@ export interface EntityRef {
 }
 
 /**
- * Where an identity came from.
+ * Where an identity came from — a ROLE, never a vendor: which service plays the authority is
+ * configuration ({@link AuthorityOptions.endpoint}), so it is not encodable in a type.
  *
  * `local` needs no authority — a content-addressed id (§6) or a well-formed id nobody has
- * anything to add about. `pinakes` is the authority answering live (§11 decision 1).
- * `cache` is a previous authority answer replayed offline, and it is a distinct value on
- * purpose: a caller deciding whether to write back must be able to tell "Pinakes says so"
- * from "Pinakes said so, once".
+ * anything to add about. `authority` is the configured authority answering live (§11
+ * decision 1). `cache` is a previous authority answer replayed offline, and it is a distinct
+ * value on purpose: a caller deciding whether to write back must be able to tell "the
+ * authority says so" from "the authority said so, once".
  */
-export type ResolutionAuthority = 'local' | 'pinakes' | 'cache';
+export type ResolutionAuthority = 'local' | 'authority' | 'cache';
 
 /** One PROV-shaped provenance record as the authority stated it (§7.1). */
 export interface ProvenanceRef {
@@ -83,8 +93,8 @@ export interface ReconciliationProperty {
 /**
  * A descriptor to fuzzy-match — the OpenRefine/Wikidata Reconciliation API query (§4.5).
  *
- * `query`/`type`/`limit`/`properties` are that standard's fields verbatim, so Pinakes's
- * Wikidata backbone answers it directly. `world` and `of` are the KINP additions the
+ * `query`/`type`/`limit`/`properties` are that standard's fields verbatim, so an authority
+ * with a Wikidata backbone answers it directly. `world` and `of` are the KINP additions the
  * firewall needs: which world the reference was *observed* in, and which provisional local
  * (§6) is being reconciled — without those two, §4.5 cannot pick `same_as` over `based_on`.
  */

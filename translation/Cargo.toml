@@ -11,8 +11,8 @@ members = ["crates/core", "crates/wasm", "crates/py", "crates/service", "crates/
 # the provider-router drives it through) — same reason, pure native Rust.
 default-members = ["crates/core", "crates/wasm", "crates/service", "crates/wire"]
 
-# agora's data-translation engine — a native Rust core (embeddable-first) that ports
-# pinakes's culture-scrape exporters over the koine canonical node/edge graph. WASM
+# agora's data-translation engine — a native Rust core (embeddable-first) that ports the
+# culture-scrape exporters over the koine canonical node/edge graph. WASM
 # (US-4) and PyO3 (US-5) facades are workspace members; the thin HTTP transform service
 # (US-6, crates/service) is a directly-dialed KCB leaf for the boundary an embed cannot
 # cross.

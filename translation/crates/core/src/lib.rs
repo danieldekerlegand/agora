@@ -2,10 +2,12 @@
 //!
 //! This crate is the one place in the commons where Rust earns its keep: CPU-bound
 //! serde over the koine canonical node/edge graph. It is a faithful, byte-compatible
-//! port of pinakes's culture-scrape exporters. US-1 establishes the foundation — the
-//! canonical graph model, the schema read as data from `canonical-schema.json`, and
-//! the lossless TSV codec. Later stories add the logic-program emitters (US-2), the
-//! Neo4j/Cypher projections (US-3), and the WASM/PyO3/HTTP facades (US-4..6).
+//! port of the culture-scrape exporters it was extracted from (attribution, not a
+//! dependency — nothing here dials or names a producer). US-1 establishes the
+//! foundation — the canonical graph model, the schema read as *data* (the bundled
+//! `canonical-schema.json` is a working sample; any well-formed vocabulary parses),
+//! and the lossless TSV codec. Later stories add the logic-program emitters (US-2),
+//! the Neo4j/Cypher projections (US-3), and the WASM/PyO3/HTTP facades (US-4..6).
 //!
 //! Embeddable-first: the whole matrix is pure in-memory serde with no filesystem or
 //! network dependency, so TS (WASM) and Python (PyO3) consumers translate locally

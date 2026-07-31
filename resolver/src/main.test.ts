@@ -43,15 +43,15 @@ describe('the resolver entry point (env-configured, zero-config default)', () =>
     const launch = resolverLaunchFromEnv({
       AGORA_RESOLVER_HOST: '0.0.0.0',
       AGORA_RESOLVER_PORT: '9101',
-      AGORA_RESOLVER_AUTHORITY: 'http://pinakes.local:8080',
-      AGORA_RESOLVER_IDENTITY: 'pinakes:agent:resolver',
+      AGORA_RESOLVER_AUTHORITY: 'http://refkb.local:8080',
+      AGORA_RESOLVER_IDENTITY: 'refkb:agent:resolver',
       AGORA_RESOLVER_CACHE: join(dir, 'cache.json'),
       AGORA_RESOLVER_LINKS: join(dir, 'links.json'),
     });
     expect(launch.host).toBe('0.0.0.0');
     expect(launch.port).toBe(9101);
-    expect(launch.options.authority).toBe('http://pinakes.local:8080');
-    expect(launch.options.authorityIdentity).toBe('pinakes:agent:resolver');
+    expect(launch.options.authority).toBe('http://refkb.local:8080');
+    expect(launch.options.authorityIdentity).toBe('refkb:agent:resolver');
     expect(launch.options.cache).toBeDefined();
     expect(launch.options.links).toBeDefined();
   });

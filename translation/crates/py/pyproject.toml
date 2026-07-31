@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "translation-py"
 version = "0.1.0"
-description = "PyO3 bindings for agora's translation core — the canonical-graph translation matrix in-process for Python consumers (pinakes/analyzer), zero network hop."
+description = "PyO3 bindings for agora's translation core — the canonical-graph translation matrix in-process for Python consumers, zero network hop."
 requires-python = ">=3.9"
 license = { text = "MIT" }
 classifiers = [

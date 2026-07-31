@@ -1,16 +1,18 @@
 %%% @doc The router's provider configuration — the Erlang mirror of `config.py', read from
 %%% the process environment.
 %%%
-%%% The wire format is the package-neutral `AGORA_PROVIDER_<NAME>_<FIELD>' shape; the legacy
-%%% `CUNEIFORM_PROVIDER_<NAME>_<FIELD>' spelling is a documented alias, and the neutral
-%%% spelling wins when both name the same field. The common non-namespaced spellings
-%%% (`OPENAI_API_KEY', `MLX_SERVE_BASE_URL', `OLLAMA_HOST', ...) are accepted as fallbacks.
+%%% The wire format is the package-neutral `AGORA_PROVIDER_<NAME>_<FIELD>' shape — one
+%%% namespace, owned by this router rather than by whoever configures it. The common
+%%% non-namespaced spellings (`OPENAI_API_KEY', `MLX_SERVE_BASE_URL', `OLLAMA_HOST', ...)
+%%% are accepted as fallbacks. (The caller-named `CUNEIFORM_PROVIDER_*' alias the ladder was
+%%% first configured through was dropped alongside `config.py''s — an env namespace named
+%%% after one participant is the coupling a commons must not have.)
 %%%
 %%% Secrets never leak: a key is kept only as the value behind `api_key' and is never placed
 %%% in the reportable {@link describe/1} view, which reports *whether* a key is set and where
 %%% it came from, never its value.
 %%%
-%%% The env file is named by `AGORA_ENV_FILE' (legacy alias `CUNEIFORM_ENV_FILE'), else
+%%% The env file is named by `AGORA_ENV_FILE', else
 %%% `<cwd>/.env'; it is layered *under* the process environment (an explicit `export' wins),
 %%% and a file holding secrets at looser-than-0600 permissions is tightened in place on load
 %%% rather than refused — this router must never fail closed. What happened is reported by
@@ -46,7 +48,6 @@
 -export_type([config/0, provider/0, env_file_report/0]).
 
 -define(NS_NEUTRAL, "AGORA_PROVIDER_").
--define(NS_LEGACY, "CUNEIFORM_PROVIDER_").
 
 %% @doc The whole process environment as a `#{Name => Value}' map of strings.
 -spec env() -> #{string() => string()}.
@@ -150,7 +151,7 @@ nn(Value) -> Value.
 
 %% --- the env file -----------------------------------------------------------
 
-%% The file is named by `AGORA_ENV_FILE' (legacy alias `CUNEIFORM_ENV_FILE'), else `<cwd>/.env'.
+%% The file is named by `AGORA_ENV_FILE', else `<cwd>/.env'.
 env_file_path(Env, Options) ->
     case maps:get(env_file, Options, undefined) of
         undefined -> configured_env_file(Env);
@@ -158,7 +159,7 @@ env_file_path(Env, Options) ->
     end.
 
 configured_env_file(Env) ->
-    case first_present(Env, ["AGORA_ENV_FILE", "CUNEIFORM_ENV_FILE"]) of
+    case first_present(Env, ["AGORA_ENV_FILE"]) of
         {_Var, Value} -> Value;
         none ->
             {ok, Cwd} = file:get_cwd(),
@@ -230,12 +231,11 @@ is_secret(Key) ->
 
 %% --- parsing ----------------------------------------------------------------
 
-%% Fold the namespaced block (neutral before legacy) and the standard fallbacks into one
-%% record per provider. `Fields' is `Name => #{field := binary()}'; the first writer of a
-%% field wins, so the neutral spelling beats the legacy alias which beats the fallbacks.
+%% Fold the namespaced block and the standard fallbacks into one record per provider.
+%% `Fields' is `Name => #{field := binary()}'; the first writer of a field wins, so the
+%% namespaced spelling beats the non-namespaced fallbacks.
 parse_providers(Env) ->
-    F0 = namespaced_pass(Env, ?NS_NEUTRAL, #{}),
-    F1 = namespaced_pass(Env, ?NS_LEGACY, F0),
+    F1 = namespaced_pass(Env, ?NS_NEUTRAL, #{}),
     {F2, Sources} = api_key_fallback(Env, F1),
     F3 = base_url_fallback(Env, F2),
     maps:map(fun(Name, Fields) -> build_provider(Name, Fields, Sources) end, F3).

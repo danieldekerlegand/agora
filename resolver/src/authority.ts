@@ -1,20 +1,23 @@
 /**
- * The resolver that dials the authority — identity.md §11 decision 1: Pinakes is the single
+ * The resolver that dials the authority — identity.md §11 decision 1: a deployment names ONE
  * canonical authority for real-world entities, anchored to Wikidata.
+ *
+ * Which service that is, is configuration: an endpoint the registry handed back plus an
+ * optional KINP identity to attribute answers to. Nothing here knows the authority's name.
  *
  * Three things this module is careful about:
  *
  * 1. **It dials only what needs an authority.** Claims and assets are content-addressed and
  *    "never round-trip" (§6); agents, worlds and sources are not real-world entities. Only
  *    an `ent` id is worth a request, and everything else is answered locally — which is why
- *    a console with no Pinakes at all still resolves the ids the registry hands it.
+ *    a console with no authority at all still resolves the ids the registry hands it.
  * 2. **The closure is computed here, not stored** (§8, §4.1). The authority states the
  *    equivalence-layer edges; this walks them, and the walk *never crosses a `based_on`
  *    edge*. That single rule is the firewall (§4.3) — a closure that traversed lineage
  *    would return "fought a dragon" for the real Napoleon.
  * 3. **Unreachable is not failed.** Authority is a role, not a hard dependency (§11
  *    decision 1): a dial that fails falls back to the local cache, and a fallback is
- *    labelled `cache`, never `pinakes`.
+ *    labelled `cache`, never `authority`.
  */
 import {
   isJsonObject,
@@ -59,7 +62,7 @@ export type AuthorityFetch = (
   init?: AuthorityRequestInit,
 ) => Promise<AuthorityResponse>;
 
-export interface PinakesOptions {
+export interface AuthorityOptions {
   /** The authority's base URL, as the registry handed it back — never hard-coded upstream. */
   endpoint: string;
   /** Defaults to the platform `fetch`. */
@@ -68,7 +71,11 @@ export interface PinakesOptions {
   cache?: ResolverCache;
   /** Merge-policy overrides (§11 decision 2). */
   policy?: Partial<MergePolicy>;
-  /** KINP identity of the authority, for error messages and provenance. */
+  /**
+   * KINP identity of the authority, for error messages and provenance. Optional because the
+   * authority is whoever the endpoint turns out to be: with none declared the endpoint itself
+   * is what a caller is told could not be reached, which is both neutral and actionable.
+   */
   identity?: string;
   /**
    * The durable equivalence-layer store behind {@link AuthorityResolver.applied} and
@@ -79,20 +86,19 @@ export interface PinakesOptions {
   links?: LinkStore;
 }
 
-/** KINP identity Pinakes publishes its resolver under. */
-export const PINAKES_IDENTITY = 'pinakes:agent:resolver';
-
 /** The kinds that have an authority at all (§6): everything else is minted and final. */
 function needsAuthority(kind: KinpKind): boolean {
   return kind === 'ent';
 }
 
-export function createPinakesResolver(options: PinakesOptions): AuthorityResolver {
+export function createAuthorityResolver(options: AuthorityOptions): AuthorityResolver {
   const base = options.endpoint.replace(/\/$/, '');
   const http = options.fetch ?? platformFetch();
   const cache = options.cache ?? createMemoryCache();
   const policy = mergePolicy(options.policy);
-  const authorityIdentity = options.identity ?? PINAKES_IDENTITY;
+  // No default identity: naming one would be this package deciding whose authority a
+  // deployment dials. Undeclared, the endpoint is the identity (§11 decision 1 names a role).
+  const authorityIdentity = options.identity ?? base;
   // Rehydrate both lists from the durable store when one is configured (§11 decision 2), so a
   // restart resumes with the links it had already applied and queued rather than an empty
   // equivalence layer. Without a store these are plain in-memory arrays, as before.
@@ -174,7 +180,7 @@ export function createPinakesResolver(options: PinakesOptions): AuthorityResolve
       applied.push(proposal);
       links?.addApplied(proposal);
     }
-    return { candidates, proposal, authority: 'pinakes' };
+    return { candidates, proposal, authority: 'authority' };
   }
 
   /**
@@ -236,7 +242,7 @@ export function readResolution(body: JsonObject, id: string, kind: KinpKind): Re
   const resolution: ResolvedIdentity = {
     id,
     kind,
-    authority: 'pinakes',
+    authority: 'authority',
     confidence: 1,
     sameAs: union(walked.sameAs, ids(body.same_as_closure ?? body.same_as), dereferenced(body, id)),
     basedOn: union(walked.basedOn, ids(body.based_on)),

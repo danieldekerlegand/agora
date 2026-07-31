@@ -1,33 +1,42 @@
 # agora
 
-> The **runtime commons** for the five-project neuro-symbolic ecosystem — the marketplace
-> where the platforms meet and transact.
+> The **runtime commons** for koine-conformant systems — reference implementations of the
+> contracts, and the ground where conformant peers meet and transact.
 
 `agora` is the sibling to [`koine`](../koine): **koine specifies the contracts, agora
-implements them.** It holds the shared runtime code the ecosystem's platforms (Insimul,
-Pinakes, Orchestrator, Analyzer, Composer) call into — none of which belongs inside any single
-platform, and none of which belongs in the contracts-only koine repo.
+implements them.** It holds the runtime code that belongs inside no single participant and
+does not belong in the contracts-only koine repo either — a model gateway, a discovery
+registry, an identity resolver, a translation engine, a conformance console.
+
+**Any project that speaks the koine protocols can use it**, three ways: call a hosted
+instance, self-host the pieces it wants, or judge its own implementation against these as the
+reference. There is no membership list. A *participant* is whatever publishes a KCB manifest
+and answers on the wire — agora learns the cast at runtime, from data, and is described here
+by **capability**, never by who happens to be calling.
 
 See [`../koine/decisions/ADR-0001-control-plane-topology.md`](../koine/decisions/ADR-0001-control-plane-topology.md)
 for the decision that created this repo.
 
 ## Components
 
-- **provider-router** — a language-agnostic, OpenAI-compatible model gateway implementing
-  Analyzer's "sacred ladder" (paid → mlx-serve → local → placeholder, per modality,
-  always-completes) with cost estimation + budget-ceiling enforcement (the first concrete
-  implementation of the KCB `cost`/grant model). A *leaf capability*, not an inter-platform
-  router. **The canonical implementation is `provider-router-erl/` (Erlang/OTP, agora:80);
+- **provider-router** — a language-agnostic, OpenAI-compatible model gateway implementing the
+  *sacred ladder* (paid → mlx-serve → local → placeholder, per modality, always-completes)
+  with cost estimation + budget-ceiling enforcement (the first concrete implementation of the
+  KCB `cost`/grant model). A *leaf capability*, not an inter-participant router. **The
+  canonical implementation is `provider-router-erl/` (Erlang/OTP, agora:80);
   `provider-router/` (Python, agora:50) is superseded** — see "The provider-router
   supersession" below.
 - **registry** — the thin KCB discovery registry: **route-by-lookup, never proxy** (returns
   addresses; peers dial each other directly over MCP/A2A). ADR-0001.
-- **resolver** — the KINP resolver reference implementation (`resolve` / `reconcile`), backed
-  by Pinakes as the authoritative store for real-world entities.
+- **resolver** — the KINP resolver reference implementation (`resolve` / `reconcile`), dialing
+  whichever store a deployment configures as its **resolution authority** for real-world
+  entities. The authority is an address, not a vendor.
+- **translation engine** — the KMI/KGP translator between a canonical graph shape and the
+  dialects on either side of a bridge.
 - **client libs / schemas** — shared protocol clients and manifest schemas.
-- **conformance console** — a scenario runner + UI that drives any combination of platforms
-  over their **real** direct connections and asserts cross-plane invariants (the executable
-  form of `../koine/scenarios/*.md`, per the KCS format). An observer, not a hub.
+- **conformance console** — a scenario runner + UI that drives any combination of conformant
+  peers over their **real** direct connections and asserts cross-plane invariants (the
+  executable form of a KCS scenario). An observer, not a hub.
 
 ## Layout
 
@@ -43,15 +52,14 @@ Each directory is a **buildable unit with its own gate**:
 | `console/` | TypeScript + React | the conformance console (scenario runner + UI) |
 | `schemas/` | TypeScript | shared koine manifest schemas / protocol types |
 | `clients/*` | TypeScript | shared protocol client libraries (`@agora/kcb-client`, `@agora/relation-registry-client`) |
+| `translation/` | Rust (cargo) | the KMI/KGP translation engine — one core, several facades (wasm, PyO3, an HTTP leaf) |
 
 `trainer/` is the **general** `finetune` provider **only** (KFT §9, FT-K). Training is
-multi-provider: Pinakes runs its own **specialized** `finetune` provider on the bus (not an adapter
-inside agora), and the registry disambiguates between them (`registry/src/select.ts` — prefer the
-more specialized, then lower cost, surface an unbroken tie). Three runtime follow-ups are handed to
-their own repos and **not built here** — Pinakes's specialized provider (`pinakes:90-finetune-provider`),
-Orchestrator's KCB client replacing `Runner::Stub` (`orchestrator:90-finetune-client`), and the
-finetune-job validator CI (`agora:41-finetune-job-validator`); see `trainer/README.md` and the koine
-program map (`../koine/tasks/chief/README.md`, Tranche D).
+multi-provider: a project with its own corpus runs its own **specialized** `finetune` provider on
+the bus (never an adapter inside agora), and the registry disambiguates between them
+(`registry/src/select.ts` — prefer the more specialized, then lower cost, surface an unbroken tie).
+The specialized providers and the clients that call them are each repo's own work, **not built
+here**; see `trainer/README.md` §"Scope boundary".
 
 ## The provider-router supersession (ADR-0004)
 
@@ -138,7 +146,12 @@ schema generated, and send it. There is no second client behind it: a manual req
 into a one-step scenario and goes through the same `runConformance`, so it is discovered,
 dialed and logged exactly as an authored scenario is.
 
-**The scenarios that ship:**
+**The scenarios that ship.** The runner is the product and it knows nothing about any
+particular cast — a scenario names its participants by KINP identity, and you write your own
+against your own peers. The two below are what this repo bundles: one that exercises the
+commons itself, and one **neutral sample** of a multi-actor cross-plane scenario, kept
+because that shape is the only way to demonstrate the §5 assertions end to end. They are
+illustrative, not normative.
 
 | Scenario | From | What it proves |
 |---|---|---|
@@ -190,11 +203,11 @@ follow-up — an emitted-telemetry contract (a KCB observability extension) fixi
 
 **Polyglot, by decision — not by accident.** Two toolchains, one gate.
 
-- **`provider-router` is Python** (3.11+, uv, FastAPI, pytest/ruff/mypy). It is a *port* of
-  Analyzer's sacred ladder (`~/Development/analyzer`, `src/filmstudio/core/ladders.py`), and Analyzer —
-  along with most of the model-backend ecosystem it talks to (mlx-serve, Ollama clients) — is
-  Python. Porting it into TypeScript would mean re-deriving tier-resolution behaviour that
-  already exists and is trusted, in a language with worse coverage of the backends it dials.
+- **`provider-router` is Python** (3.11+, uv, FastAPI, pytest/ruff/mypy). It is a *port* of a
+  pre-existing, in-production sacred-ladder implementation, and most of the model-backend
+  ecosystem it dials (mlx-serve, Ollama clients) is Python too. Porting it into TypeScript
+  would have meant re-deriving tier-resolution behaviour that already existed and was trusted,
+  in a language with worse coverage of the backends it dials.
 - **`provider-router-erl` is Erlang/OTP** (26+, rebar3, cowboy, dialyzer/eunit/ct) and is now
   the canonical router (ADR-0004). A ladder whose whole promise is "always completes" is a
   supervision tree with a permanent terminal child; a fan-out to many soft-realtime consumers
@@ -202,13 +215,14 @@ follow-up — an emitted-telemetry contract (a KCB observability extension) fixi
   language is internal — the third toolchain costs nothing to any caller.
 - **Everything else is TypeScript** (Node 22, npm workspaces, React 19 + Vite for the console,
   vitest, ESLint, `tsc --noEmit`). The registry, resolver, client libs and console are web-stack
-  surfaces the rest of the ecosystem consumes from TS/React, so TS keeps them one language away
-  from their callers and lets the console import the registry's types directly.
+  surfaces callers consume from TS/React, so TS keeps them one language away from those callers
+  and lets the console import the registry's types directly.
 - **The split is safe because ADR-0001 makes language internal.** The provider-router is a
   *service over the wire* (OpenAI-compatible HTTP + a KCB manifest), never an imported library —
-  so Analyzer (Python) and Orchestrator (TS) both just call it. Nothing in the commons is shared as
-  source across the language boundary — which is exactly why the router could be re-implemented
-  in a third language without a single caller noticing. The one thing that *must* agree — the
+  so a Python caller and a TypeScript caller both just call it. Nothing in the commons is shared
+  as source across the language boundary — which is exactly why the router could be
+  re-implemented in a third language without a single caller noticing. The one thing that
+  *must* agree — the
   koine spec versions — is pinned in `schemas/src/versions.ts` and asserted against the Python
   constant (`test_skeleton.py`) and the Erlang one (`apr_conformance_SUITE`), so drift fails a
   gate instead of failing in production.
@@ -238,6 +252,7 @@ Per area, when a change touches only one:
 | `registry/` | `make check-registry` |
 | `resolver/` | `make check-resolver` |
 | `console/` | `make check-console` |
+| `translation/` | `make check-translation` — `cargo build` + `clippy` + `cargo test` |
 
 Each TypeScript gate is `eslint` + `tsc -p tsconfig.json` (typecheck) + `vitest run`. `make help`
 lists every target; `make build` produces the console bundle and the router wheel; `make fmt`
@@ -268,10 +283,15 @@ accepts hand-written samples. It is reachable as `@agora/schemas/fixtures`, neve
 library surface, and a test asserts its `registryVersion` is the one this build claims to speak,
 so it cannot quietly go stale.
 
-The bridge layer covers both bridged projects — **analyzer** (as lifted) and **insimul** (added at
-registryVersion 0.4.0), each mapping its own predicates onto the canonical vocabulary that
-**pinakes** hosts. pinakes is therefore the canonical *side*, not a bridged project, which is
-why `RELATION_REGISTRY.bridgedProjects` excludes it.
+Which projects a bridge layer covers is **that registry's data**, not agora's. A loaded document
+declares its own cast — the canonical host in `canonicalProject`, the bridged projects as the
+keys of its `projects` block (`bridgedProjectsOf`) — and the validator checks that the
+declaration is **well-formed and self-consistent**, never that it matches a set pinned in this
+build: the canonical host may not also appear as a bridged project (it hosts the vocabulary the
+mappings target, so it is the canonical *side* of the bridge), every mapping entry must be
+well-formed, and every declared mirror must be derived rather than authored. A registry naming
+projects agora has never heard of loads unchanged. What `RELATION_REGISTRY` pins is the
+registry's *version and layout*, and nothing about who is in it.
 
 A registry entry classifies a relation on **three orthogonal axes**, modelled in
 `schemas/src/axes.ts`: its **dialect** tier (KGP §5 — what logic a consumer may evaluate:
@@ -299,9 +319,10 @@ that silently re-hashes every claim id derived from it (KGP §3); a change means
 
 ```ts
 const registry = await loadRelationRegistry('https://koine.example');
-registry.signature('soc:parent_of');      // 'soc:parent_of · 2 · parent|child · false'
-const analyzer = registry.egressFor('analyzer'); // predicate → KGP §7.2 class
-filterPackForEgress(pack, analyzer);          // …which is what the producer filter takes
+registry.signature('soc:parent_of');                       // 'soc:parent_of · 2 · parent|child · false'
+for (const project of bridgedProjectsOf(registry.document)) {  // the cast is the registry's data
+  filterPackForEgress(pack, registry.egressFor(project));   // predicate → KGP §7.2 class
+}
 ```
 
 It fetches `predicate-mapping.json`, follows it to the vocabulary files it names, validates
@@ -310,23 +331,24 @@ caller, and a caller that edits one has forked the registry.
 
 ### The resolver
 
-`resolver/` implements KINP §8's two verbs against Pinakes, the single canonical authority for
-real-world entities (§11 decision 1):
+`resolver/` implements KINP §8's two verbs against a deployment's **resolution authority** — the
+single canonical store for real-world entities (§11 decision 1). Which store that is, is
+configuration: an address the registry handed back.
 
 ```ts
-const resolver = createPinakesResolver({ endpoint });   // the address the registry handed back
-await resolver.resolve({ id: 'insimul:world:alderforest:ent:npc-renaud' });
-await resolver.reconcile({ query: 'Renaud', of: 'analyzer:ent:e-8842', world: 'insimul:world:alderforest' });
+const resolver = createAuthorityResolver({ endpoint }); // the address the registry handed back
+await resolver.resolve({ id: 'example:world:alderforest:ent:npc-renaud' });
+await resolver.reconcile({ query: 'Renaud', of: 'example-media:ent:e-8842', world: 'example:world:alderforest' });
 ```
 
 `resolve` computes the merged view rather than storing it (§4.1), and **the walk never crosses
-a `based_on` edge** — that one rule is the firewall (§4.3). The fictional general is `same_as`
-the Analyzer local extracted from the footage and `based_on` the real Napoleon, so resolving him
-returns the local and stops: Wikidata's Napoleon is two `same_as` hops away and both queries
-stay clean, out of one graph.
+a `based_on` edge** — that one rule is the firewall (§4.3). In the sample above the fictional
+general is `same_as` the local entity extracted from the footage and `based_on` the real
+Napoleon, so resolving him returns the local and stops: Wikidata's Napoleon is two `same_as`
+hops away and both queries stay clean, out of one graph.
 
-`reconcile` takes the OpenRefine/Wikidata Reconciliation query verbatim (§4.5) so Pinakes's
-Wikidata backbone answers it directly, then decides two things about the top candidate: which
+`reconcile` takes the OpenRefine/Wikidata Reconciliation query verbatim (§4.5) so an authority
+with a Wikidata backbone answers it directly, then decides two things about the top candidate: which
 relation (§4.5 — different worlds that do not inherit identity ⇒ `based_on`; a candidate
 already reachable through `based_on` is never promoted by transitivity) and whether to apply it
 (§11 decision 2 — auto-apply above a per-world confidence threshold, queue anything
@@ -336,7 +358,8 @@ and nothing there has been asserted.
 Authority is a role, not a hard dependency: ids that never round-trip (claims and assets are
 content hashes, §6) are answered without dialing anybody, an id the authority has never heard
 of resolves to itself, and a dial that fails falls back to the local cache — labelled `cache`,
-never `pinakes`, because "Pinakes says so" and "Pinakes said so once" license different writes.
+never as the authority itself, because "the authority says so" and "the authority said so once"
+license different writes.
 
 ## Status
 
@@ -354,3 +377,11 @@ leaving `kcs:sample-pipeline` as the neutral sample); the full KINP resolver dia
 entity authority (US-CS4); the content-addressed
 conformance report and the scenario-library UI (US-CS5); the manual capability explorer
 (US-CS6). Next: the passive live fabric monitor.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). Every buildable unit declares the same: the Python areas
+(`provider-router/`, `trainer/`), the Rust workspaces (`translation/`, `registry/path-index/`),
+the Erlang router and the TypeScript root. Sharing one license across the tree is what makes a
+capability here safe to vendor, self-host or fork; a unit that needs a different one does not
+belong in the commons.

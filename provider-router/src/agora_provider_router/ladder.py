@@ -1,7 +1,7 @@
-"""The sacred ladder — per-modality tier ordering, ported from Analyzer.
+"""The sacred ladder — per-modality tier ordering.
 
-Reference: ``~/Development/analyzer/src/filmstudio/core/ladders.py``. Two things carry over
-verbatim in spirit:
+Ported from a pre-existing media-pipeline implementation of the same idea. Two things
+carry over verbatim in spirit:
 
 * The order is **configuration, not hardcode**: ``AGORA_<MODALITY>_LADDER`` names a
   comma-separated tier order and ``AGORA_PREFER_LOCAL=1`` fronts the zero-spend tiers.
@@ -9,8 +9,8 @@ verbatim in spirit:
   modality ends on, so a configured ladder can narrow *which* backends are tried but can
   never break the always-completes contract (:mod:`agora_provider_router.router`).
 
-What changed in the port: Analyzer's tokens were provider names (``veo``, ``runway``, …)
-because its ladder lived inside each media skill. Here the router *is* the ladder, so the
+What changed in the port: upstream the tokens were vendor names (``veo``, ``runway``, …)
+because the ladder lived inside each media skill. Here the router *is* the ladder, so the
 tokens are the four tiers ADR-0001 names — ``paid`` → ``mlx`` → ``local`` → placeholder —
 and the per-modality vendor preference moves into :data:`PAID_PROVIDERS`.
 

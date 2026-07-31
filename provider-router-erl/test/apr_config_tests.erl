@@ -63,11 +63,17 @@ the_file_can_set_the_ladder_test() ->
         file:delete(Path)
     end.
 
-the_legacy_env_file_variable_is_an_alias_test() ->
-    Path = write("OPENAI_API_KEY=sk-legacy\n"),
+%% One namespace, owned by this router: the caller-named `CUNEIFORM_*' alias the ladder was
+%% first configured through is gone, so neither an `.env' it names nor a key it spells
+%% configures anything. `AGORA_ENV_FILE' points at nothing so the fallback `<cwd>/.env'
+%% cannot answer for the file half either.
+only_the_neutral_namespace_is_recognised_test() ->
+    Path = write("OPENAI_API_KEY=sk-not-read\n"),
     try
-        Config = read(#{"CUNEIFORM_ENV_FILE" => Path}),
-        ?assert(apr_config:has_key(apr_config:provider(Config, <<"openai">>)))
+        Config = read(#{"AGORA_ENV_FILE" => "/nonexistent/agora/.env",
+                        "CUNEIFORM_ENV_FILE" => Path,
+                        "CUNEIFORM_PROVIDER_OPENAI_API_KEY" => "sk-also-not-read"}),
+        ?assertNot(apr_config:has_key(apr_config:provider(Config, <<"openai">>)))
     after
         file:delete(Path)
     end.

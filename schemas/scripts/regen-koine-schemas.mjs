@@ -32,7 +32,7 @@ const SCHEMA_FILES = [
   'grounding-pack.schema.json',
   'canonical-world-export.schema.json',
   'entity-grounding-snapshot.schema.json',
-  'analyzer-canonical-export.schema.json',
+  'canonical-graph-export.schema.json',
   'dataset-jsonl-header.schema.json',
   'finetune-job.schema.json',
 ];

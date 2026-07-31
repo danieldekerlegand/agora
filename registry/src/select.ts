@@ -1,8 +1,8 @@
 /**
  * Multi-provider `finetune` selection (KFT §8/§9, FT-K).
  *
- * More than one `finetune` provider can match a job — agora's **general** trainer and
- * Pinakes's **specialized** provider both accept `text-generation`. This is the registry
+ * More than one `finetune` provider can match a job — agora's **general** trainer and a
+ * caller's own **specialized** provider both accept `text-generation`. This is the registry
  * disambiguation the spec fixes (KCB §3):
  *
  *   1. A job MAY name a target provider explicitly — honored over any tiebreak.

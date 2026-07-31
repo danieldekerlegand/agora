@@ -2,10 +2,10 @@
  * The local resolver cache — identity.md §8: "each project can run a local resolver cache
  * for offline use that syncs `same_as` links opportunistically."
  *
- * This is what keeps Pinakes-as-authority (§11 decision 1) from becoming a hard dependency.
+ * This is what keeps the authority (§11 decision 1) from becoming a hard dependency.
  * Minting is local (§6) and reconciliation is eventually consistent, so an unreachable
- * authority must degrade to "what it last said" rather than to a failure — Analyzer's
- * zero-spend/local-first operation and Insimul's embedded execution both depend on it.
+ * authority must degrade to "what it last said" rather than to a failure — zero-spend /
+ * local-first operation and embedded execution both depend on it.
  *
  * Deliberately an interface with a memory implementation: the console needs no durability,
  * and a project that does can back the same two methods with its own store.

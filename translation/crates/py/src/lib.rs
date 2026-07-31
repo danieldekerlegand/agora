@@ -1,7 +1,7 @@
 //! PyO3 bindings for agora's translation core.
 //!
-//! This crate is the embeddable-first facade for Python consumers — pinakes and analyzer
-//! call the engine *in-process* with zero network hop, dropping in for the pure-Python
+//! This crate is the embeddable-first facade for Python consumers — a Python participant
+//! calls the engine *in-process* with zero network hop, dropping in for the pure-Python
 //! culture-scrape exporters. It exposes the full canonical-graph translation matrix
 //! (`to_tsv`/`to_csv`/`to_cypher`/`to_prolog`/`to_souffle`/`to_problog`) plus the two
 //! higher-level exporters that return the culture-scrape result shapes: `to_datalog`

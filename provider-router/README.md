@@ -1,10 +1,10 @@
 # provider-router
 
 A gateway to **model backends** — OpenAI-compatible, always-completes. One leaf capability on
-the KCB bus, **not** the path other platforms route through (ADR-0001 decision 1).
+the KCB bus, **not** the path other participants route through (ADR-0001 decision 1).
 
-The tier ladder is ported from Analyzer's "sacred ladder" (`~/Development/analyzer`,
-`src/filmstudio/core/ladders.py`). Per modality, in order:
+The tier ladder is ported from a pre-existing media-pipeline "sacred ladder". Per modality,
+in order:
 
 1. **paid** — a configured API key
 2. **mlx-serve** — `MLX_SERVE_BASE_URL`
@@ -146,18 +146,20 @@ to the deterministic placeholder tier — it answers requests and spends nothing
 deployment is safe to start immediately. Add a variable only to opt *into* a paid or local tier.
 
 **Provider settings** use the package-neutral `AGORA_PROVIDER_<NAME>_<FIELD>` shape (`FIELD` is
-`API_KEY`, `BASE_URL`, `MODEL`, or `ENABLED`). The ecosystem's historical
-`CUNEIFORM_PROVIDER_<NAME>_<FIELD>` spelling is retained as a documented **legacy alias**, so an
-`.env` written by a Orchestrator/Analyzer console configures this router unchanged; the neutral
-spelling wins when both name the same field. The common non-namespaced spellings
-(`OPENAI_API_KEY`, `MLX_SERVE_BASE_URL`, `OLLAMA_HOST`, …) are accepted as fallbacks, and either
-namespaced form beats them. Settings are read from the process environment and, under it, the
-env file named by `AGORA_ENV_FILE` (legacy alias `CUNEIFORM_ENV_FILE`, default `./.env`) — an
-explicit `export` beats the file.
+`API_KEY`, `BASE_URL`, `MODEL`, or `ENABLED`) — one namespace, owned by the router rather than
+by whoever configures it. The common non-namespaced spellings (`OPENAI_API_KEY`,
+`MLX_SERVE_BASE_URL`, `OLLAMA_HOST`, …) are accepted as fallbacks, and the namespaced form beats
+them. Settings are read from the process environment and, under it, the env file named by
+`AGORA_ENV_FILE` (default `./.env`) — an explicit `export` beats the file.
+
+> The caller-named `CUNEIFORM_PROVIDER_*` / `CUNEIFORM_ENV_FILE` spelling this ladder was first
+> configured through was carried as an alias through agora:50 and **dropped**: an env namespace
+> named after one participant is the coupling a commons must not have. Migrate an `.env` by
+> renaming the prefix — the `<NAME>_<FIELD>` half is unchanged.
 
 | Variable | Effect |
 |---|---|
-| `AGORA_PROVIDER_OPENAI_API_KEY` | enables the paid tier for the modalities OpenAI serves (legacy: `CUNEIFORM_PROVIDER_OPENAI_API_KEY`) |
+| `AGORA_PROVIDER_OPENAI_API_KEY` | enables the paid tier for the modalities OpenAI serves |
 | `MLX_SERVE_BASE_URL` | enables the mlx-serve tier |
 | `OLLAMA_BASE_URL` / `OLLAMA_HOST` | enables the local tier |
 | `AGORA_<MODALITY>_LADDER` | narrows/reorders that modality's tiers, e.g. `local,mlx` |
@@ -166,7 +168,7 @@ explicit `export` beats the file.
 | `AGORA_PRICE_<MODALITY>_<PROVIDER>` | overrides a single rate, in budget units per unit — wins over the file and the shipped defaults |
 | `AGORA_ROUTER_IDENTITY` | overrides the KINP identity `/health` and the KCB manifest report (default `agora:agent:provider-router`) |
 | `AGORA_PUBLIC_BASE_URL` | the address the KCB manifest publishes for itself |
-| `AGORA_ENV_FILE` | the env file to read provider settings from (legacy: `CUNEIFORM_ENV_FILE`) |
+| `AGORA_ENV_FILE` | the env file to read provider settings from |
 | `AGORA_HOST` / `AGORA_PORT` | the uvicorn bind address for the entry point (default `0.0.0.0:8000`) |
 
 The price sheet (`AGORA_PRICE_TABLE`) and the per-rate overrides layer: a replacement file swaps

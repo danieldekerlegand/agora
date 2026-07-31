@@ -53,12 +53,12 @@ describe('the resolver HTTP service (identity only, never a payload)', () => {
   });
 
   it('reads kind and world out of a world-scoped ent id (§5)', async () => {
-    const id = 'insimul:world:alderforest:ent:npc-renaud';
+    const id = 'worldsim:world:alderforest:ent:npc-renaud';
     const response = await fetch(`${base}/resolve?id=${encodeURIComponent(id)}`);
     expect(response.status).toBe(200);
     const resolved = (await response.json()) as ResolvedIdentity;
     expect(resolved.kind).toBe('ent');
-    expect(resolved.world).toBe('insimul:world:alderforest');
+    expect(resolved.world).toBe('worldsim:world:alderforest');
     // No authority is configured, yet a well-formed id still answers — degraded, not broken.
     expect(resolved.authority).toBe('local');
   });
@@ -111,11 +111,11 @@ describe('the resolver HTTP service dialing an authority', () => {
   afterEach(() => service.close());
 
   it('replays the cache labelled authority:cache when the authority is unreachable', async () => {
-    const id = 'insimul:world:alderforest:ent:npc-renaud';
+    const id = 'worldsim:world:alderforest:ent:npc-renaud';
     let up = true;
     // A stubbed authority that answers once, then goes dark — the cache must carry the answer.
     service = createResolverServer({
-      authority: 'https://pinakes.example/resolver',
+      authority: 'https://refkb.example/resolver',
       fetch: () => {
         if (!up) return Promise.reject(new Error('authority down'));
         return Promise.resolve({
@@ -131,27 +131,27 @@ describe('the resolver HTTP service dialing an authority', () => {
     const live = (await (
       await fetch(`${base}/resolve?id=${encodeURIComponent(id)}`)
     ).json()) as ResolvedIdentity;
-    expect(live.authority).toBe('pinakes');
+    expect(live.authority).toBe('authority');
 
     up = false;
     const offline = (await (
       await fetch(`${base}/resolve?id=${encodeURIComponent(id)}`)
     ).json()) as ResolvedIdentity;
-    // Never relabelled 'pinakes' — a replay is a replay (§8, §11 decision 1).
+    // Never relabelled 'authority' — a replay is a replay (§8, §11 decision 1).
     expect(offline.authority).toBe('cache');
     expect(offline.id).toBe(id);
   });
 
   it('surfaces AuthorityUnreachableError as a 502 when nothing is cached', async () => {
     service = createResolverServer({
-      authority: 'https://pinakes.example/resolver',
+      authority: 'https://refkb.example/resolver',
       fetch: () => Promise.reject(new Error('authority down')),
     });
     const address = await service.listen();
     base = `http://${address.host}:${address.port}`;
 
     const response = await fetch(
-      `${base}/resolve?id=${encodeURIComponent('pinakes:ent:napoleon-i')}`,
+      `${base}/resolve?id=${encodeURIComponent('refkb:ent:napoleon-i')}`,
     );
     expect(response.status).toBe(502);
     expect(((await response.json()) as { error: string }).error).toBe('AuthorityUnreachableError');

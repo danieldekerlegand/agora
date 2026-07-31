@@ -3,17 +3,17 @@ import { describe, expect, it } from 'vitest';
 import {
   AuthorityUnreachableError,
   createMemoryCache,
-  createPinakesResolver,
+  createAuthorityResolver,
   mergePolicy,
   readCandidates,
   type AuthorityFetch,
   type AuthorityResponse,
 } from './index.ts';
 
-const ALDERFOREST = 'insimul:world:alderforest';
-const REALITY = 'pinakes:world:consensus-reality';
+const ALDERFOREST = 'worldsim:world:alderforest';
+const REALITY = 'refkb:world:consensus-reality';
 const RENAUD = `${ALDERFOREST}:ent:npc-renaud`;
-const ENDPOINT = 'https://pinakes.example/resolver';
+const ENDPOINT = 'https://refkb.example/resolver';
 
 /**
  * The authority as a lookup table, plus the log of what was dialed.
@@ -42,16 +42,16 @@ const EQUIVALENCE_LAYER = {
   entity: { id: RENAUD, kind: 'ent' },
   links: [
     { subject: 'analyzer:ent:e-8842', relation: 'same_as', object: RENAUD, confidence: 0.9 },
-    { subject: RENAUD, relation: 'based_on', object: 'pinakes:ent:napoleon-i', confidence: 0.83 },
+    { subject: RENAUD, relation: 'based_on', object: 'refkb:ent:napoleon-i', confidence: 0.83 },
     {
-      subject: 'pinakes:ent:napoleon-i',
+      subject: 'refkb:ent:napoleon-i',
       relation: 'same_as',
       object: 'wikidata:ent:q517',
       confidence: 1,
     },
   ],
   provenance: [
-    { agent: 'pinakes:agent:resolver', activity: 'analyzer:src:run-1a2b', asserted: '2026-07-18T06:20:00Z' },
+    { agent: 'refkb:agent:resolver', activity: 'analyzer:src:run-1a2b', asserted: '2026-07-18T06:20:00Z' },
   ],
   attached_assets: ['analyzer:asset:sha256-aa11'],
 };
@@ -59,21 +59,21 @@ const EQUIVALENCE_LAYER = {
 describe('resolve against the authority (§8)', () => {
   it('closes over same_as and stops dead at based_on', async () => {
     const { fetch } = authority({ '/resolve/': { body: EQUIVALENCE_LAYER } });
-    const resolved = await createPinakesResolver({ endpoint: ENDPOINT, fetch }).resolve({
+    const resolved = await createAuthorityResolver({ endpoint: ENDPOINT, fetch }).resolve({
       id: RENAUD,
     });
 
     expect(resolved).toEqual({
       id: RENAUD,
       kind: 'ent',
-      authority: 'pinakes',
+      authority: 'authority',
       confidence: 1,
       world: ALDERFOREST,
       sameAs: ['analyzer:ent:e-8842'],
-      basedOn: ['pinakes:ent:napoleon-i'],
+      basedOn: ['refkb:ent:napoleon-i'],
       provenance: [
         {
-          agent: 'pinakes:agent:resolver',
+          agent: 'refkb:agent:resolver',
           activity: 'analyzer:src:run-1a2b',
           asserted: '2026-07-18T06:20:00Z',
         },
@@ -91,17 +91,17 @@ describe('resolve against the authority (§8)', () => {
       '/resolve/': {
         body: {
           links: [
-            { subject: 'analyzer:ent:e-8842', relation: 'same_as', object: 'pinakes:ent:napoleon-i' },
-            { subject: 'pinakes:ent:napoleon-i', relation: 'same_as', object: 'wikidata:ent:q517' },
+            { subject: 'analyzer:ent:e-8842', relation: 'same_as', object: 'refkb:ent:napoleon-i' },
+            { subject: 'refkb:ent:napoleon-i', relation: 'same_as', object: 'wikidata:ent:q517' },
           ],
         },
       },
     });
-    const resolved = await createPinakesResolver({ endpoint: ENDPOINT, fetch }).resolve({
+    const resolved = await createAuthorityResolver({ endpoint: ENDPOINT, fetch }).resolve({
       id: 'analyzer:ent:e-8842',
     });
     // §4.2: facts flow *both ways* across `same_as`, so the closure is undirected.
-    expect(resolved.sameAs.sort()).toEqual(['pinakes:ent:napoleon-i', 'wikidata:ent:q517']);
+    expect(resolved.sameAs.sort()).toEqual(['refkb:ent:napoleon-i', 'wikidata:ent:q517']);
     expect(resolved.basedOn).toEqual([]);
   });
 
@@ -109,32 +109,32 @@ describe('resolve against the authority (§8)', () => {
     const { fetch } = authority({
       '/resolve/': {
         body: {
-          entity: { id: 'pinakes:ent:napoleon-i' },
+          entity: { id: 'refkb:ent:napoleon-i' },
           same_as_closure: [{ id: 'wikidata:ent:q517' }],
-          based_on: ['insimul:world:alderforest:ent:npc-renaud'],
+          based_on: ['worldsim:world:alderforest:ent:npc-renaud'],
         },
       },
     });
-    const resolved = await createPinakesResolver({ endpoint: ENDPOINT, fetch }).resolve({
-      id: 'pinakes:ent:napoleon-i',
+    const resolved = await createAuthorityResolver({ endpoint: ENDPOINT, fetch }).resolve({
+      id: 'refkb:ent:napoleon-i',
     });
     expect(resolved.sameAs).toEqual(['wikidata:ent:q517']);
-    expect(resolved.basedOn).toEqual(['insimul:world:alderforest:ent:npc-renaud']);
+    expect(resolved.basedOn).toEqual(['worldsim:world:alderforest:ent:npc-renaud']);
   });
 
   it('does not dial for ids that never round-trip to an authority (§6)', async () => {
     const { fetch, calls } = authority({});
-    const resolver = createPinakesResolver({ endpoint: ENDPOINT, fetch });
+    const resolver = createAuthorityResolver({ endpoint: ENDPOINT, fetch });
 
     for (const id of [
-      'insimul:claim:sha256-9f3c1a',
+      'worldsim:claim:sha256-9f3c1a',
       'analyzer:asset:sha256-aa11',
       'agora:agent:provider-router',
     ]) {
       await expect(resolver.resolve({ id })).resolves.toMatchObject({ id, authority: 'local' });
     }
     // Claims and assets are content hashes and agents are nobody's real-world entity, so
-    // asking Pinakes about them is a request that could only ever be answered "yes, that id".
+    // asking the authority about them is a request that could only ever be answered "yes, that id".
     expect(calls).toEqual([]);
   });
 
@@ -143,47 +143,47 @@ describe('resolve against the authority (§8)', () => {
     // A provisional local (§6) is valid before anyone reconciles it — 404 is the normal
     // state of a freshly minted id, not an error.
     await expect(
-      createPinakesResolver({ endpoint: ENDPOINT, fetch }).resolve({ id: 'analyzer:ent:e-8842' }),
+      createAuthorityResolver({ endpoint: ENDPOINT, fetch }).resolve({ id: 'analyzer:ent:e-8842' }),
     ).resolves.toMatchObject({ authority: 'local', sameAs: [], basedOn: [] });
   });
 
   it('refuses a bare name — that is what reconcile is for', async () => {
     const { fetch } = authority({});
     await expect(
-      createPinakesResolver({ endpoint: ENDPOINT, fetch }).resolve({ name: 'Napoleon' }),
+      createAuthorityResolver({ endpoint: ENDPOINT, fetch }).resolve({ name: 'Napoleon' }),
     ).rejects.toThrow(/reconcile/);
   });
 });
 
 describe('offline (§8: a local cache that syncs opportunistically)', () => {
-  it('replays the last authority answer, labelled cache rather than pinakes', async () => {
+  it('replays the last authority answer, labelled cache rather than authority', async () => {
     const cache = createMemoryCache();
     const online = authority({ '/resolve/': { body: EQUIVALENCE_LAYER } });
-    const fresh = await createPinakesResolver({
+    const fresh = await createAuthorityResolver({
       endpoint: ENDPOINT,
       fetch: online.fetch,
       cache,
     }).resolve({ id: RENAUD });
 
     const offline: AuthorityFetch = () => Promise.reject(new Error('ECONNREFUSED'));
-    const replayed = await createPinakesResolver({ endpoint: ENDPOINT, fetch: offline, cache })
+    const replayed = await createAuthorityResolver({ endpoint: ENDPOINT, fetch: offline, cache })
       .resolve({ id: RENAUD });
 
     expect(replayed).toEqual({ ...fresh, authority: 'cache' });
-    // The distinction is load-bearing: "Pinakes says so" licenses a write-back, "Pinakes
+    // The distinction is load-bearing: "the authority says so" licenses a write-back, "it
     // said so once" does not.
-    expect(fresh.authority).toBe('pinakes');
+    expect(fresh.authority).toBe('authority');
   });
 
   it('falls back to the cache when the authority errors, not only when it is down', async () => {
     const cache = createMemoryCache();
     const online = authority({ '/resolve/': { body: EQUIVALENCE_LAYER } });
-    await createPinakesResolver({ endpoint: ENDPOINT, fetch: online.fetch, cache }).resolve({
+    await createAuthorityResolver({ endpoint: ENDPOINT, fetch: online.fetch, cache }).resolve({
       id: RENAUD,
     });
     const broken = authority({ '/resolve/': { status: 503, body: { detail: 'down for QA' } } });
     await expect(
-      createPinakesResolver({ endpoint: ENDPOINT, fetch: broken.fetch, cache }).resolve({
+      createAuthorityResolver({ endpoint: ENDPOINT, fetch: broken.fetch, cache }).resolve({
         id: RENAUD,
       }),
     ).resolves.toMatchObject({ authority: 'cache' });
@@ -192,7 +192,7 @@ describe('offline (§8: a local cache that syncs opportunistically)', () => {
   it('says so plainly when the authority is unreachable and the cache is cold', async () => {
     const offline: AuthorityFetch = () => Promise.reject(new Error('ECONNREFUSED'));
     await expect(
-      createPinakesResolver({ endpoint: ENDPOINT, fetch: offline }).resolve({ id: 'analyzer:ent:e-8842' }),
+      createAuthorityResolver({ endpoint: ENDPOINT, fetch: offline }).resolve({ id: 'analyzer:ent:e-8842' }),
     ).rejects.toThrow(AuthorityUnreachableError);
   });
 });
@@ -201,8 +201,8 @@ describe('reconcile in the OpenRefine shape (§4.5)', () => {
   const CANDIDATES = {
     q0: {
       result: [
-        { id: 'pinakes:ent:napoleon-i', name: 'Napoleon I', score: 83, match: false, type: [{ id: 'wikidata:ent:q5' }] },
-        { id: 'pinakes:ent:napoleon-iii', name: 'Napoleon III', score: 41, match: false, type: [] },
+        { id: 'refkb:ent:napoleon-i', name: 'Napoleon I', score: 83, match: false, type: [{ id: 'wikidata:ent:q5' }] },
+        { id: 'refkb:ent:napoleon-iii', name: 'Napoleon III', score: 41, match: false, type: [] },
       ],
     },
   };
@@ -212,7 +212,7 @@ describe('reconcile in the OpenRefine shape (§4.5)', () => {
       '/reconcile': { body: CANDIDATES },
       '/resolve/': { status: 404 },
     });
-    const resolver = createPinakesResolver({ endpoint: ENDPOINT, fetch });
+    const resolver = createAuthorityResolver({ endpoint: ENDPOINT, fetch });
     const result = await resolver.reconcile({
       query: 'Renaud',
       type: 'wikidata:ent:q5',
@@ -223,7 +223,7 @@ describe('reconcile in the OpenRefine shape (§4.5)', () => {
 
     expect(calls).toContain(`POST ${ENDPOINT}/reconcile`);
     expect(result.candidates[0]).toMatchObject({
-      id: 'pinakes:ent:napoleon-i',
+      id: 'refkb:ent:napoleon-i',
       confidence: 0.83,
       world: REALITY,
       types: ['wikidata:ent:q5'],
@@ -233,7 +233,7 @@ describe('reconcile in the OpenRefine shape (§4.5)', () => {
     expect(result.proposal).toMatchObject({
       relation: 'based_on',
       subject: 'analyzer:ent:e-8842',
-      object: 'pinakes:ent:napoleon-i',
+      object: 'refkb:ent:napoleon-i',
       review: true,
     });
     expect(resolver.reviewQueue).toEqual([result.proposal]);
@@ -247,7 +247,7 @@ describe('reconcile in the OpenRefine shape (§4.5)', () => {
       },
       '/resolve/': { status: 404 },
     });
-    const resolver = createPinakesResolver({ endpoint: ENDPOINT, fetch });
+    const resolver = createAuthorityResolver({ endpoint: ENDPOINT, fetch });
     const result = await resolver.reconcile({ query: 'Renaud', of: 'analyzer:ent:e-8842', world: ALDERFOREST });
 
     expect(result.proposal).toMatchObject({ relation: 'same_as', review: false });
@@ -259,10 +259,10 @@ describe('reconcile in the OpenRefine shape (§4.5)', () => {
     const { fetch } = authority({
       '/resolve/': { body: EQUIVALENCE_LAYER },
       '/reconcile': {
-        body: { result: [{ id: 'pinakes:ent:napoleon-i', name: 'Napoleon I', score: 99 }] },
+        body: { result: [{ id: 'refkb:ent:napoleon-i', name: 'Napoleon I', score: 99 }] },
       },
     });
-    const resolver = createPinakesResolver({ endpoint: ENDPOINT, fetch });
+    const resolver = createAuthorityResolver({ endpoint: ENDPOINT, fetch });
     // The caller asserts the real world and the match is all but certain — and the resolver
     // still refuses, because resolving the subject shows the candidate is already reached
     // through `based_on` (§4.5, final paragraph).
@@ -275,7 +275,7 @@ describe('reconcile in the OpenRefine shape (§4.5)', () => {
   it('has nothing to replay when the authority is down — matching is a judgement', async () => {
     const offline: AuthorityFetch = () => Promise.reject(new Error('ECONNREFUSED'));
     await expect(
-      createPinakesResolver({ endpoint: ENDPOINT, fetch: offline }).reconcile({ query: 'Napoleon' }),
+      createAuthorityResolver({ endpoint: ENDPOINT, fetch: offline }).reconcile({ query: 'Napoleon' }),
     ).rejects.toThrow(AuthorityUnreachableError);
   });
 });
@@ -285,15 +285,15 @@ describe('reading the reconciliation response', () => {
 
   it('ranks by confidence whatever order the service used', () => {
     const candidates = readCandidates(
-      { result: [{ id: 'pinakes:ent:b', score: 40 }, { id: 'pinakes:ent:a', score: 90 }] },
+      { result: [{ id: 'refkb:ent:b', score: 40 }, { id: 'refkb:ent:a', score: 90 }] },
       policy,
     );
-    expect(candidates.map((entry) => entry.id)).toEqual(['pinakes:ent:a', 'pinakes:ent:b']);
+    expect(candidates.map((entry) => entry.id)).toEqual(['refkb:ent:a', 'refkb:ent:b']);
   });
 
   it('reads a 0–100 score as a percentage and a 0–1 score as itself', () => {
-    const [percent] = readCandidates([{ id: 'pinakes:ent:a', score: 83 }], policy);
-    const [unit] = readCandidates([{ id: 'pinakes:ent:b', score: 0.83 }], policy);
+    const [percent] = readCandidates([{ id: 'refkb:ent:a', score: 83 }], policy);
+    const [unit] = readCandidates([{ id: 'refkb:ent:b', score: 0.83 }], policy);
     // Reading 83 as a confidence of 83 would clear every threshold there is.
     expect(percent?.confidence).toBe(0.83);
     expect(unit?.confidence).toBe(0.83);

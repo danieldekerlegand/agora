@@ -6,7 +6,7 @@ set travels on — knowledge (KGP), media (KMI), or both — which is what makes
 `finetune` capability span planes (data in one plane, model out in another).
 
 This module declares only the **general** surface agora advertises. A *specialized* provider
-(e.g. Pinakes's `ml/` TRL+PEFT path) advertises its own, narrower capability on the bus; the
+(e.g. a caller's own TRL+PEFT path) advertises its own, narrower capability on the bus; the
 registry routes between them (KFT §8/§9, FT-K) — that discrimination is US-5's concern, and it
 works precisely because this surface is the broad, general one.
 
