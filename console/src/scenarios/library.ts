@@ -8,13 +8,17 @@
  * red gate rather than a menu item that fails when somebody clicks it.
  *
  * Order is the order the console offers them: the cheapest real round-trip first, then the
- * two hand-written pressure tests (KCS §6) in the order koine wrote them.
+ * multi-participant sample.
+ *
+ * Both entries are **neutral** — a commons runtime ships the runner and a sample to prove it
+ * runs, not a particular deployment's cast. The ecosystem's own conformance scenarios, with
+ * their real participants and fixtures, live in the private `legacy` integration repo; they
+ * are loaded from there rather than bundled here (see `console/README.md`).
  */
 import type { ScenarioDocument } from '@agora/schemas';
 
-import { MEDIA_TRANSFORM } from './media-transform.ts';
 import { PROVIDER_ROUTER_ROUNDTRIP } from './provider-router-roundtrip.ts';
-import { WORLDS_TO_FABRIC } from './worlds-to-fabric.ts';
+import { SAMPLE_PIPELINE } from './sample-pipeline.ts';
 
 export interface LibraryEntry {
   scenario: ScenarioDocument;
@@ -31,16 +35,9 @@ export const SCENARIO_LIBRARY: readonly LibraryEntry[] = [
       'A completion under a ceiling of zero budget units: the ladder always completes, for nothing.',
   },
   {
-    scenario: WORLDS_TO_FABRIC,
+    scenario: SAMPLE_PIPELINE,
     summary:
-      'Fiction stays out of consensus reality across the media→knowledge bridge — the identity firewall.',
-    source: 'koine/scenarios/e2e-worlds-to-fabric.md',
-  },
-  {
-    scenario: MEDIA_TRANSFORM,
-    summary:
-      'A playthrough through four projects: a cross-plane route, a CAS fetch, source worlds, a spend ceiling.',
-    source: 'koine/scenarios/e2e-media-transform.md',
+      'A scoped world stays out of the baseline across the media→knowledge bridge — the identity firewall.',
   },
 ];
 

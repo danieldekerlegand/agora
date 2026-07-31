@@ -1,0 +1,32 @@
+{
+  "identity": "producer:agent:publisher",
+  "subscribe": {
+    "producer:world:sample": {
+      "frames": [
+        {
+          "kgp_version": "0.4.0",
+          "pack_id": "sha256-8ce401",
+          "kind": "delta",
+          "basis": "sha256-de17a0",
+          "dialect": "grounding-only",
+          "worlds": ["producer:world:sample"],
+          "assertions": [
+            {
+              "id": "producer:claim:sha256-b3402d",
+              "world": "producer:world:sample",
+              "subject": "producer:world:sample:ent:item-alpha",
+              "relation": "depends_on",
+              "object": "producer:world:sample:ent:assembly-beta",
+              "confidence": 0.95,
+              "prov": {
+                "agent": "producer:agent:publisher",
+                "activity": "producer:src:session-7f",
+                "asserted": "2026-07-22T11:03:58Z"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

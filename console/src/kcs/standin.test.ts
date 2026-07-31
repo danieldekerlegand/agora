@@ -15,57 +15,57 @@ import { createRegistry } from '@agora/registry';
 import { SPEC_VERSIONS, type ScenarioDocument, type Step } from '@agora/schemas';
 import { describe, expect, it } from 'vitest';
 
-import { bundledFixtures, INSIMUL_STANDIN, PINAKES_STANDIN } from '../fixtures/standins.ts';
+import { bundledFixtures, PRODUCER_STANDIN, CURATOR_STANDIN } from '../fixtures/standins.ts';
 import { runScenario } from './runner.ts';
 import type { ConformanceReport } from './outcome.ts';
 
-const INSIMUL = 'insimul:agent:world-server';
-const PINAKES = 'pinakes:agent:resolver';
-const ALDERFOREST = 'insimul:world:alderforest';
-const CONSENSUS = 'pinakes:world:consensus-reality';
-const RENAUD = `${ALDERFOREST}:ent:npc-renaud`;
-const NAPOLEON = 'pinakes:ent:napoleon-i';
-const FOOTAGE = 'insimul:asset:blake3-a1b2c3';
-const CLIP = 'analyzer:asset:blake3-c0de99';
-const NOT_YET = 'insimul:asset:blake3-ffffff';
-const COMMANDS = 'insimul:claim:sha256-9f3c1a';
+const PRODUCER = 'producer:agent:publisher';
+const CURATOR = 'curator:agent:resolver';
+const SAMPLE_WORLD = 'producer:world:sample';
+const BASELINE = 'curator:world:baseline';
+const ITEM = `${SAMPLE_WORLD}:ent:item-alpha`;
+const REFERENCE = 'curator:ent:reference-alpha';
+const RECORDING = 'producer:asset:blake3-a1b2c3';
+const CLIP = 'processor:asset:blake3-c0de99';
+const NOT_YET = 'producer:asset:blake3-ffffff';
+const COMMANDS = 'producer:claim:sha256-9f3c1a';
 
 const AT = (): string => '2026-07-22T00:00:00.000Z';
 
-/** The body: subscribe to the fiction world, fetch what it depicts, emit it upstream. */
+/** The body: subscribe to the scoped world, fetch what it depicts, emit it upstream. */
 const BODY: Step[] = [
-  { id: 'stream', kind: 'subscribe', participant: INSIMUL, world: ALDERFOREST },
-  { id: 'footage', kind: 'fetch', participant: INSIMUL, asset: FOOTAGE },
-  { id: 'clip', kind: 'fetch', participant: INSIMUL, asset: CLIP },
+  { id: 'stream', kind: 'subscribe', participant: PRODUCER, world: SAMPLE_WORLD },
+  { id: 'recording', kind: 'fetch', participant: PRODUCER, asset: RECORDING },
+  { id: 'clip', kind: 'fetch', participant: PRODUCER, asset: CLIP },
   // Delta L: the reference arrived before the bytes. Declared as a rejection, so the run
   // continues and tolerance becomes an assertable property rather than an outage.
-  { id: 'not-propagated', kind: 'fetch', expect: 'reject', participant: INSIMUL, asset: NOT_YET },
+  { id: 'not-propagated', kind: 'fetch', expect: 'reject', participant: PRODUCER, asset: NOT_YET },
   {
     id: 'upstream',
     kind: 'emit',
-    participant: PINAKES,
+    participant: CURATOR,
     pack: {
       kgp_version: '0.4.0',
       kind: 'delta',
       dialect: 'grounding-only',
-      worlds: [ALDERFOREST],
+      worlds: [SAMPLE_WORLD],
       assertions: [
         {
-          world: ALDERFOREST,
-          subject: RENAUD,
-          relation: 'commands',
-          object: `${ALDERFOREST}:ent:army-of-ash`,
+          world: SAMPLE_WORLD,
+          subject: ITEM,
+          relation: 'contains',
+          object: `${SAMPLE_WORLD}:ent:assembly-alpha`,
           prov: { agent: 'agora:agent:console' },
         },
       ],
     },
   },
   {
-    id: 'about-the-real-one',
+    id: 'about-the-baseline-entity',
     kind: 'invoke',
-    participant: PINAKES,
+    participant: CURATOR,
     capability: 'query.facts',
-    inputs: [{ port: { plane: 'entity', types: ['ent'] }, value: { subject: NAPOLEON } }],
+    inputs: [{ port: { plane: 'entity', types: ['ent'] }, value: { subject: REFERENCE } }],
   },
 ];
 
@@ -76,8 +76,8 @@ function scenario(steps: Step[]): ScenarioDocument {
     title: 'Every data-plane verb, against peers that have not adopted the bus',
     timeout_ms: 30_000,
     participants: [
-      { identity: INSIMUL, planes: ['knowledge', 'media'], standin: { fixtures: INSIMUL_STANDIN } },
-      { identity: PINAKES, planes: ['knowledge'], standin: { fixtures: PINAKES_STANDIN } },
+      { identity: PRODUCER, planes: ['knowledge', 'media'], standin: { fixtures: PRODUCER_STANDIN } },
+      { identity: CURATOR, planes: ['knowledge'], standin: { fixtures: CURATOR_STANDIN } },
     ],
     steps,
   };
@@ -96,12 +96,12 @@ async function run(steps: Step[] = BODY): Promise<ConformanceReport> {
 }
 
 const ASSERTIONS: Step[] = [
-  { id: 'streamed-in-world', kind: 'assert', predicate: 'claim_in_world', args: [COMMANDS, ALDERFOREST] },
+  { id: 'streamed-in-world', kind: 'assert', predicate: 'claim_in_world', args: [COMMANDS, SAMPLE_WORLD] },
   { id: 'streamed-attributed', kind: 'assert', predicate: 'provenance_present', args: [COMMANDS] },
-  { id: 'lineage-not-identity', kind: 'assert', predicate: 'no_sameas_across_worlds', args: [RENAUD, NAPOLEON] },
-  { id: 'lineage-recorded', kind: 'assert', predicate: 'based_on_exists', args: [RENAUD, NAPOLEON] },
-  { id: 'footage-depicts', kind: 'assert', predicate: 'asset_attaches_to', args: [FOOTAGE, RENAUD] },
-  { id: 'footage-scoped', kind: 'assert', predicate: 'source_world_is', args: [FOOTAGE, ALDERFOREST] },
+  { id: 'lineage-not-identity', kind: 'assert', predicate: 'no_sameas_across_worlds', args: [ITEM, REFERENCE] },
+  { id: 'lineage-recorded', kind: 'assert', predicate: 'based_on_exists', args: [ITEM, REFERENCE] },
+  { id: 'recording-depicts', kind: 'assert', predicate: 'asset_attaches_to', args: [RECORDING, ITEM] },
+  { id: 'recording-scoped', kind: 'assert', predicate: 'source_world_is', args: [RECORDING, SAMPLE_WORLD] },
   { id: 'clip-generated', kind: 'assert', predicate: 'source_world_is', args: [CLIP, null] },
   {
     id: 'analysis-attributed',
@@ -111,7 +111,7 @@ const ASSERTIONS: Step[] = [
   },
   { id: 'dangling-tolerated', kind: 'assert', predicate: 'dangling_ref_tolerated', args: [NOT_YET] },
   { id: 'converged', kind: 'assert', predicate: 'claims_converge', args: [COMMANDS, '${upstream.claims.0}'] },
-  { id: 'firewall', kind: 'assert', predicate: 'firewall_holds', args: ['about-the-real-one', CONSENSUS] },
+  { id: 'firewall', kind: 'assert', predicate: 'firewall_holds', args: ['about-the-baseline-entity', BASELINE] },
   { id: 'liveness', kind: 'assert', predicate: 'always_completes' },
 ];
 
@@ -130,12 +130,12 @@ describe('the data-plane verbs against stand-ins', () => {
   it('binds what each verb produced, so later steps can name it (§2.1)', async () => {
     const report = await run([...BODY, ...ASSERTIONS]);
     const output = (id: string): unknown => report.steps.find((step) => step.id === id)?.output;
-    expect(output('stream')).toMatchObject({ frames: 1, claims: [COMMANDS], worlds: [ALDERFOREST] });
-    expect(output('footage')).toMatchObject({
-      asset: FOOTAGE,
+    expect(output('stream')).toMatchObject({ frames: 1, claims: [COMMANDS], worlds: [SAMPLE_WORLD] });
+    expect(output('recording')).toMatchObject({
+      asset: RECORDING,
       media_type: 'video/mp4',
-      source_world: ALDERFOREST,
-      attaches_to: [RENAUD],
+      source_world: SAMPLE_WORLD,
+      attaches_to: [ITEM],
       present: true,
     });
     expect(output('upstream')).toMatchObject({ pack_id: 'sha256-7b1e44', claims: [COMMANDS] });
@@ -146,16 +146,16 @@ describe('the data-plane verbs against stand-ins', () => {
     const frames = report.observations.filter((entry) => entry.direction === 'frame');
     const stream = frames.filter((entry) => entry.step === 'stream');
     expect(stream).toHaveLength(1);
-    expect(stream[0]?.entities).toContain(RENAUD);
+    expect(stream[0]?.entities).toContain(ITEM);
     expect(stream[0]?.entities).toContain(COMMANDS);
     expect(stream[0]?.detail).toMatchObject({ standin: true, claims: 2 });
   });
 
   it('holds ids and counts, never bytes (KMI §7)', async () => {
     const report = await run();
-    const fetched = report.observations.filter((entry) => entry.step === 'footage');
+    const fetched = report.observations.filter((entry) => entry.step === 'recording');
     expect(fetched.map((entry) => entry.direction)).toEqual(['request', 'response']);
-    expect(fetched[1]?.detail).toMatchObject({ asset: FOOTAGE, bytes: 104857600 });
+    expect(fetched[1]?.detail).toMatchObject({ asset: RECORDING, bytes: 104857600 });
     expect(JSON.stringify(report.observations)).not.toContain('b64_json');
   });
 
@@ -163,10 +163,10 @@ describe('the data-plane verbs against stand-ins', () => {
     // The property that makes a stand-in honest: a call nobody wrote a fixture for is a
     // red step, not an empty success that a later assertion reads as agreement.
     const report = await run([
-      { id: 'unwritten', kind: 'subscribe', participant: INSIMUL, world: 'insimul:world:elsewhere' },
+      { id: 'unwritten', kind: 'subscribe', participant: PRODUCER, world: 'producer:world:elsewhere' },
     ]);
     expect(report.steps[0]).toMatchObject({ status: 'failed' });
-    expect(report.steps[0]?.error).toMatch(/covers no subscription to insimul:world:elsewhere/);
+    expect(report.steps[0]?.error).toMatch(/covers no subscription to producer:world:elsewhere/);
     expect(report.green).toBe(false);
   });
 
@@ -201,7 +201,7 @@ describe('determinism (§7 Q2)', () => {
         now: AT,
         fixtures: async (path: string) => {
           const document = (await bundledFixtures()(path)) as Record<string, unknown>;
-          if (path !== PINAKES_STANDIN) return document as never;
+          if (path !== CURATOR_STANDIN) return document as never;
           // Same facts, wildly different prose alongside them.
           const invoke = document.invoke as Record<string, { body: Record<string, unknown> }>;
           const query = invoke['query.facts'] as { body: Record<string, unknown> };
@@ -216,7 +216,7 @@ describe('determinism (§7 Q2)', () => {
                     {
                       message: {
                         role: 'assistant',
-                        content: 'Renaud is definitely the same person as Napoleon, trust me.',
+                        content: 'item-alpha is definitely the same entity as reference-alpha, trust me.',
                       },
                     },
                   ],

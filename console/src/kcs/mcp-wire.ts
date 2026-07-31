@@ -1,9 +1,9 @@
 /**
  * The MCP client wire — dial a provider's `/mcp` Streamable-HTTP surface.
  *
- * KCB §4 maps the `invoke` verb onto an "MCP tool call" (capability-bus.md §4/§6), and Analyzer
- * serves exactly that at `/mcp` (`analyzer/src/filmstudio/mcp_server.py`, FastMCP with
- * `stateless_http=True`). This wire speaks the official Model Context Protocol — the same
+ * KCB §4 maps the `invoke` verb onto an "MCP tool call" (capability-bus.md §4/§6), which a
+ * provider serves at `/mcp` — a stateless Streamable-HTTP surface, as FastMCP's
+ * `stateless_http=True` produces. This wire speaks the official Model Context Protocol — the same
  * JSON-RPC methods and message shapes the `@modelcontextprotocol/sdk` client uses: it pins its
  * advertised {@link LATEST_PROTOCOL_VERSION} and classifies every answer with the SDK's own
  * {@link isJSONRPCResponse}/{@link isJSONRPCErrorResponse} guards, so the protocol is the SDK's,

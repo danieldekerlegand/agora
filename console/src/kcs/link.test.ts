@@ -18,25 +18,25 @@ import type { HttpFetch, HttpRequestInit, HttpResponse } from './http.ts';
 import { NoAddressError, openLink, RefusedError } from './link.ts';
 import { ObservationLog } from './log.ts';
 
-const IDENTITY = 'analyzer:agent:pipeline';
-const CAS = 'https://analyzer.example/cas';
-const FOOTAGE = 'insimul:asset:blake3-a1b2c3';
+const IDENTITY = 'processor:agent:pipeline';
+const CAS = 'https://processor.example/cas';
+const RECORDING = 'producer:asset:blake3-a1b2c3';
 
 const MANIFEST = {
   kcb_version: SPEC_VERSIONS.kcb,
   identity: IDENTITY,
   endpoints: {
     cas: CAS,
-    subscribe: 'https://analyzer.example/subscribe',
-    emit: 'https://analyzer.example/packs',
+    subscribe: 'https://processor.example/subscribe',
+    emit: 'https://processor.example/packs',
   },
 };
 
 /** An mcp-only provider — the console must open the mcp wire, not throw (US-4). */
 const MCP_MANIFEST = {
   kcb_version: SPEC_VERSIONS.kcb,
-  identity: 'analyzer:agent:filmstudio',
-  endpoints: { mcp: 'https://analyzer.example/mcp' },
+  identity: 'processor:agent:filmstudio',
+  endpoints: { mcp: 'https://processor.example/mcp' },
   capabilities: [{ name: 'run_pipeline' }],
 };
 
@@ -79,40 +79,40 @@ function link(fetch: HttpFetch, manifest: unknown = MANIFEST): ReturnType<typeof
 
 describe('fetch — a CAS GET by asset id (KCB §4 delta G)', () => {
   const envelope = {
-    id: FOOTAGE,
+    id: RECORDING,
     media_type: 'video/mp4',
     bytes: 104857600,
-    source_world: 'insimul:world:alderforest',
-    attaches_to: ['insimul:world:alderforest:ent:npc-renaud'],
+    source_world: 'producer:world:sample',
+    attaches_to: ['producer:world:sample:ent:item-alpha'],
   };
 
   it('gets the asset at its own id, on the address the manifest published', async () => {
     const { fetch, calls } = scripted(() => ({ body: envelope }));
-    const asset = await link(fetch).fetchAsset({ step: 'footage', asset: FOOTAGE });
-    expect(calls[0]?.url).toBe(`${CAS}/${encodeURIComponent(FOOTAGE)}`);
+    const asset = await link(fetch).fetchAsset({ step: 'recording', asset: RECORDING });
+    expect(calls[0]?.url).toBe(`${CAS}/${encodeURIComponent(RECORDING)}`);
     expect(calls[0]?.init?.method).toBe('GET');
-    expect(asset).toMatchObject({ id: FOOTAGE, bytes: 104857600, present: true });
+    expect(asset).toMatchObject({ id: RECORDING, bytes: 104857600, present: true });
   });
 
   it('refuses a store that answered with a different asset — the id is the hash', async () => {
-    const { fetch } = scripted(() => ({ body: { ...envelope, id: 'analyzer:asset:blake3-999' } }));
-    await expect(link(fetch).fetchAsset({ step: 'footage', asset: FOOTAGE })).rejects.toThrow(
-      /answered a fetch of .* with analyzer:asset:blake3-999/,
+    const { fetch } = scripted(() => ({ body: { ...envelope, id: 'processor:asset:blake3-999' } }));
+    await expect(link(fetch).fetchAsset({ step: 'recording', asset: RECORDING })).rejects.toThrow(
+      /answered a fetch of .* with processor:asset:blake3-999/,
     );
   });
 
   it('reads a 404 as a dangling reference, not as a broken peer (delta L)', async () => {
     const { fetch } = scripted(() => ({ status: 404, body: { detail: 'not propagated yet' } }));
     const dialed = link(fetch);
-    await expect(dialed.fetchAsset({ step: 'lazy', asset: FOOTAGE })).rejects.toBeInstanceOf(
+    await expect(dialed.fetchAsset({ step: 'lazy', asset: RECORDING })).rejects.toBeInstanceOf(
       RefusedError,
     );
   });
 
   it('will not invent a CAS address for a provider that publishes none', async () => {
     const { fetch } = scripted(() => ({ body: {} }));
-    const noCas = link(fetch, { ...MANIFEST, endpoints: { openai: 'https://analyzer.example/v1' } });
-    await expect(noCas.fetchAsset({ step: 'footage', asset: FOOTAGE })).rejects.toBeInstanceOf(
+    const noCas = link(fetch, { ...MANIFEST, endpoints: { openai: 'https://processor.example/v1' } });
+    await expect(noCas.fetchAsset({ step: 'recording', asset: RECORDING })).rejects.toBeInstanceOf(
       NoAddressError,
     );
   });
@@ -124,11 +124,11 @@ describe('subscribe — collecting the delta stream (KCB §4, KGP §6)', () => {
     kind: 'delta',
     assertions: [
       {
-        id: 'insimul:claim:sha256-9f3c1a',
-        world: 'insimul:world:alderforest',
-        subject: 'insimul:world:alderforest:ent:npc-renaud',
-        relation: 'commands',
-        object: 'insimul:world:alderforest:ent:army-of-ash',
+        id: 'producer:claim:sha256-9f3c1a',
+        world: 'producer:world:sample',
+        subject: 'producer:world:sample:ent:item-alpha',
+        relation: 'contains',
+        object: 'producer:world:sample:ent:assembly-alpha',
       },
     ],
   };
@@ -140,14 +140,14 @@ describe('subscribe — collecting the delta stream (KCB §4, KGP §6)', () => {
     }));
     const summary = await link(fetch).subscribe({
       step: 'stream',
-      world: 'insimul:world:alderforest',
+      world: 'producer:world:sample',
     });
     expect(JSON.parse(calls[0]?.init?.body ?? '{}')).toEqual({
-      world: 'insimul:world:alderforest',
+      world: 'producer:world:sample',
     });
     expect(summary.frames).toBe(2);
-    expect(summary.claims).toEqual(['insimul:claim:sha256-9f3c1a']);
-    expect(summary.worlds).toEqual(['insimul:world:alderforest']);
+    expect(summary.claims).toEqual(['producer:claim:sha256-9f3c1a']);
+    expect(summary.worlds).toEqual(['producer:world:sample']);
   });
 
   it('reads SSE `data:` lines the same way', async () => {
@@ -155,20 +155,20 @@ describe('subscribe — collecting the delta stream (KCB §4, KGP §6)', () => {
       headers: { get: () => 'text/event-stream' },
       text: () => Promise.resolve(`: keep-alive\ndata: ${JSON.stringify(frame)}\n\n`),
     }));
-    const summary = await link(fetch).subscribe({ step: 'stream', world: 'insimul:world:alderforest' });
+    const summary = await link(fetch).subscribe({ step: 'stream', world: 'producer:world:sample' });
     expect(summary.frames).toBe(1);
   });
 
   it('reads a producer that answers one body with a frames array', async () => {
     const { fetch } = scripted(() => ({ body: { subscription: 'sub-7f', frames: [frame] } }));
-    const summary = await link(fetch).subscribe({ step: 'stream', world: 'insimul:world:alderforest' });
+    const summary = await link(fetch).subscribe({ step: 'stream', world: 'producer:world:sample' });
     expect(summary).toMatchObject({ subscription: 'sub-7f', frames: 1 });
   });
 
   it('surfaces a refused subscription with the producer’s own reason (KCB §5)', async () => {
     const { fetch } = scripted(() => ({ status: 403, body: { detail: 'no subscribe:world grant' } }));
     await expect(
-      link(fetch).subscribe({ step: 'stream', world: 'insimul:world:alderforest' }),
+      link(fetch).subscribe({ step: 'stream', world: 'producer:world:sample' }),
     ).rejects.toThrow(/no subscribe:world grant/);
   });
 });
@@ -180,20 +180,20 @@ describe('emit — writing knowledge into the fabric (KGP §2)', () => {
         pack_id: 'sha256-7b1e44',
         assertions: [
           {
-            id: 'insimul:claim:sha256-9f3c1a',
-            world: 'insimul:world:alderforest',
-            subject: 'insimul:world:alderforest:ent:npc-renaud',
-            relation: 'commands',
+            id: 'producer:claim:sha256-9f3c1a',
+            world: 'producer:world:sample',
+            subject: 'producer:world:sample:ent:item-alpha',
+            relation: 'contains',
           },
         ],
       },
     }));
     const receipt = await link(fetch).emit({
       step: 'upstream',
-      pack: { kind: 'delta', worlds: ['insimul:world:alderforest'] },
+      pack: { kind: 'delta', worlds: ['producer:world:sample'] },
     });
-    expect(calls[0]?.url).toBe('https://analyzer.example/packs');
-    expect(receipt).toEqual({ pack_id: 'sha256-7b1e44', claims: ['insimul:claim:sha256-9f3c1a'] });
+    expect(calls[0]?.url).toBe('https://processor.example/packs');
+    expect(receipt).toEqual({ pack_id: 'sha256-7b1e44', claims: ['producer:claim:sha256-9f3c1a'] });
   });
 });
 

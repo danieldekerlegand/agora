@@ -1,8 +1,8 @@
 {
-  "identity": "composer:agent:composer",
+  "identity": "consumer:agent:composer",
   "manifest": {
     "kcb_version": "0.2.0",
-    "identity": "composer:agent:composer",
+    "identity": "consumer:agent:composer",
     "endpoints": {},
     "capabilities": [
       {
@@ -15,7 +15,7 @@
           "est_units": 24,
           "tier": "paid-model",
           "unit": "budget_units",
-          "basis": "one 30-second orchestral cue"
+          "basis": "one 30-second audio render"
         }
       }
     ]
@@ -25,8 +25,8 @@
       "body": {
         "agora": {
           "tier": "paid-model",
-          "provider": "composer",
-          "model": "orchestral-v3",
+          "provider": "consumer",
+          "model": "render-v3",
           "cost": {
             "currency": "budget_units",
             "budget_units": 40,
@@ -37,15 +37,15 @@
         "assets": [
           {
             "kmi_version": "0.2.0",
-            "id": "composer:asset:blake3-5c0e33",
+            "id": "consumer:asset:blake3-5c0e33",
             "media_type": "audio/wav",
             "bytes": 5292000,
             "source_world": null,
             "attaches_to": [],
-            "produced_by": "composer:src:compose-4b71",
+            "produced_by": "consumer:src:compose-4b71",
             "prov": {
-              "agent": "composer:agent:composer",
-              "activity": "composer:src:compose-4b71",
+              "agent": "consumer:agent:composer",
+              "activity": "consumer:src:compose-4b71",
               "asserted": "2026-07-20T09:11:00Z"
             }
           }

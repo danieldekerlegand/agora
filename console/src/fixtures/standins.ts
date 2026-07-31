@@ -3,7 +3,7 @@
  *
  * These are what a scenario's `standin.fixtures` path points at. They are deliberately
  * *fabric-shaped* rather than console-shaped: KGP delta packs, KMI asset envelopes, KINP
- * links exactly as `koine/specs` writes them — so when Insimul or Pinakes does publish a
+ * links exactly as `koine/specs` writes them — so when Producer or Curator does publish a
  * manifest, the scenario is unchanged, the fixture is deleted, and the assertions that
  * were passing against the fixture are the same assertions now passing against the peer.
  *
@@ -15,42 +15,40 @@
  * exchanges one scenario drives, and two scenarios ask the same peer different questions.
  * The identity is the peer's own either way, so adoption still deletes fixtures rather than
  * rewriting scenarios.
+ *
+ * Every peer here is a **neutral sample** cast — a producer, a processor, a curator and one
+ * unadopted provider. The ecosystem's real conformance scenarios, with the deployment's own
+ * participants, live in the private `legacy` integration repo (see `console/README.md`).
  */
 import type { Json } from '@agora/schemas';
 
-import insimul from './standin-insimul.json';
-import monitorArgos from './monitor/analyzer.json';
-import monitorInsimul from './monitor/insimul.json';
-import mediaTransformArgos from './media-transform/analyzer.json';
-import mediaTransformFormant from './media-transform/composer.json';
-import mediaTransformInsimul from './media-transform/insimul.json';
-import mediaTransformPinakes from './media-transform/pinakes.json';
-import pinakes from './standin-pinakes.json';
-import worldsToFabricArgos from './worlds-to-fabric/analyzer.json';
-import worldsToFabricInsimul from './worlds-to-fabric/insimul.json';
-import worldsToFabricPinakes from './worlds-to-fabric/pinakes.json';
+import producer from './standin-producer.json';
+import monitorProcessor from './monitor/processor.json';
+import monitorProducer from './monitor/producer.json';
+import sampleProvider from './sample-provider.json';
+import curator from './standin-curator.json';
+import samplePipelineProcessor from './sample-pipeline/processor.json';
+import samplePipelineProducer from './sample-pipeline/producer.json';
+import samplePipelineCurator from './sample-pipeline/curator.json';
 
 /** Where each fixture lives, as a scenario names it. */
-export const INSIMUL_STANDIN = 'fixtures/standin-insimul.json';
-export const PINAKES_STANDIN = 'fixtures/standin-pinakes.json';
+export const PRODUCER_STANDIN = 'fixtures/standin-producer.json';
+export const CURATOR_STANDIN = 'fixtures/standin-curator.json';
 
-/** `kcs:worlds-to-fabric` (US-CS2) — none of its three participants has adopted KCB yet. */
-export const WORLDS_TO_FABRIC_INSIMUL = 'fixtures/worlds-to-fabric/insimul.json';
-export const WORLDS_TO_FABRIC_ARGOS = 'fixtures/worlds-to-fabric/analyzer.json';
-export const WORLDS_TO_FABRIC_PINAKES = 'fixtures/worlds-to-fabric/pinakes.json';
+/** `kcs:sample-pipeline` — none of its three participants has adopted KCB yet. */
+export const SAMPLE_PIPELINE_PRODUCER = 'fixtures/sample-pipeline/producer.json';
+export const SAMPLE_PIPELINE_PROCESSOR = 'fixtures/sample-pipeline/processor.json';
+export const SAMPLE_PIPELINE_CURATOR = 'fixtures/sample-pipeline/curator.json';
 
 /**
- * `kcs:media-transform` (US-CS3) — four projects, none of them on the bus.
+ * A peer that publishes a manifest but has not adopted the bus.
  *
- * These fixtures carry a `manifest` as well as canned exchanges, because the scenario's
- * first step is *path planning*: a peer that has published no manifest is missing from the
- * control plane too, and `capability_path_exists` would have nothing to plan over. The
- * runner indexes them for the run only (see `kcs/runner.ts`).
+ * It carries a `manifest` as well as canned exchanges, which no scenario fixture has to: a
+ * peer that has published no manifest is missing from the control plane too, so there is
+ * nothing for `capability_path_exists` to plan over and nothing for the manual explorer to
+ * browse. The runner indexes it for the run only (see `kcs/runner.ts`).
  */
-export const MEDIA_TRANSFORM_INSIMUL = 'fixtures/media-transform/insimul.json';
-export const MEDIA_TRANSFORM_ARGOS = 'fixtures/media-transform/analyzer.json';
-export const MEDIA_TRANSFORM_FORMANT = 'fixtures/media-transform/composer.json';
-export const MEDIA_TRANSFORM_PINAKES = 'fixtures/media-transform/pinakes.json';
+export const SAMPLE_PROVIDER = 'fixtures/sample-provider.json';
 
 /**
  * The streams the live monitor (US-CS7) is pointed at.
@@ -61,16 +59,16 @@ export const MEDIA_TRANSFORM_PINAKES = 'fixtures/media-transform/pinakes.json';
  * that recorded it. These carry no `manifest` on purpose — they describe streams to observe,
  * not routes anybody may dial.
  *
- * `monitor/analyzer.json` emits exchange telemetry (`kcs/spans.ts`); `monitor/insimul.json`
+ * `monitor/processor.json` emits exchange telemetry (`kcs/spans.ts`); `monitor/producer.json`
  * emits none, which is the documented control-plane limitation on screen: an invoke served by
  * a provider that publishes no telemetry is simply absent from the feed.
  */
-export const MONITOR_ARGOS = 'fixtures/monitor/analyzer.json';
-export const MONITOR_INSIMUL = 'fixtures/monitor/insimul.json';
+export const MONITOR_PROCESSOR = 'fixtures/monitor/processor.json';
+export const MONITOR_PRODUCER = 'fixtures/monitor/producer.json';
 
 const MONITORED: Record<string, unknown> = {
-  [MONITOR_ARGOS]: monitorArgos,
-  [MONITOR_INSIMUL]: monitorInsimul,
+  [MONITOR_PROCESSOR]: monitorProcessor,
+  [MONITOR_PRODUCER]: monitorProducer,
 };
 
 /** The watch list, as a copy — a caller that could edit this map edits what everyone sees. */
@@ -79,16 +77,13 @@ export function monitorStandins(): Record<string, Json> {
 }
 
 const FIXTURES: Record<string, unknown> = {
-  [INSIMUL_STANDIN]: insimul,
-  [PINAKES_STANDIN]: pinakes,
+  [PRODUCER_STANDIN]: producer,
+  [CURATOR_STANDIN]: curator,
   ...MONITORED,
-  [WORLDS_TO_FABRIC_INSIMUL]: worldsToFabricInsimul,
-  [WORLDS_TO_FABRIC_ARGOS]: worldsToFabricArgos,
-  [WORLDS_TO_FABRIC_PINAKES]: worldsToFabricPinakes,
-  [MEDIA_TRANSFORM_INSIMUL]: mediaTransformInsimul,
-  [MEDIA_TRANSFORM_ARGOS]: mediaTransformArgos,
-  [MEDIA_TRANSFORM_FORMANT]: mediaTransformFormant,
-  [MEDIA_TRANSFORM_PINAKES]: mediaTransformPinakes,
+  [SAMPLE_PIPELINE_PRODUCER]: samplePipelineProducer,
+  [SAMPLE_PIPELINE_PROCESSOR]: samplePipelineProcessor,
+  [SAMPLE_PIPELINE_CURATOR]: samplePipelineCurator,
+  [SAMPLE_PROVIDER]: sampleProvider,
 };
 
 /**

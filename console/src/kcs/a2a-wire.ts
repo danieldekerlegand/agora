@@ -3,9 +3,8 @@
  *
  * KCB §4 maps the `invoke` verb onto an "A2A task" (capability-bus.md §4/§6): the console
  * fetches the peer's Agent Card at `endpoints.a2a` (KCB §2 `/.well-known/agent-card.json`,
- * §6 the Orchestrator host / Analyzer `src/filmstudio/a2a.py`), reads the JSON-RPC endpoint the
- * card advertises, and sends one `message/send` there. It speaks the exact wire shapes
- * Orchestrator serves in `orchestrator-engine/src/a2a/protocol.rs`: camelCase keys, a Message of
+ * §6), reads the JSON-RPC endpoint the card advertises, and sends one `message/send` there.
+ * It speaks the exact wire shapes an A2A host serves: camelCase keys, a Message of
  * `kind`-tagged Parts (text/data/file) carrying `messageId`/`contextId`, and a returned Task
  * whose `status.state` is the kebab-case {@link https://google.github.io/A2A/ TaskState}.
  *

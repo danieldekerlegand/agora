@@ -1,0 +1,71 @@
+{
+  "identity": "curator:agent:resolver",
+  "emit": {
+    "body": {
+      "pack_id": "sha256-7b1e44",
+      "accepted": 1,
+      "assertions": [
+        {
+          "id": "producer:claim:sha256-9f3c1a",
+          "world": "producer:world:sample",
+          "subject": "producer:world:sample:ent:item-alpha",
+          "relation": "contains",
+          "object": "producer:world:sample:ent:assembly-alpha",
+          "confidence": 0.82,
+          "prov": {
+            "agent": "curator:agent:resolver",
+            "activity": "curator:src:merge-review",
+            "asserted": "2026-07-22T00:00:00Z"
+          }
+        }
+      ]
+    }
+  },
+  "invoke": {
+    "query.facts": {
+      "body": {
+        "world": "curator:world:baseline",
+        "assertions": [
+          {
+            "id": "curator:claim:sha256-11aa22",
+            "world": "curator:world:baseline",
+            "subject": "curator:ent:reference-alpha",
+            "relation": "contains",
+            "object": "curator:ent:reference-assembly",
+            "confidence": 0.99,
+            "prov": {
+              "agent": "curator:agent:resolver",
+              "activity": "curator:src:external-anchor",
+              "asserted": "2026-07-01T00:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    "query.facts.leaky": {
+      "body": {
+        "world": "curator:world:baseline",
+        "assertions": [
+          {
+            "id": "curator:claim:sha256-11aa22",
+            "world": "curator:world:baseline",
+            "subject": "curator:ent:reference-alpha",
+            "relation": "contains",
+            "object": "curator:ent:reference-assembly",
+            "confidence": 0.99,
+            "prov": { "agent": "curator:agent:resolver", "asserted": "2026-07-01T00:00:00Z" }
+          },
+          {
+            "id": "producer:claim:sha256-9f3c1a",
+            "world": "producer:world:sample",
+            "subject": "producer:world:sample:ent:item-alpha",
+            "relation": "contains",
+            "object": "producer:world:sample:ent:assembly-alpha",
+            "confidence": 0.9,
+            "prov": { "agent": "producer:agent:publisher", "asserted": "2026-07-20T09:00:00Z" }
+          }
+        ]
+      }
+    }
+  }
+}

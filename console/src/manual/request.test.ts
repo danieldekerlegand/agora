@@ -1,7 +1,7 @@
 import { parseScenario, SPEC_VERSIONS } from '@agora/schemas';
 import { describe, expect, it } from 'vitest';
 
-import { MEDIA_TRANSFORM_FORMANT } from '../fixtures/standins.ts';
+import { SAMPLE_PROVIDER } from '../fixtures/standins.ts';
 import type { PortField } from './catalogue.ts';
 import {
   MANUAL_SCENARIO_ID,
@@ -28,10 +28,10 @@ const MEDIA: PortField = {
 describe('composing port values', () => {
   it('parses a value field as JSON and carries a ref field as an id', () => {
     expect(
-      portValuesFrom([KNOWLEDGE, MEDIA], ['[{"role":"user","content":"hi"}]', 'analyzer:asset:b3-1']),
+      portValuesFrom([KNOWLEDGE, MEDIA], ['[{"role":"user","content":"hi"}]', 'processor:asset:b3-1']),
     ).toEqual([
       { port: KNOWLEDGE.port, value: [{ role: 'user', content: 'hi' }] },
-      { port: MEDIA.port, ref: 'analyzer:asset:b3-1' },
+      { port: MEDIA.port, ref: 'processor:asset:b3-1' },
     ]);
   });
 
@@ -69,8 +69,8 @@ describe('compiling a manual request into a scenario', () => {
   it('declares no assertions — a manual call proves the call, not a property', () => {
     const scenario = manualScenario({
       verb: 'fetch',
-      participant: 'analyzer:agent:ingest',
-      asset: 'analyzer:asset:b3-1',
+      participant: 'processor:agent:ingest',
+      asset: 'processor:asset:b3-1',
     });
     expect(scenario.steps.filter((step) => step.kind === 'assert')).toEqual([]);
   });
@@ -78,20 +78,20 @@ describe('compiling a manual request into a scenario', () => {
   it('carries a stand-in through, so an unadopted peer is composable and stamped', () => {
     const scenario = manualScenario({
       verb: 'invoke',
-      participant: 'composer:agent:composer',
-      standin: MEDIA_TRANSFORM_FORMANT,
+      participant: 'consumer:agent:composer',
+      standin: SAMPLE_PROVIDER,
       capability: 'compose',
       inputs: [],
     });
     expect(scenario.participants).toEqual([
-      { identity: 'composer:agent:composer', standin: { fixtures: MEDIA_TRANSFORM_FORMANT } },
+      { identity: 'consumer:agent:composer', standin: { fixtures: SAMPLE_PROVIDER } },
     ]);
   });
 
   it('names the resolver, not a provider, for a resolve — nobody is dialed', () => {
-    const scenario = manualScenario({ verb: 'resolve', ref: { id: 'pinakes:ent:q517' } });
+    const scenario = manualScenario({ verb: 'resolve', ref: { id: 'curator:ent:q517' } });
     expect(scenario.participants).toEqual([{ identity: 'agora:agent:resolver' }]);
-    expect(scenario.steps[0]).toMatchObject({ kind: 'resolve', ref: { id: 'pinakes:ent:q517' } });
+    expect(scenario.steps[0]).toMatchObject({ kind: 'resolve', ref: { id: 'curator:ent:q517' } });
   });
 
   it('fails with the spec’s own message before anybody is dialed', () => {

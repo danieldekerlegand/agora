@@ -1,0 +1,92 @@
+{
+  "identity": "producer:agent:publisher",
+  "subscribe": {
+    "producer:world:sample": {
+      "frames": [
+        {
+          "kgp_version": "0.4.0",
+          "pack_id": "sha256-de17a0",
+          "kind": "delta",
+          "basis": null,
+          "dialect": "grounding-only",
+          "worlds": ["producer:world:sample"],
+          "assertions": [
+            {
+              "id": "producer:claim:sha256-9f3c1a",
+              "world": "producer:world:sample",
+              "subject": "producer:world:sample:ent:item-alpha",
+              "relation": "contains",
+              "object": "producer:world:sample:ent:assembly-alpha",
+              "confidence": 0.9,
+              "prov": {
+                "agent": "producer:agent:publisher",
+                "activity": "producer:src:catalog-export",
+                "asserted": "2026-07-20T09:00:00Z"
+              }
+            }
+          ],
+          "links": [
+            {
+              "world": "producer:world:sample",
+              "subject": "producer:world:sample:ent:item-alpha",
+              "relation": "based_on",
+              "object": "curator:ent:reference-alpha",
+              "confidence": 0.7,
+              "prov": { "agent": "producer:agent:publisher", "asserted": "2026-07-20T09:00:00Z" }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "fetch": {
+    "producer:asset:blake3-a1b2c3": {
+      "body": {
+        "id": "producer:asset:blake3-a1b2c3",
+        "media_type": "video/mp4",
+        "bytes": 104857600,
+        "source_world": "producer:world:sample",
+        "attaches_to": ["producer:world:sample:ent:item-alpha"],
+        "produced_by": "producer:src:session-7f"
+      }
+    },
+    "processor:asset:blake3-c0de99": {
+      "body": {
+        "id": "processor:asset:blake3-c0de99",
+        "media_type": "video/mp4",
+        "bytes": 5242880,
+        "source_world": null,
+        "attaches_to": [],
+        "excerpt": { "source": "producer:asset:blake3-a1b2c3", "start_ms": 12000, "end_ms": 16000 },
+        "links": [
+          {
+            "subject": "processor:asset:blake3-c0de99",
+            "relation": "media:excerpt_of",
+            "object": "producer:asset:blake3-a1b2c3",
+            "prov": { "agent": "processor:agent:pipeline", "asserted": "2026-07-20T10:00:00Z" }
+          }
+        ],
+        "assertions": [
+          {
+            "id": "processor:claim:sha256-c3d4e5",
+            "world": "producer:world:sample",
+            "subject": "processor:asset:blake3-c0de99",
+            "relation": "media:shows",
+            "object": "producer:world:sample:ent:item-alpha",
+            "confidence": 0.88,
+            "prov": {
+              "agent": "processor:agent:pipeline",
+              "activity": "processor:src:run-1a2b",
+              "method": "analysis@2.3",
+              "asserted": "2026-07-20T10:00:00Z"
+            }
+          }
+        ]
+      }
+    },
+    "producer:asset:blake3-ffffff": {
+      "status": 404,
+      "reason": "the bytes have not propagated to this store yet"
+    }
+  }
+}

@@ -35,7 +35,7 @@ function observing(body: Json, step = 'stream', outcomes: StepOutcome[] = []): A
   const ctx = context(outcomes);
   ctx.log.record({
     step,
-    participant: 'insimul:agent:world-server',
+    participant: 'producer:agent:publisher',
     direction: 'frame',
     entities: [],
     detail: {},
@@ -44,17 +44,17 @@ function observing(body: Json, step = 'stream', outcomes: StepOutcome[] = []): A
   return ctx;
 }
 
-const RENAUD = 'insimul:world:alderforest:ent:npc-renaud';
-const NAPOLEON = 'pinakes:ent:napoleon-i';
+const ITEM = 'producer:world:sample:ent:item-alpha';
+const REFERENCE = 'curator:ent:reference-alpha';
 
 function claim(overrides: Record<string, Json> = {}): Json {
   return {
-    id: 'insimul:claim:sha256-9f3c1a',
-    world: 'insimul:world:alderforest',
-    subject: RENAUD,
-    relation: 'commands',
-    object: 'insimul:world:alderforest:ent:army-of-ash',
-    prov: { agent: 'insimul:agent:world-server' },
+    id: 'producer:claim:sha256-9f3c1a',
+    world: 'producer:world:sample',
+    subject: ITEM,
+    relation: 'contains',
+    object: 'producer:world:sample:ent:assembly-alpha',
+    prov: { agent: 'producer:agent:publisher' },
     ...overrides,
   };
 }
@@ -108,15 +108,15 @@ describe('the KCS §5 vocabulary', () => {
     // "nothing contradicted it" is the failure mode this vocabulary exists to prevent.
     const nothing = context();
     for (const [predicate, args] of [
-      ['claim_in_world', ['insimul:claim:sha256-ffff', 'insimul:world:alderforest']],
-      ['claims_converge', ['insimul:claim:sha256-ffff', 'pinakes:claim:sha256-eeee']],
-      ['provenance_present', ['insimul:claim:sha256-ffff']],
-      ['based_on_exists', [RENAUD, NAPOLEON]],
-      ['asset_attaches_to', ['insimul:asset:blake3-ffff', RENAUD]],
-      ['source_world_is', ['insimul:asset:blake3-ffff', null]],
-      ['analysis_attributed_to_constituent', ['analyzer:asset:blake3-ffff']],
-      ['dangling_ref_tolerated', ['insimul:asset:blake3-ffff']],
-      ['firewall_holds', ['query', 'pinakes:world:consensus-reality']],
+      ['claim_in_world', ['producer:claim:sha256-ffff', 'producer:world:sample']],
+      ['claims_converge', ['producer:claim:sha256-ffff', 'curator:claim:sha256-eeee']],
+      ['provenance_present', ['producer:claim:sha256-ffff']],
+      ['based_on_exists', [ITEM, REFERENCE]],
+      ['asset_attaches_to', ['producer:asset:blake3-ffff', ITEM]],
+      ['source_world_is', ['producer:asset:blake3-ffff', null]],
+      ['analysis_attributed_to_constituent', ['processor:asset:blake3-ffff']],
+      ['dangling_ref_tolerated', ['producer:asset:blake3-ffff']],
+      ['firewall_holds', ['query', 'curator:world:baseline']],
     ] as [string, Json[]][]) {
       expect(evaluateAssertion(predicate, args, nothing).ok).toBe(false);
     }
@@ -129,15 +129,15 @@ describe('claim_in_world', () => {
     expect(
       evaluateAssertion(
         'claim_in_world',
-        ['insimul:claim:sha256-9f3c1a', 'insimul:world:alderforest'],
+        ['producer:claim:sha256-9f3c1a', 'producer:world:sample'],
         ctx,
       ).ok,
     ).toBe(true);
   });
 
-  it('fails a claim the producer never scoped — silence is not consensus reality', () => {
+  it('fails a claim the producer never scoped — silence is not the baseline world', () => {
     const ctx = observing({ assertions: [claim({ world: null })] });
-    const verdict = evaluateAssertion('claim_in_world', ['commands', 'insimul:world:alderforest'], ctx);
+    const verdict = evaluateAssertion('claim_in_world', ['contains', 'producer:world:sample'], ctx);
     expect(verdict.ok).toBe(false);
     expect(verdict.detail).toMatch(/no stated world/);
   });
@@ -145,12 +145,12 @@ describe('claim_in_world', () => {
 
 describe('claims_converge', () => {
   it('is an identity check on the content-addressed id (KGP §3.1)', () => {
-    const ctx = observing({ assertions: [claim(), claim({ prov: { agent: 'pinakes:agent:resolver' } })] });
+    const ctx = observing({ assertions: [claim(), claim({ prov: { agent: 'curator:agent:resolver' } })] });
     // Same fact from two producers with different provenance: one claim id, both provs.
     expect(
       evaluateAssertion(
         'claims_converge',
-        ['insimul:claim:sha256-9f3c1a', 'insimul:claim:sha256-9f3c1a'],
+        ['producer:claim:sha256-9f3c1a', 'producer:claim:sha256-9f3c1a'],
         ctx,
       ).ok,
     ).toBe(true);
@@ -158,11 +158,11 @@ describe('claims_converge', () => {
 
   it('fails two claims that only look alike', () => {
     const ctx = observing({
-      assertions: [claim(), claim({ id: 'analyzer:claim:sha256-different', subject: 'analyzer:ent:e-8842' })],
+      assertions: [claim(), claim({ id: 'processor:claim:sha256-different', subject: 'processor:ent:c-4410' })],
     });
     const verdict = evaluateAssertion(
       'claims_converge',
-      ['insimul:claim:sha256-9f3c1a', 'analyzer:claim:sha256-different'],
+      ['producer:claim:sha256-9f3c1a', 'processor:claim:sha256-different'],
       ctx,
     );
     expect(verdict.ok).toBe(false);
@@ -172,30 +172,30 @@ describe('claims_converge', () => {
 
 describe('provenance_present', () => {
   it('needs an agent, not merely a prov block', () => {
-    expect(evaluateAssertion('provenance_present', ['commands'], observing({ assertions: [claim()] })).ok).toBe(
+    expect(evaluateAssertion('provenance_present', ['contains'], observing({ assertions: [claim()] })).ok).toBe(
       true,
     );
     const anonymous = observing({ assertions: [claim({ prov: { asserted: '2026-07-20T09:00:00Z' } })] });
-    expect(evaluateAssertion('provenance_present', ['commands'], anonymous).ok).toBe(false);
+    expect(evaluateAssertion('provenance_present', ['contains'], anonymous).ok).toBe(false);
   });
 });
 
 describe('the identity firewall (KINP §4.3/§4.5)', () => {
   const sameAs = {
-    links: [{ subject: RENAUD, relation: 'same_as', object: NAPOLEON }],
+    links: [{ subject: ITEM, relation: 'same_as', object: REFERENCE }],
   };
   const basedOn = {
-    links: [{ subject: RENAUD, relation: 'based_on', object: NAPOLEON, world: 'insimul:world:alderforest' }],
+    links: [{ subject: ITEM, relation: 'based_on', object: REFERENCE, world: 'producer:world:sample' }],
   };
 
-  it('passes when the fiction entity is only based_on the real one', () => {
+  it('passes when the scoped-world entity is only based_on the baseline one', () => {
     const ctx = observing(basedOn);
-    expect(evaluateAssertion('no_sameas_across_worlds', [RENAUD, NAPOLEON], ctx).ok).toBe(true);
-    expect(evaluateAssertion('based_on_exists', [RENAUD, NAPOLEON], ctx).ok).toBe(true);
+    expect(evaluateAssertion('no_sameas_across_worlds', [ITEM, REFERENCE], ctx).ok).toBe(true);
+    expect(evaluateAssertion('based_on_exists', [ITEM, REFERENCE], ctx).ok).toBe(true);
   });
 
-  it('fails a same_as that would let fiction flow into consensus reality', () => {
-    const verdict = evaluateAssertion('no_sameas_across_worlds', [RENAUD, NAPOLEON], observing(sameAs));
+  it('fails a same_as that would let a scoped world flow into the baseline', () => {
+    const verdict = evaluateAssertion('no_sameas_across_worlds', [ITEM, REFERENCE], observing(sameAs));
     expect(verdict.ok).toBe(false);
     expect(verdict.detail).toMatch(/must be based_on/);
     expect(verdict.support).toHaveLength(1);
@@ -204,27 +204,27 @@ describe('the identity firewall (KINP §4.3/§4.5)', () => {
   it('follows the same_as closure, so one hop of laundering does not hide it', () => {
     const laundered = observing({
       links: [
-        { subject: RENAUD, relation: 'same_as', object: 'insimul:world:alderforest:ent:renaud-alias' },
-        { subject: 'insimul:world:alderforest:ent:renaud-alias', relation: 'same_as', object: NAPOLEON },
+        { subject: ITEM, relation: 'same_as', object: 'producer:world:sample:ent:item-alias' },
+        { subject: 'producer:world:sample:ent:item-alias', relation: 'same_as', object: REFERENCE },
       ],
     });
-    expect(evaluateAssertion('no_sameas_across_worlds', [RENAUD, NAPOLEON], laundered).ok).toBe(false);
+    expect(evaluateAssertion('no_sameas_across_worlds', [ITEM, REFERENCE], laundered).ok).toBe(false);
   });
 
   it('does not fault a same_as inside one world', () => {
     const withinWorld = observing({
       links: [
         {
-          subject: RENAUD,
+          subject: ITEM,
           relation: 'same_as',
-          object: 'insimul:world:alderforest:ent:renaud-alias',
+          object: 'producer:world:sample:ent:item-alias',
         },
       ],
     });
     expect(
       evaluateAssertion(
         'no_sameas_across_worlds',
-        [RENAUD, 'insimul:world:alderforest:ent:renaud-alias'],
+        [ITEM, 'producer:world:sample:ent:item-alias'],
         withinWorld,
       ).ok,
     ).toBe(true);
@@ -233,22 +233,22 @@ describe('the identity firewall (KINP §4.3/§4.5)', () => {
   it('never promotes a based_on chain to sameness by transitivity (delta C)', () => {
     const chain = observing({
       links: [
-        { subject: RENAUD, relation: 'based_on', object: 'pinakes:ent:general-x' },
-        { subject: 'pinakes:ent:general-x', relation: 'same_as', object: NAPOLEON },
+        { subject: ITEM, relation: 'based_on', object: 'curator:ent:general-x' },
+        { subject: 'curator:ent:general-x', relation: 'same_as', object: REFERENCE },
       ],
     });
-    expect(evaluateAssertion('no_sameas_across_worlds', [RENAUD, NAPOLEON], chain).ok).toBe(true);
-    expect(evaluateAssertion('based_on_exists', [RENAUD, NAPOLEON], chain).ok).toBe(false);
+    expect(evaluateAssertion('no_sameas_across_worlds', [ITEM, REFERENCE], chain).ok).toBe(true);
+    expect(evaluateAssertion('based_on_exists', [ITEM, REFERENCE], chain).ok).toBe(false);
   });
 });
 
 describe('firewall_holds', () => {
-  const asked = 'pinakes:world:consensus-reality';
+  const asked = 'curator:world:baseline';
   const real = claim({
-    id: 'pinakes:claim:sha256-11aa22',
+    id: 'curator:claim:sha256-11aa22',
     world: asked,
-    subject: NAPOLEON,
-    prov: { agent: 'pinakes:agent:resolver' },
+    subject: REFERENCE,
+    prov: { agent: 'curator:agent:resolver' },
   });
 
   it('passes when a real-world query returned only real-world claims', () => {
@@ -256,11 +256,11 @@ describe('firewall_holds', () => {
     expect(evaluateAssertion('firewall_holds', ['query', asked], ctx).ok).toBe(true);
   });
 
-  it('fails the moment a fiction claim comes back', () => {
+  it('fails the moment a scoped-world claim comes back', () => {
     const ctx = observing({ assertions: [real, claim()] }, 'query', [ran('query')]);
     const verdict = evaluateAssertion('firewall_holds', ['query', asked], ctx);
     expect(verdict.ok).toBe(false);
-    expect(verdict.detail).toMatch(/insimul:world:alderforest/);
+    expect(verdict.detail).toMatch(/producer:world:sample/);
   });
 
   it('fails when the query itself did not run — a broken query proves nothing', () => {
@@ -271,43 +271,43 @@ describe('firewall_holds', () => {
 
 describe('the media plane (KMI §2/§5)', () => {
   const ingested = {
-    id: 'insimul:asset:blake3-a1b2c3',
+    id: 'producer:asset:blake3-a1b2c3',
     media_type: 'video/mp4',
-    source_world: 'insimul:world:alderforest',
-    attaches_to: [RENAUD],
+    source_world: 'producer:world:sample',
+    attaches_to: [ITEM],
   };
   const render = {
-    id: 'analyzer:asset:blake3-c0de99',
+    id: 'processor:asset:blake3-c0de99',
     source_world: null,
-    excerpt: { source: 'insimul:asset:blake3-a1b2c3' },
+    excerpt: { source: 'producer:asset:blake3-a1b2c3' },
     assertions: [
       {
-        id: 'analyzer:claim:sha256-c3d4e5',
-        world: 'insimul:world:alderforest',
-        subject: 'analyzer:asset:blake3-c0de99',
-        relation: 'cine:shows',
-        object: RENAUD,
-        prov: { agent: 'analyzer:agent:pipeline' },
+        id: 'processor:claim:sha256-c3d4e5',
+        world: 'producer:world:sample',
+        subject: 'processor:asset:blake3-c0de99',
+        relation: 'media:shows',
+        object: ITEM,
+        prov: { agent: 'processor:agent:pipeline' },
       },
     ],
   };
 
   it('reads attaches_to and source_world off the envelope', () => {
     const ctx = observing({ assets: [ingested] });
-    expect(evaluateAssertion('asset_attaches_to', [ingested.id, RENAUD], ctx).ok).toBe(true);
-    expect(evaluateAssertion('asset_attaches_to', [ingested.id, NAPOLEON], ctx).ok).toBe(false);
+    expect(evaluateAssertion('asset_attaches_to', [ingested.id, ITEM], ctx).ok).toBe(true);
+    expect(evaluateAssertion('asset_attaches_to', [ingested.id, REFERENCE], ctx).ok).toBe(false);
     expect(
-      evaluateAssertion('source_world_is', [ingested.id, 'insimul:world:alderforest'], ctx).ok,
+      evaluateAssertion('source_world_is', [ingested.id, 'producer:world:sample'], ctx).ok,
     ).toBe(true);
   });
 
   it('distinguishes a generated asset from one that forgot to say (delta H)', () => {
-    const generated = observing({ assets: [{ id: 'composer:asset:blake3-aa', source_world: null }] });
-    expect(evaluateAssertion('source_world_is', ['composer:asset:blake3-aa', null], generated).ok).toBe(
+    const generated = observing({ assets: [{ id: 'consumer:asset:blake3-aa', source_world: null }] });
+    expect(evaluateAssertion('source_world_is', ['consumer:asset:blake3-aa', null], generated).ok).toBe(
       true,
     );
-    const silent = observing({ assets: [{ id: 'composer:asset:blake3-bb', media_type: 'audio/wav' }] });
-    const verdict = evaluateAssertion('source_world_is', ['composer:asset:blake3-bb', null], silent);
+    const silent = observing({ assets: [{ id: 'consumer:asset:blake3-bb', media_type: 'audio/wav' }] });
+    const verdict = evaluateAssertion('source_world_is', ['consumer:asset:blake3-bb', null], silent);
     expect(verdict.ok).toBe(false);
     expect(verdict.detail).toMatch(/requires one at ingest/);
   });
@@ -318,46 +318,46 @@ describe('the media plane (KMI §2/§5)', () => {
   });
 
   it('follows the lineage graph the whole way to an ingested asset (KMI §5)', () => {
-    // A real edit puts an EDL between the render and the footage, and every intermediate is
+    // A real edit puts an EDL between the render and the recording, and every intermediate is
     // generated. Stopping at the first hop would find only `source_world: null` and leave
     // the analysis attributable to nothing.
-    const edl = { id: 'analyzer:asset:blake3-ed10a2', source_world: null };
+    const edl = { id: 'processor:asset:blake3-ed10a2', source_world: null };
     const composite = {
-      id: 'analyzer:asset:blake3-d4af71',
+      id: 'processor:asset:blake3-d4af71',
       source_world: null,
       assertions: [
-        { subject: 'analyzer:asset:blake3-d4af71', relation: 'media:derived_from', object: edl.id },
-        { subject: edl.id, relation: 'media:derived_from', object: 'analyzer:asset:blake3-c0de99' },
+        { subject: 'processor:asset:blake3-d4af71', relation: 'media:derived_from', object: edl.id },
+        { subject: edl.id, relation: 'media:derived_from', object: 'processor:asset:blake3-c0de99' },
         {
-          id: 'analyzer:claim:sha256-2ad4e1',
-          world: 'insimul:world:alderforest',
-          subject: 'analyzer:asset:blake3-d4af71',
-          relation: 'cine:shows',
-          object: RENAUD,
-          prov: { agent: 'analyzer:agent:pipeline' },
+          id: 'processor:claim:sha256-2ad4e1',
+          world: 'producer:world:sample',
+          subject: 'processor:asset:blake3-d4af71',
+          relation: 'media:shows',
+          object: ITEM,
+          prov: { agent: 'processor:agent:pipeline' },
         },
       ],
     };
     const ctx = observing({ assets: [ingested, edl], results: [render, composite] });
     const verdict = evaluateAssertion('analysis_attributed_to_constituent', [composite.id], ctx);
     expect(verdict.ok).toBe(true);
-    expect(verdict.detail).toMatch(/insimul:world:alderforest/);
+    expect(verdict.detail).toMatch(/producer:world:sample/);
   });
 
   it('fails when no constituent in the lineage was ever ingested', () => {
-    const generated = { id: 'analyzer:asset:blake3-ed10a2', source_world: null };
+    const generated = { id: 'processor:asset:blake3-ed10a2', source_world: null };
     const composite = {
-      id: 'analyzer:asset:blake3-d4af71',
+      id: 'processor:asset:blake3-d4af71',
       source_world: null,
       assertions: [
-        { subject: 'analyzer:asset:blake3-d4af71', relation: 'media:derived_from', object: generated.id },
+        { subject: 'processor:asset:blake3-d4af71', relation: 'media:derived_from', object: generated.id },
         {
-          id: 'analyzer:claim:sha256-2ad4e1',
-          world: 'insimul:world:alderforest',
-          subject: 'analyzer:asset:blake3-d4af71',
-          relation: 'cine:shows',
-          object: RENAUD,
-          prov: { agent: 'analyzer:agent:pipeline' },
+          id: 'processor:claim:sha256-2ad4e1',
+          world: 'producer:world:sample',
+          subject: 'processor:asset:blake3-d4af71',
+          relation: 'media:shows',
+          object: ITEM,
+          prov: { agent: 'processor:agent:pipeline' },
         },
       ],
     };
@@ -368,27 +368,27 @@ describe('the media plane (KMI §2/§5)', () => {
   });
 
   it('fails when the analysis was scoped to the composite instead', () => {
-    // The render is generated (`source_world: null`), so a claim scoped to consensus
-    // reality has dropped out of the fictional world its footage came from.
+    // The render is generated (`source_world: null`), so a claim scoped to the baseline
+    // world has dropped out of the scoped world its recording came from.
     const misfiled = {
       ...render,
-      assertions: [{ ...render.assertions[0], world: 'pinakes:world:consensus-reality' }],
+      assertions: [{ ...render.assertions[0], world: 'curator:world:baseline' }],
     };
     const ctx = observing({ assets: [ingested], results: [misfiled] });
     const verdict = evaluateAssertion('analysis_attributed_to_constituent', [render.id], ctx);
     expect(verdict.ok).toBe(false);
-    expect(verdict.detail).toMatch(/pinakes:world:consensus-reality/);
+    expect(verdict.detail).toMatch(/curator:world:baseline/);
   });
 });
 
 describe('dangling_ref_tolerated', () => {
-  const ref = 'insimul:asset:blake3-ffffff';
+  const ref = 'producer:asset:blake3-ffffff';
 
   function missing(step: string, outcomes: StepOutcome[]): AssertionContext {
     const ctx = context(outcomes);
     ctx.log.record({
       step,
-      participant: 'insimul:agent:world-server',
+      participant: 'producer:agent:publisher',
       direction: 'response',
       entities: [],
       detail: { status: 404, dangling: true },
