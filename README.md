@@ -3,385 +3,104 @@
 > The **runtime commons** for koine-conformant systems — reference implementations of the
 > contracts, and the ground where conformant peers meet and transact.
 
-`agora` is the sibling to [`koine`](../koine): **koine specifies the contracts, agora
-implements them.** It holds the runtime code that belongs inside no single participant and
-does not belong in the contracts-only koine repo either — a model gateway, a discovery
-registry, an identity resolver, a translation engine, a conformance console.
+`agora` is the sibling to [`koine`](../koine): **koine specifies the contracts, agora implements
+them.** It holds the runtime code that belongs inside no single participant — a model gateway, a
+discovery registry, an identity resolver, a translation engine, a conformance console — and that
+does not belong in the contracts-only koine repo either.
 
-**Any project that speaks the koine protocols can use it**, three ways: call a hosted
-instance, self-host the pieces it wants, or judge its own implementation against these as the
-reference. There is no membership list. A *participant* is whatever publishes a KCB manifest
-and answers on the wire — agora learns the cast at runtime, from data, and is described here
-by **capability**, never by who happens to be calling.
+Any project that speaks the koine protocols can use it three ways: **call** a hosted instance,
+**self-host** the pieces it wants, or **judge** its own implementation against these as the
+reference. There is no membership list — a *participant* is whatever publishes a KCB manifest and
+answers on the wire, so everything here is described by **capability**, never by who is calling.
 
-See [`../koine/decisions/ADR-0001-control-plane-topology.md`](../koine/decisions/ADR-0001-control-plane-topology.md)
-for the decision that created this repo.
+## Quickstart
+
+```sh
+make install    # uv sync + npm install (Erlang toolchain optional; its gate skips cleanly)
+make check      # run every area's gate — this is what CI and .chief/verify.sh run
+make help       # list all targets; `make build` produces the console bundle + router wheel
+```
+
+**To use agora from a koine-conformant project**, you never import it as a library — you talk to
+it over the wire:
+
+1. **Publish** a KCB manifest at your peer's `/.well-known/kcb-manifest.json` describing the
+   capabilities it offers.
+2. **Discover** what you need through the registry, which returns **addresses** — it never proxies
+   traffic:
+
+   ```ts
+   import { createRegistry, registerProviderRouter } from '@agora/registry';
+
+   const registry = createRegistry();
+   await registerProviderRouter(registry, 'http://127.0.0.1:8000');
+
+   registry.find({ capability: 'generate.text' });                 // → [{ address, capabilities }]
+   registry.path({ from: { entityType: 'mood' }, to: { mediaType: 'audio/wav' } });
+   ```
+
+   `find` ranks zero-cost routes first and *unpriced* ones last (unknown is not free); `path`
+   chains capabilities across planes and providers and returns the plan plus its projected cost,
+   so a caller can gate spend before invoking anything.
+
+3. **Dial** the address you got back directly, over MCP/A2A. Nothing flows through the commons.
 
 ## Components
 
-- **provider-router** — a language-agnostic, OpenAI-compatible model gateway implementing the
-  *sacred ladder* (paid → mlx-serve → local → placeholder, per modality, always-completes)
-  with cost estimation + budget-ceiling enforcement (the first concrete implementation of the
-  KCB `cost`/grant model). A *leaf capability*, not an inter-participant router. **The
-  canonical implementation is `provider-router-erl/` (Erlang/OTP, agora:80);
-  `provider-router/` (Python, agora:50) is superseded** — see "The provider-router
-  supersession" below.
-- **registry** — the thin KCB discovery registry: **route-by-lookup, never proxy** (returns
-  addresses; peers dial each other directly over MCP/A2A). ADR-0001.
-- **resolver** — the KINP resolver reference implementation (`resolve` / `reconcile`), dialing
-  whichever store a deployment configures as its **resolution authority** for real-world
-  entities. The authority is an address, not a vendor.
-- **translation engine** — the KMI/KGP translator between a canonical graph shape and the
-  dialects on either side of a bridge.
-- **client libs / schemas** — shared protocol clients and manifest schemas.
-- **conformance console** — a scenario runner + UI that drives any combination of conformant
-  peers over their **real** direct connections and asserts cross-plane invariants (the
-  executable form of a KCS scenario). An observer, not a hub.
+| Component | Where | What it is |
+|---|---|---|
+| **provider-router** | [`provider-router-erl/`](provider-router-erl/README.md) | OpenAI-compatible model gateway — the *sacred ladder* (paid → mlx-serve → local → placeholder, per modality, always-completes) with cost estimation + budget-ceiling enforcement. A leaf capability, not an inter-participant router. |
+| **KCB discovery registry** | [`registry/`](registry/) | The thin capability-bus registry: route-by-lookup, **never proxy** — returns addresses, peers dial each other. |
+| **KINP resolver** | [`resolver/`](resolver/) | Reference `resolve` / `reconcile` against a deployment's configured **resolution authority** for real-world entities. |
+| **translation engine** | [`translation/`](translation/README.md) | The KMI/KGP translator between a canonical graph shape and the dialects on either side of a bridge; one core, several facades (wasm, PyO3, HTTP leaf). |
+| **conformance console** | [`console/`](console/README.md) | A KCS scenario runner + UI that drives conformant peers over their **real** direct connections and asserts cross-plane invariants. An observer, not a hub. |
+| **trainer** | [`trainer/`](trainer/README.md) | The **general** KFT `finetune` capability (GPU fine-tuning jobs). Specialized, corpus-specific finetuners run as separate providers on the bus — not here. |
+| **schemas / clients** | [`schemas/`](schemas/) · [`clients/`](clients/) | Shared koine manifest schemas / protocol types, and the client libs (`@agora/kcb-client`, `@agora/relation-registry-client`). |
 
 ## Layout
 
 Each directory is a **buildable unit with its own gate**:
 
-| Area | Language | What it is |
+| Area | Language | Gate |
 |---|---|---|
-| `provider-router-erl/` | Erlang/OTP (rebar3) | **the** model-backend gateway — the sacred ladder as a supervision tree (agora:80, ADR-0004) |
-| `provider-router/` | Python (uv) | the same gateway, superseded — the contract of record it was extracted from (agora:50) |
-| `trainer/` | Python (uv) | the general KFT `finetune` capability — GPU fine-tuning jobs (separate from the provider-router, ADR-0001 §1) |
-| `registry/` | TypeScript | the thin KCB discovery registry |
-| `resolver/` | TypeScript | the KINP resolver reference implementation |
-| `console/` | TypeScript + React | the conformance console (scenario runner + UI) |
-| `schemas/` | TypeScript | shared koine manifest schemas / protocol types |
-| `clients/*` | TypeScript | shared protocol client libraries (`@agora/kcb-client`, `@agora/relation-registry-client`) |
-| `translation/` | Rust (cargo) | the KMI/KGP translation engine — one core, several facades (wasm, PyO3, an HTTP leaf) |
+| `provider-router-erl/` | Erlang/OTP (rebar3) | `make check-router-erl` — compile + dialyzer + eunit + ct (incl. the byte-for-byte conformance suite; skips cleanly when Erlang is absent) |
+| `provider-router/` | Python (uv) | `make check-provider-router` — ruff + mypy + pytest |
+| `trainer/` | Python (uv) | `make check-trainer` — ruff + mypy + pytest |
+| `registry/` | TypeScript | `make check-registry` |
+| `resolver/` | TypeScript | `make check-resolver` |
+| `console/` | TypeScript + React | `make check-console` |
+| `schemas/` | TypeScript | `make check-schemas` |
+| `clients/*` | TypeScript | `make check-clients` |
+| `translation/` | Rust (cargo) | `make check-translation` — build + clippy + test |
 
-`trainer/` is the **general** `finetune` provider **only** (KFT §9, FT-K). Training is
-multi-provider: a project with its own corpus runs its own **specialized** `finetune` provider on
-the bus (never an adapter inside agora), and the registry disambiguates between them
-(`registry/src/select.ts` — prefer the more specialized, then lower cost, surface an unbroken tie).
-The specialized providers and the clients that call them are each repo's own work, **not built
-here**; see `trainer/README.md` §"Scope boundary".
+Each TypeScript gate is `eslint` + `tsc -p tsconfig.json` + `vitest run`. `make fmt` auto-formats
+the Python areas. There are two provider-router areas: the **Erlang app is canonical**; the Python
+app stays in-tree as the executable specification it is judged against — see
+[`DESIGN.md`](DESIGN.md).
 
-## The provider-router supersession (ADR-0004)
+## The koine contracts
 
-There are two provider-routers in this tree, and that is deliberate but temporary.
-`provider-router-erl/` (Erlang/OTP) is **canonical**: the sacred ladder as a supervision tree,
-with the KCB subscribe fan-out as BEAM processes and native-wire vendors dialed through the
-Rust translator. `provider-router/` (Python) is **superseded**: it is the extraction that
-defined the contract, and it stays in the tree as the executable specification the Erlang app
-is judged against.
+Everything here implements a koine spec — read those first:
 
-*Judged* is literal. `provider-router-erl/test/apr_conformance_SUITE.erl` replays a corpus
-captured from the Python app itself
-(`test/apr_conformance_SUITE_data/python-surface.json` — regenerate with the command in
-`capture_python_surface.py`) and asserts every answer is **the same bytes**: all five
-generation routes, `/health`, `/doctor`, `/v1/models`, `/v1/providers`, the AgentCard and the
-308 off the legacy manifest path, in a bare and a keyed configuration. It satisfies the same
-`console/src/fixtures/provider-router.session.json` capture the console replays, and pins its
-`kcb_version` to `schemas/src/versions.ts` the way `test_skeleton.py` pins Python's.
+- **Identity (KINP)** — [`../koine/specs/identity.md`](../koine/specs/identity.md)
+- **Knowledge (KGP)** — [`../koine/specs/grounding-pack.md`](../koine/specs/grounding-pack.md)
+- **Control plane (KCB)** — [`../koine/specs/capability-bus.md`](../koine/specs/capability-bus.md)
+- **Media (KMI)** — [`../koine/specs/media-interchange.md`](../koine/specs/media-interchange.md)
+- **Conformance scenarios (KCS)** — [`../koine/specs/conformance-scenario.md`](../koine/specs/conformance-scenario.md)
+- **Topology decision** — [`../koine/decisions/ADR-0001-control-plane-topology.md`](../koine/decisions/ADR-0001-control-plane-topology.md)
 
-The cutover:
+The shared **relation registry** is koine's *data* (`../koine/registry/`) and agora's *tooling*:
+`schemas/src/registry-schema.ts` validates it and `@agora/relation-registry-client` loads it, but
+agora never vendors a copy — a copy would be the second source of truth the registry exists to
+prevent.
 
-1. **Now** — both build, both gated by `make check`; `make check-router-erl` is the router's
-   gate. A deployment may run either; they answer identically.
-2. **Next** — deployments move to the Erlang app (same image contract: an HTTP port, the same
-   `AGORA_*` environment). Nothing that dials the router changes, because nothing about the
-   wire changes.
-3. **Then** — `provider-router/` is retired to its own repository or deleted, and the
-   conformance corpus (already captured) becomes the frozen record of the contract. Until that
-   step the Python suite stays green: a change to the contract lands in both, or it lands in
-   neither.
+## Design & rationale
 
-## Discovery in one minute
-
-The registry is an index of KCB manifests that answers with **addresses**. Nothing flows
-through it — the caller dials what it gets back (ADR-0001 decisions 3-4).
-
-```ts
-import { createRegistry, registerProviderRouter } from '@agora/registry';
-
-const registry = createRegistry();
-await registerProviderRouter(registry, 'http://127.0.0.1:8000'); // crawls /.well-known/kcb-manifest.json
-
-registry.find({ capability: 'generate.text' }); // → [{ address, capabilities: [{ endpoint, estUnits, tier }] }]
-registry.find({ produces: { mediaType: 'audio/wav' }, world: 'alderforest' });
-registry.path({ from: { entityType: 'mood' }, to: { mediaType: 'audio/wav' } });
-```
-
-`find` ranks zero-cost routes first and *unpriced* ones last (unknown is not free, KCB §3
-delta K); `path` chains capabilities across planes and providers and returns the plan plus its
-projected cost, so a caller can gate spend before invoking anything.
-
-## Conformance in one minute
-
-The console runs a **KCS scenario** (`../koine/specs/conformance-scenario.md`) — a declarative
-script that discovers participants by KINP identity, opens **direct** links to them, records
-every exchange into an observation log, and evaluates the §5 cross-plane assertions against
-that log. A green scenario proves the real protocol, because there is no console-flavoured
-envelope in between (ADR-0001 decision 7).
-
-```ts
-// console/src/
-import { runConformance } from './commons.ts';
-import { PROVIDER_ROUTER_ROUNDTRIP } from './scenarios/provider-router-roundtrip.ts';
-
-const { report, archive } = await runConformance(PROVIDER_ROUTER_ROUNDTRIP);
-report.green;         // every step passed and every assertion held
-archive.report_id;    // sha256-… — the same run observed again mints the same id
-```
-
-Every report is **content-addressed and archivable** (KCS §4.4): the address covers the
-scenario, the participants, every step and assertion verdict and the observation log, and
-excludes wall-clock time and durations — the same split KGP §3.1 makes for a claim. So a
-re-run that saw the same fabric dedups, an id that *moved* is itself the finding, and
-`verifyArchive` catches an archive whose verdict was edited after the fact.
-
-`npm run dev -w @agora/console` is the same runtime with a UI on it: the **scenario library**
-with a run button per scenario, then that run's verdict and content address, the tier that
-served each call and what it cost, every assertion's verdict with the log entries supporting
-it, and the observation timeline beneath.
-
-Its second panel is the **capability explorer** — browse what the registry advertises (per
-provider, plane-typed ports, address, projected cost), compose a request from a form the port
-schema generated, and send it. There is no second client behind it: a manual request compiles
-into a one-step scenario and goes through the same `runConformance`, so it is discovered,
-dialed and logged exactly as an authored scenario is.
-
-**The scenarios that ship.** The runner is the product and it knows nothing about any
-particular cast — a scenario names its participants by KINP identity, and you write your own
-against your own peers. The two below are what this repo bundles: one that exercises the
-commons itself, and one **neutral sample** of a multi-actor cross-plane scenario, kept
-because that shape is the only way to demonstrate the §5 assertions end to end. They are
-illustrative, not normative.
-
-| Scenario | From | What it proves |
-|---|---|---|
-| `kcs:provider-router-roundtrip` | the commons itself | discover the provider-router through the registry, dial its own address, ask for a completion with a ceiling of **zero** budget units, and assert the zero-spend tier served it for nothing (`tier_resolved`, `cost_within_ceiling`, `capability_path_exists`, `always_completes`) |
-| `kcs:sample-pipeline` | the commons itself (a **neutral sample**) | the identity firewall across the media→knowledge bridge, over three generic peers — a `producer` publishes a world-scoped claim and a `based_on` link into the baseline world, a `processor` ingests a recording of that world and extracts knowledge from it, a `curator` reconciles and queries both — asserting that facts about the baseline entity return nothing from the scoped world (`firewall_holds`), that every claim is world-scoped (`claim_in_world`), and that cross-world lineage stays `based_on` (`no_sameas_across_worlds`) |
-
-**Where a deployment's own scenarios live.** The commons is public and ships the *agnostic*
-KCS runner plus the neutral sample above. The ecosystem's real conformance scenarios — their
-participants, worlds and fixtures, and the koine `e2e-*` documents they encode — live in the
-private **`legacy`** integration repo under `scenarios/`, and run against this same runner
-unchanged: nothing in `console/src/kcs/` knows a cast.
-
-Neither of the sample's peers has published a manifest, so the scenario runs all three as
-`standin` participants (KCS delta N) and its report says `stubbed`. A stand-in
-fixture may also carry the **`manifest`** its peer has not published: a provider off the bus
-is missing from the *control* plane too, and `capability_path_exists` would otherwise have
-nothing to plan over. The runner indexes those manifests into a **scenario-local** index
-that is thrown away with the run — writing them into the registry peers query would hand out
-an address nobody serves. A live registration still wins over a fixture, so adoption deletes
-fixtures rather than rewriting a scenario.
-
-The runtime under them: every §3 step kind executes (`fetch` is a CAS GET by asset id,
-`subscribe` reads a delta stream, `emit` writes a pack), `standin` participants (delta N)
-let a scenario name a peer that has not adopted the bus, and every §5 predicate in
-`console/src/kcs/assertions.ts` has an evaluator. A predicate a future KCS revision adds
-still reports as *pending*, which never counts as a pass — a scenario asserting something
-this build cannot check goes red rather than green-by-omission.
-
-**One gap is KCS's, not this console's.** KMI delta I gives every NLE projection an
-asset-id ↔ path media map, and §5 has no predicate that can read one — so a scenario
-carrying that map into its observation log has nothing to check it with. A
-`media_map_complete(projection)` predicate is the koine follow-up.
-
-Assertions are evaluated over **plane-typed observations, never generated text** (§7 Q2):
-a claim counts when a peer stated it as a KGP assertion, not when a model described it.
-
-**The third panel drives nothing.** The console's *fabric monitor* is a passive watch: it
-subscribes (KCB §4) to the streams providers publish and renders a filterable live feed of what
-crosses the commons, whether or not this console caused it. Decision 7 is what bounds it — a
-passive observer may register as a consumer, but may not read the wire between two other peers,
-which is the payload-aware proxy the topology exists to avoid. So the **data plane is covered
-today** (every delta and media event a producer publishes reaches the feed) while the **control
-plane is visible only where a provider *emits* exchange telemetry**; a provider that emits none
-is absent at the invoke level, and the monitor says so per source. Closing that is a koine
-follow-up — an emitted-telemetry contract (a KCB observability extension) fixing the span shape.
-`console/src/kcs/spans.ts` is agora's provisional reader for it.
-
-## Stack
-
-**Polyglot, by decision — not by accident.** Two toolchains, one gate.
-
-- **`provider-router` is Python** (3.11+, uv, FastAPI, pytest/ruff/mypy). It is a *port* of a
-  pre-existing, in-production sacred-ladder implementation, and most of the model-backend
-  ecosystem it dials (mlx-serve, Ollama clients) is Python too. Porting it into TypeScript
-  would have meant re-deriving tier-resolution behaviour that already existed and was trusted,
-  in a language with worse coverage of the backends it dials.
-- **`provider-router-erl` is Erlang/OTP** (26+, rebar3, cowboy, dialyzer/eunit/ct) and is now
-  the canonical router (ADR-0004). A ladder whose whole promise is "always completes" is a
-  supervision tree with a permanent terminal child; a fan-out to many soft-realtime consumers
-  is one cheap process each. That is the language's home ground, and it is reachable *because*
-  language is internal — the third toolchain costs nothing to any caller.
-- **Everything else is TypeScript** (Node 22, npm workspaces, React 19 + Vite for the console,
-  vitest, ESLint, `tsc --noEmit`). The registry, resolver, client libs and console are web-stack
-  surfaces callers consume from TS/React, so TS keeps them one language away from those callers
-  and lets the console import the registry's types directly.
-- **The split is safe because ADR-0001 makes language internal.** The provider-router is a
-  *service over the wire* (OpenAI-compatible HTTP + a KCB manifest), never an imported library —
-  so a Python caller and a TypeScript caller both just call it. Nothing in the commons is shared
-  as source across the language boundary — which is exactly why the router could be
-  re-implemented in a third language without a single caller noticing. The one thing that
-  *must* agree — the
-  koine spec versions — is pinned in `schemas/src/versions.ts` and asserted against the Python
-  constant (`test_skeleton.py`) and the Erlang one (`apr_conformance_SUITE`), so drift fails a
-  gate instead of failing in production.
-
-The TypeScript areas are a **source-first workspace**: each package's `exports` points at
-`src/index.ts` and `tsc` emits nothing, so there is no cross-package build ordering. The
-console's Vite bundle and the router's wheel are the only build artifacts (`make build`).
-
-## Quality gates
-
-Run everything (this is what CI runs, and what `.chief/verify.sh` runs):
-
-```sh
-make install    # uv sync + npm install
-make check      # every area's gate
-```
-
-Per area, when a change touches only one:
-
-| Area | Gate |
-|---|---|
-| `provider-router-erl/` | `make check-router-erl` — `rebar3 compile` + `dialyzer` + `eunit` + `ct`. **The router's gate** (agora:80 / ADR-0004), including the byte-for-byte conformance suite; skips cleanly when the Erlang toolchain is absent |
-| `provider-router/` | `make check-provider-router` — `ruff check` + `ruff format --check` + `mypy` + `pytest` (the superseded Python router, kept green until the cutover completes) |
-| `trainer/` | `make check-trainer` — `ruff check` + `ruff format --check` + `mypy` + `pytest` |
-| `schemas/` | `make check-schemas` |
-| `clients/*` | `make check-clients` |
-| `registry/` | `make check-registry` |
-| `resolver/` | `make check-resolver` |
-| `console/` | `make check-console` |
-| `translation/` | `make check-translation` — `cargo build` + `clippy` + `cargo test` |
-
-Each TypeScript gate is `eslint` + `tsc -p tsconfig.json` (typecheck) + `vitest run`. `make help`
-lists every target; `make build` produces the console bundle and the router wheel; `make fmt`
-auto-formats the Python area.
-
-## The contracts
-
-Everything here implements a koine spec. Read those first:
-
-- Identity — `../koine/specs/identity.md` (KINP)
-- Knowledge — `../koine/specs/grounding-pack.md` (KGP)
-- Control plane — `../koine/specs/capability-bus.md` (KCB)
-- Media — `../koine/specs/media-interchange.md` (KMI)
-- Conformance scenarios — `../koine/specs/conformance-scenario.md` (KCS)
-- Topology decision — `../koine/decisions/ADR-0001-control-plane-topology.md`
-
-### The relation registry
-
-The shared relation vocabulary (`../koine/registry/relations.tsv` + `relations/<domain>.tsv`)
-and its bridge-mapping layer (`../koine/registry/predicate-mapping.json`) are **data, and they
-live in koine**. agora holds the tooling — the schema, validator and loader — and never a
-vendored copy; a copy would be the second source of truth the registry exists to prevent. The
-`registryVersion` this build speaks, and the paths it speaks it at, are pinned in
-`RELATION_REGISTRY` (`schemas/src/relation-registry.ts`), the same way the spec versions are.
-The one copy in this repo is `schemas/src/fixtures/koine-registry/` — a snapshot the validator's
-tests run against, because a validator tested only on hand-written samples proves only that it
-accepts hand-written samples. It is reachable as `@agora/schemas/fixtures`, never from the
-library surface, and a test asserts its `registryVersion` is the one this build claims to speak,
-so it cannot quietly go stale.
-
-Which projects a bridge layer covers is **that registry's data**, not agora's. A loaded document
-declares its own cast — the canonical host in `canonicalProject`, the bridged projects as the
-keys of its `projects` block (`bridgedProjectsOf`) — and the validator checks that the
-declaration is **well-formed and self-consistent**, never that it matches a set pinned in this
-build: the canonical host may not also appear as a bridged project (it hosts the vocabulary the
-mappings target, so it is the canonical *side* of the bridge), every mapping entry must be
-well-formed, and every declared mirror must be derived rather than authored. A registry naming
-projects agora has never heard of loads unchanged. What `RELATION_REGISTRY` pins is the
-registry's *version and layout*, and nothing about who is in it.
-
-A registry entry classifies a relation on **three orthogonal axes**, modelled in
-`schemas/src/axes.ts`: its **dialect** tier (KGP §5 — what logic a consumer may evaluate:
-`grounding-only` ⊂ `horn-safe` ⊂ `full-prolog`), its **egress** class (§7.2 — whether it may
-leave its tier at all: `exportable` or `local-only`) and, on provenance records rather than the
-registry, its **trust** tier (curated / synthetic / personal — descriptive, never enforcing).
-`local-only` is an egress class, *not* a fourth dialect tier; registryVersion 0.3.0 split the
-one key that used to bundle them.
-
-Egress is the axis with teeth, and agora enforces it in both directions (§7.2):
-`filterPackForEgress` drops `local-only` records at pack construction — the **producer's**
-obligation, never delegated — and `assertPackEgress` lets a **consumer** reject a pack that
-still carries some, reporting every violation instead of silently dropping the records.
-
-#### Reading it
-
-`parseRegistry` / `parseVocabulary` (`schemas/src/registry-schema.ts`) validate the two
-artifacts, and `assertRelationsResolve` cross-checks them: a mapping that crosses as a claim
-must *name* a relation the TSVs declare, and one that does not must name none — that rule is
-what keeps the two files one vocabulary. `assertSignatureStability` diffs two registry versions
-and rejects an edit that moved a published `relation · arity · arg_roles · symmetric`, because
-that silently re-hashes every claim id derived from it (KGP §3); a change means a new name.
-
-`@agora/relation-registry-client` is what a consumer actually calls:
-
-```ts
-const registry = await loadRelationRegistry('https://koine.example');
-registry.signature('soc:parent_of');                       // 'soc:parent_of · 2 · parent|child · false'
-for (const project of bridgedProjectsOf(registry.document)) {  // the cast is the registry's data
-  filterPackForEgress(pack, registry.egressFor(project));   // predicate → KGP §7.2 class
-}
-```
-
-It fetches `predicate-mapping.json`, follows it to the vocabulary files it names, validates
-both, and indexes them. It never writes and never mirrors — a cached copy belongs to the
-caller, and a caller that edits one has forked the registry.
-
-### The resolver
-
-`resolver/` implements KINP §8's two verbs against a deployment's **resolution authority** — the
-single canonical store for real-world entities (§11 decision 1). Which store that is, is
-configuration: an address the registry handed back.
-
-```ts
-const resolver = createAuthorityResolver({ endpoint }); // the address the registry handed back
-await resolver.resolve({ id: 'example:world:alderforest:ent:npc-renaud' });
-await resolver.reconcile({ query: 'Renaud', of: 'example-media:ent:e-8842', world: 'example:world:alderforest' });
-```
-
-`resolve` computes the merged view rather than storing it (§4.1), and **the walk never crosses
-a `based_on` edge** — that one rule is the firewall (§4.3). In the sample above the fictional
-general is `same_as` the local entity extracted from the footage and `based_on` the real
-Napoleon, so resolving him returns the local and stops: Wikidata's Napoleon is two `same_as`
-hops away and both queries stay clean, out of one graph.
-
-`reconcile` takes the OpenRefine/Wikidata Reconciliation query verbatim (§4.5) so an authority
-with a Wikidata backbone answers it directly, then decides two things about the top candidate: which
-relation (§4.5 — different worlds that do not inherit identity ⇒ `based_on`; a candidate
-already reachable through `based_on` is never promoted by transitivity) and whether to apply it
-(§11 decision 2 — auto-apply above a per-world confidence threshold, queue anything
-below-threshold, ambiguous, or high-impact). Queued proposals land on `resolver.reviewQueue`
-and nothing there has been asserted.
-
-Authority is a role, not a hard dependency: ids that never round-trip (claims and assets are
-content hashes, §6) are answered without dialing anybody, an id the authority has never heard
-of resolves to itself, and a dial that fails falls back to the local cache — labelled `cache`,
-never as the authority itself, because "the authority says so" and "the authority said so once"
-license different writes.
-
-## Status
-
-**Bootstrapping.** The repo is being stood up by the Chief harness from
-[`tasks/chief/10-agora-bootstrap.json`](tasks/chief/10-agora-bootstrap.json). Landed: the
-skeleton, stack, layout and gates (US-AG1); the sacred-ladder port (US-AG2); cost/budget
-enforcement + the router's KCB manifest (US-AG3); the discovery registry, its capability-path
-search and the resolver interface stub (US-AG4); the conformance console — the KCS scenario
-model, runner and UI, running `kcs:provider-router-roundtrip` end to end (US-AG5).
-
-From [`tasks/chief/30-agora-console-scenarios.json`](tasks/chief/30-agora-console-scenarios.json):
-the KCS runner and its cross-plane assertion vocabulary (US-CS1); the koine pressure tests
-encoded as runnable scenarios (US-CS2, US-CS3 — since moved to the private `legacy` repo,
-leaving `kcs:sample-pipeline` as the neutral sample); the full KINP resolver dialing the
-entity authority (US-CS4); the content-addressed
-conformance report and the scenario-library UI (US-CS5); the manual capability explorer
-(US-CS6). Next: the passive live fabric monitor.
+The architecture — the provider-router and its always-completes supervision tree, why the stack is
+polyglot, the registry/resolver/relation-registry design, and the decision records — is in
+[`DESIGN.md`](DESIGN.md).
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE). Every buildable unit declares the same: the Python areas
-(`provider-router/`, `trainer/`), the Rust workspaces (`translation/`, `registry/path-index/`),
-the Erlang router and the TypeScript root. Sharing one license across the tree is what makes a
-capability here safe to vendor, self-host or fork; a unit that needs a different one does not
-belong in the commons.
+MIT — see [`LICENSE`](LICENSE). Every buildable unit declares the same license; sharing one across
+the tree is what makes a capability here safe to vendor, self-host, or fork.
