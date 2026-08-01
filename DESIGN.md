@@ -7,9 +7,9 @@ relation-registry surfaces — so the README can stay short.
 
 ## Decision records
 
-agora continues [`koine`](../koine)'s ADR numbering, but only one ADR lives in koine:
+agora continues [`koine`](https://github.com/danieldekerlegand/koine)'s ADR numbering, but only one ADR lives in koine:
 
-- **ADR-0001 — control-plane topology** — [`../koine/decisions/ADR-0001-control-plane-topology.md`](../koine/decisions/ADR-0001-control-plane-topology.md).
+- **ADR-0001 — control-plane topology** — [`koine/decisions/ADR-0001-control-plane-topology.md`](https://github.com/danieldekerlegand/koine/blob/main/decisions/ADR-0001-control-plane-topology.md).
   The decision that created this repo: a thin shared commons, direct-dial peers, a registry that
   returns *addresses* and never proxies traffic. Everything below is downstream of it.
 - **The deployment-history ADRs (ADR-0002 / 0003 / 0004)** — bridge reconciliation, contract-layer
