@@ -79,7 +79,9 @@ class TestReportShape:
     def test_the_report_carries_the_exit_code_and_problem_details(self) -> None:
         report = validate_job(
             valid_text_job(
-                method="dpo", modality="text-to-image", dataset={"media": ["analyzer:asset:blake3-aa"]}
+                method="dpo",
+                modality="text-to-image",
+                dataset={"media": ["analyzer:asset:blake3-aa"]},
             )
         )
         body = report.describe()
