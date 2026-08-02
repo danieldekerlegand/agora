@@ -148,6 +148,10 @@ reasoning is in [`DESIGN.md`](DESIGN.md).
   tree, why the stack is polyglot, and the design of the registry, resolver, and translation
   surfaces.
 
+- **[`docs/prior-art.md`](docs/prior-art.md)** — how each component relates to existing tools
+  (LLM gateways like LiteLLM, agent registries, the reconciliation API): what agora deliberately
+  reuses versus what it adds.
+
 - **[koine](https://github.com/danieldekerlegand/koine)** — the open specifications agora
   implements, if you want to understand the contracts in the abstract or build your own conformant
   system. koine is *specification only* (no code); agora is the runtime. The core specs:
