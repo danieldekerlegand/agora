@@ -1,173 +1,133 @@
 # agora
 
-> The **runtime commons** for koine-conformant systems — reference implementations of the
-> contracts, and the ground where conformant peers meet and transact.
+> A ready-to-run toolkit for connecting independent AI systems: an OpenAI-compatible model
+> gateway, a service-discovery registry, an identity resolver, a data translator, and a
+> conformance tester.
 
-`agora` is the sibling to [`koine`](https://github.com/danieldekerlegand/koine): **koine specifies the contracts, agora implements
-them.** It holds the runtime code that belongs inside no single participant — a model gateway, a
-discovery registry, an identity resolver, a translation engine, a conformance console — and that
-does not belong in the contracts-only koine repo either.
+agora is a collection of small, self-contained services that let separate AI systems find and
+call each other over the network without hand-wiring a bridge between every pair. It is for anyone
+building services that need to talk to models and to each other — start by running the pieces you
+want, self-host the ones you need, or use them as a reference to test your own implementation
+against.
 
-Any project that speaks the koine protocols can use it three ways: **call** a hosted instance,
-**self-host** the pieces it wants, or **judge** its own implementation against these as the
-reference. There is no membership list — a *participant* is whatever publishes a KCB manifest and
-answers on the wire, so everything here is described by **capability**, never by who is calling.
+The fastest thing it gives you today is a **model gateway that runs for free out of the box**: an
+OpenAI-compatible endpoint you can point any existing client at, that answers immediately with no
+API key and never surprises you with a bill. Everything else builds outward from there.
 
-## Quickstart
+## The problem it solves
+
+Connect *N* AI systems to each other pairwise and you end up writing roughly *N²* one-off
+integrations — every new system has to learn every other system's private address, format, and
+quirks. And connecting to models directly means scattering vendor SDKs, API keys, and
+cost-control logic across every service that needs a completion.
+
+agora replaces both with a shared runtime. Services advertise what they can do; callers discover
+them by *capability* instead of by hard-coded address; and a single gateway sits in front of every
+model backend with one uniform interface and one place to cap spending. Add a new participant and
+it learns *one* set of conventions, not one per peer.
+
+## How it works
+
+agora is built on a few deliberate ideas. None of them require prior knowledge to use.
+
+- **Addresses, not proxies.** The discovery registry is a phone book, not a switchboard. You ask
+  it "who can do X?" and it returns an *address*; you then connect to that service **directly**.
+  Your actual traffic never flows through agora. This keeps the shared layer thin and the
+  cleverness at the edges.
+
+- **Everything is described by capability, never by name.** There is no membership list. A
+  participant is simply anything that publishes a manifest describing its capabilities and answers
+  on the wire. agora never needs to know *who* is calling — only *what* is asked for.
+
+- **A model gateway that always completes.** The gateway (called the **provider-router**) owns a
+  fallback chain — paid vendor → local model server → local model → a built-in deterministic
+  placeholder. It walks the chain until a rung can serve the request, and the bottom rung can
+  never fail. With no keys configured, every request lands on the free placeholder tier, so a
+  fresh install works and spends nothing.
+
+- **Spend is capped before anything is contacted.** Each request can carry a budget ceiling. Any
+  tier whose projected cost exceeds it is skipped *without being called*, falling through to a
+  cheaper — ultimately free — option. Cost control is a property of the system, not something each
+  caller reimplements.
+
+- **Proof over promises.** A conformance console runs test scenarios against the *real*
+  connections between services and checks that the guarantees held, producing a citable report.
+
+agora provides *reference implementations* of a set of open interchange contracts published in a
+separate, public project called [koine](https://github.com/danieldekerlegand/koine). You do not
+need koine to use agora — the services here run and are useful on their own. koine is where to
+look if you want to understand the contracts in the abstract or implement one yourself; see
+[Going deeper](#going-deeper).
+
+## Getting started
+
+Clone the repo and install every area's dependencies:
 
 ```sh
-make install    # uv sync + npm install (Erlang toolchain optional; its gate skips cleanly)
-make check      # run every area's gate — this is what CI and .chief/verify.sh run
+make install    # uv sync + npm install (the Erlang toolchain is optional; its gate skips cleanly)
+make check      # run every area's quality gate — this is what CI runs
 make help       # list all targets; `make build` produces the console bundle + router wheel
 ```
 
-**To use agora from a koine-conformant project**, you never import it as a library — you talk to
-it over the wire:
-
-1. **Publish** a KCB manifest at your peer's `/.well-known/kcb-manifest.json` describing the
-   capabilities it offers.
-2. **Discover** what you need through the registry, which returns **addresses** — it never proxies
-   traffic:
-
-   ```ts
-   import { createRegistry, registerProviderRouter } from '@agora/registry';
-
-   const registry = createRegistry();
-   await registerProviderRouter(registry, 'http://127.0.0.1:8000');
-
-   registry.find({ capability: 'generate.text' });                 // → [{ address, capabilities }]
-   registry.path({ from: { entityType: 'mood' }, to: { mediaType: 'audio/wav' } });
-   ```
-
-   `find` ranks zero-cost routes first and *unpriced* ones last (unknown is not free); `path`
-   chains capabilities across planes and providers and returns the plan plus its projected cost,
-   so a caller can gate spend before invoking anything.
-
-3. **Dial** the address you got back directly, over MCP/A2A. Nothing flows through the commons.
-
-## Tutorial — wiring a project into agora
-
-A concrete, copy-pasteable walkthrough for a koine-conformant project. It uses the Python
-provider-router (easiest to install; the canonical Erlang router answers the byte-identical
-contract on the same wire — see [`DESIGN.md`](DESIGN.md)). Every command, port and variable
-below is real; nothing here is a placeholder.
-
-### 1. Run the model gateway and point your LLM client at it
-
-The provider-router is **OpenAI-compatible**. Start it — with no keys it runs **zero-spend**,
-resolving every modality to the deterministic placeholder tier, so a fresh install answers
-immediately and spends nothing:
+The best first success is the zero-spend model gateway. Install and start it, then point any
+OpenAI client at it:
 
 ```sh
 pip install agora-provider-router          # or: uv pip install agora-provider-router
 agora-provider-router                       # binds AGORA_HOST:AGORA_PORT (default 0.0.0.0:8000)
-curl localhost:8000/doctor                  # the resolved ladder per modality — dials nothing
+curl localhost:8000/doctor                  # shows the resolved fallback chain per modality — dials nothing
 ```
-
-Point any OpenAI SDK at `http://localhost:8000/v1` — no code change beyond the base URL:
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="unused")  # key unused on the free tier
 resp = client.chat.completions.create(
-    model="gpt-4o-mini",                                     # a hint; the ladder resolves the tier
+    model="gpt-4o-mini",                                     # a hint; the router resolves the actual tier
     messages=[{"role": "user", "content": "hello"}],
     extra_headers={"X-Agora-Budget-Units": "0"},             # a spend ceiling of 0 → free tier only
 )
 print(resp.choices[0].message.content)
-# The response carries X-Agora-Tier / X-Agora-Provider / X-Agora-Model / X-Agora-Cost-Units,
-# and an `agora` key naming the rung that served it. A stock OpenAI client just ignores them.
 ```
 
-Opt into a paid or local tier with one environment variable per setting — the router owns the
-namespace, `AGORA_PROVIDER_<NAME>_<FIELD>`:
+Enable a paid or local tier with one environment variable per setting:
 
 ```sh
-AGORA_PROVIDER_OPENAI_API_KEY=sk-...  agora-provider-router   # enable the paid OpenAI tier
-MLX_SERVE_BASE_URL=http://localhost:8080  agora-provider-router  # enable the mlx-serve tier
-OLLAMA_BASE_URL=http://localhost:11434  agora-provider-router    # enable the local tier
+AGORA_PROVIDER_OPENAI_API_KEY=sk-...  agora-provider-router     # enable the paid OpenAI tier
+OLLAMA_BASE_URL=http://localhost:11434  agora-provider-router    # enable a local ollama tier
 ```
 
-The ladder order is a *preference*; the per-request `X-Agora-Budget-Units` (or a `budget_units`
-body field) is a *constraint* — a rung projected over budget is refused **without being
-contacted**, falling through to a cheaper, ultimately zero-cost rung. See
-[`provider-router-erl/`](provider-router-erl/README.md) and
-[`provider-router/`](provider-router/README.md).
+## Learn by example
 
-### 2. Discover the capability through the KCB registry
+The three-step walkthrough takes a project from nothing to fully connected — **run** the gateway,
+**discover** a capability through the registry, and **prove** the round-trip with a conformance
+scenario — with every command explained:
 
-The registry indexes KCB manifests and answers with **addresses** — it never proxies traffic.
-Pull the router's own manifest into an index, then `find` it and dial the address yourself:
-
-```ts
-import { createRegistry, registerProviderRouter } from '@agora/registry';
-
-const registry = createRegistry();
-await registerProviderRouter(registry, 'http://127.0.0.1:8000');   // crawls /.well-known/kcb-manifest.json
-
-const [match] = registry.find({ capability: 'generate.text' });    // ranked cheapest-first
-// match.address is the whole point — dial it directly (it is the http://…/v1 base above).
-console.log(match.identity, match.address, match.estUnits, match.unpriced);
-
-// Chain capabilities across providers and read the projected cost before spending anything:
-const plan = registry.path({ from: { plane: 'knowledge' }, to: { plane: 'media' } });
-console.log(plan?.steps.map((s) => s.capability), plan?.projectedUnits);
-```
-
-Your *own* peer joins the same way: serve a KCB manifest at
-`/.well-known/kcb-manifest.json` describing what it offers, then `registerFromWellKnown(registry,
-'https://your-peer.example')`. Discovery returns its address; callers dial it directly. Details in
-[`registry/`](registry/README.md).
-
-### 3. Prove it end-to-end with a conformance scenario
-
-The console runs a **KCS scenario** against the *real* connections and asserts cross-plane
-invariants — it observes, it is not a hub. Bring up the UI (it discovers the router at
-`127.0.0.1:8000`) and run the shipped round-trip:
-
-```sh
-npm run dev -w @agora/console
-# In the UI, run `kcs:provider-router-roundtrip`: discover the router, dial it under a
-# zero-unit budget ceiling, and assert the zero-spend tier served it for nothing.
-```
-
-There is no scenario CLI binary — to run one in code, import `runConformance`
-(`console/src/commons.ts`) and `findScenario` (`console/src/scenarios/library.ts`).
-`runConformance` crawls the router into a registry, runs the scenario, and returns a
-content-addressed report:
-
-```ts
-import { runConformance } from './console/src/commons';
-import { findScenario } from './console/src/scenarios/library';
-
-const run = await runConformance(findScenario('kcs:provider-router-roundtrip')!);
-console.log(run.report.address, run.report.verdict);   // a citable, archivable sha256-… report
-```
-
-The two scenarios that ship (`kcs:provider-router-roundtrip`, `kcs:sample-pipeline`) are
-**illustrative, not normative** — write your own against your own peers by KINP identity. See
-[`console/`](console/README.md).
+- **[Wiring a project into agora](docs/walkthrough-wiring-a-project.md)**
 
 ## Components
 
+Each component is an independent service you can run on its own.
+
 | Component | Where | What it is |
 |---|---|---|
-| **provider-router** | [`provider-router-erl/`](provider-router-erl/README.md) | OpenAI-compatible model gateway — the *sacred ladder* (paid → mlx-serve → local → placeholder, per modality, always-completes) with cost estimation + budget-ceiling enforcement. A leaf capability, not an inter-participant router. |
-| **KCB discovery registry** | [`registry/`](registry/README.md) | The thin capability-bus registry: route-by-lookup, **never proxy** — returns addresses, peers dial each other. |
-| **KINP resolver** | [`resolver/`](resolver/README.md) | Reference `resolve` / `reconcile` against a deployment's configured **resolution authority** for real-world entities. |
-| **translation engine** | [`translation/`](translation/README.md) | The KMI/KGP translator between a canonical graph shape and the dialects on either side of a bridge; one core, several facades (wasm, PyO3, HTTP leaf). |
-| **conformance console** | [`console/`](console/README.md) | A KCS scenario runner + UI that drives conformant peers over their **real** direct connections and asserts cross-plane invariants. An observer, not a hub. |
-| **trainer** | [`trainer/`](trainer/README.md) | The **general** KFT `finetune` capability (GPU fine-tuning jobs). Specialized, corpus-specific finetuners run as separate providers on the bus — not here. |
-| **schemas / clients** | [`schemas/`](schemas/README.md) · [`kcb-client/`](clients/kcb-client/README.md) · [`relation-registry-client/`](clients/relation-registry-client/README.md) | Shared koine manifest schemas / protocol types, and the client libs (`@agora/kcb-client`, `@agora/relation-registry-client`). |
+| **provider-router** | [`provider-router-erl/`](provider-router-erl/README.md) | The OpenAI-compatible model gateway. Owns the always-completes fallback chain (paid → local model server → local model → deterministic placeholder), per modality, with cost estimation and budget-ceiling enforcement. |
+| **discovery registry** | [`registry/`](registry/README.md) | The service phone book: `find` a capability, get back an **address**. It ranks routes cheapest-first, can chain capabilities across providers, and **never relays traffic**. |
+| **identity resolver** | [`resolver/`](resolver/README.md) | Resolves and reconciles entity identifiers against a deployment's configured authority — the canonical store for who's who. |
+| **translation engine** | [`translation/`](translation/README.md) | Translates knowledge and media between a canonical graph shape and the formats on either side of a bridge. One core, several front-ends (WebAssembly, native Python binding, HTTP service). |
+| **conformance console** | [`console/`](console/README.md) | A scenario runner + UI that drives real connections between services and asserts the guarantees held. An observer, not a hub. |
+| **trainer** | [`trainer/`](trainer/README.md) | The general-purpose model fine-tuning capability (GPU fine-tuning jobs). Specialized, corpus-specific finetuners run as their own services. |
+| **schemas / clients** | [`schemas/`](schemas/README.md) · [`clients/`](clients/) | Shared manifest schemas and protocol types, plus the client libraries that consume them. |
 
 ## Layout
 
-Each directory is a **buildable unit with its own gate**:
+Each directory is a **buildable unit with its own quality gate**. agora is intentionally polyglot
+(see [Going deeper](#going-deeper) for why) — the language of each service is an internal detail,
+since everything is reached over the wire, never imported across a language boundary.
 
 | Area | Language | Gate |
 |---|---|---|
-| `provider-router-erl/` | Erlang/OTP (rebar3) | `make check-router-erl` — compile + dialyzer + eunit + ct (incl. the byte-for-byte conformance suite; skips cleanly when Erlang is absent) |
+| `provider-router-erl/` | Erlang/OTP (rebar3) | `make check-router-erl` — the canonical router; compile + dialyzer + eunit + ct (skips cleanly when Erlang is absent) |
 | `provider-router/` | Python (uv) | `make check-provider-router` — ruff + mypy + pytest |
 | `trainer/` | Python (uv) | `make check-trainer` — ruff + mypy + pytest |
 | `registry/` | TypeScript | `make check-registry` |
@@ -177,34 +137,34 @@ Each directory is a **buildable unit with its own gate**:
 | `clients/*` | TypeScript | `make check-clients` |
 | `translation/` | Rust (cargo) | `make check-translation` — build + clippy + test |
 
-Each TypeScript gate is `eslint` + `tsc -p tsconfig.json` + `vitest run`. `make fmt` auto-formats
-the Python areas. There are two provider-router areas: the **Erlang app is canonical**; the Python
-app stays in-tree as the executable specification it is judged against — see
-[`DESIGN.md`](DESIGN.md).
+There are two provider-router areas: the **Erlang app is the canonical one you deploy**, and the
+**Python app stays in the tree as the executable specification** the Erlang app is tested against,
+byte for byte. A change to the router's external behavior must land in both or in neither. The
+reasoning is in [`DESIGN.md`](DESIGN.md).
 
-## The koine contracts
+## Going deeper
 
-Everything here implements a koine spec — read those first:
+- **[`DESIGN.md`](DESIGN.md)** — the architecture and the *why*: the always-completes supervision
+  tree, why the stack is polyglot, and the design of the registry, resolver, and translation
+  surfaces.
 
-- **Identity (KINP)** — [`koine/specs/identity.md`](https://github.com/danieldekerlegand/koine/blob/main/specs/identity.md)
-- **Knowledge (KGP)** — [`koine/specs/grounding-pack.md`](https://github.com/danieldekerlegand/koine/blob/main/specs/grounding-pack.md)
-- **Control plane (KCB)** — [`koine/specs/capability-bus.md`](https://github.com/danieldekerlegand/koine/blob/main/specs/capability-bus.md)
-- **Media (KMI)** — [`koine/specs/media-interchange.md`](https://github.com/danieldekerlegand/koine/blob/main/specs/media-interchange.md)
-- **Conformance scenarios (KCS)** — [`koine/specs/conformance-scenario.md`](https://github.com/danieldekerlegand/koine/blob/main/specs/conformance-scenario.md)
-- **Topology decision** — [`koine/decisions/ADR-0001-control-plane-topology.md`](https://github.com/danieldekerlegand/koine/blob/main/decisions/ADR-0001-control-plane-topology.md)
+- **[koine](https://github.com/danieldekerlegand/koine)** — the open specifications agora
+  implements, if you want to understand the contracts in the abstract or build your own conformant
+  system. koine is *specification only* (no code); agora is the runtime. The core specs:
 
-The shared **relation registry** is koine's *data* (`../koine/registry/`) and agora's *tooling*:
-`schemas/src/registry-schema.ts` validates it and `@agora/relation-registry-client` loads it, but
-agora never vendors a copy — a copy would be the second source of truth the registry exists to
-prevent.
+  | Spec | What it covers |
+  |---|---|
+  | [Identity & Namespace](https://github.com/danieldekerlegand/koine/blob/main/specs/identity.md) (KINP) | How every entity gets a stable, shared name |
+  | [Grounding-Pack](https://github.com/danieldekerlegand/koine/blob/main/specs/grounding-pack.md) (KGP) | How knowledge (facts, graphs) is exchanged |
+  | [Capability-Bus](https://github.com/danieldekerlegand/koine/blob/main/specs/capability-bus.md) (KCB) | How a service advertises a capability and another discovers and calls it |
+  | [Media-Interchange](https://github.com/danieldekerlegand/koine/blob/main/specs/media-interchange.md) (KMI) | How media (assets, edit lists, metadata) is exchanged |
+  | [Conformance-Scenario](https://github.com/danieldekerlegand/koine/blob/main/specs/conformance-scenario.md) (KCS) | The test format for proving an implementation is correct |
 
-## Design & rationale
-
-The architecture — the provider-router and its always-completes supervision tree, why the stack is
-polyglot, the registry/resolver/relation-registry design, and the decision records — is in
-[`DESIGN.md`](DESIGN.md).
+  The design decision that created this repo — a thin shared commons with direct-dial peers and a
+  registry that returns addresses — is
+  [ADR-0001](https://github.com/danieldekerlegand/koine/blob/main/decisions/ADR-0001-control-plane-topology.md).
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE). Every buildable unit declares the same license; sharing one across
-the tree is what makes a capability here safe to vendor, self-host, or fork.
+MIT — see [`LICENSE`](LICENSE). Every buildable unit declares the same license; sharing one
+license across the tree is what makes any capability here safe to vendor, self-host, or fork.
