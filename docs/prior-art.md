@@ -24,6 +24,14 @@ from the capability-bus registry (which routes *between* participants and never 
 already run an OpenAI-compatible gateway, you can expose it as a KCB capability the same way — the
 router is a reference implementation, not a mandate.
 
+**Measured against LiteLLM:** [`spike-litellm-leaf.md`](spike-litellm-leaf.md) takes that
+comparison apart feature by feature, with runnable evidence. Short version: LiteLLM covers the
+mlx-serve and local tiers and owns the vendor adapters, but has no always-completes terminal
+rung, no caller-supplied per-request ceiling that skips a tier without dialing it, and no
+KCB manifest — those three are agora's, and the spike shows why. The adapters it *does* own are
+borrowed rather than reimplemented, behind an opt-in flag:
+[`litellm-dispatch-adapter.md`](litellm-dispatch-adapter.md).
+
 ## discovery registry — capability discovery, addresses not proxies
 
 **What it is:** the KCB registry. `find` a capability and it returns an **address**; it ranks

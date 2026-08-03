@@ -16,7 +16,11 @@ so much as connected to.
 
 Dispatch is one code path for all four tiers because every dialable backend speaks the
 OpenAI wire format (see :mod:`agora_provider_router.backends`). Transport is injected, so
-tests exercise fallthrough without a network and without patching internals.
+tests exercise fallthrough without a network and without patching internals — and so the
+optional LiteLLM adapter (:mod:`agora_provider_router.litellm_dispatch`, off unless
+``AGORA_LITELLM`` is set) is a *transport*, not a fork in this module. It can add rungs the
+router could not dial before; it cannot reorder the ladder, relax a ceiling, or displace the
+placeholder, because none of those live below the transport boundary.
 """
 
 from __future__ import annotations
@@ -32,6 +36,8 @@ from .backends import Backend, Rank, TierResolution, placeholder_backend, resolv
 from .config import RouterConfig
 from .cost import Cost, project, refusal, settle, take_ceiling, within
 from .ladder import MODALITIES, PLACEHOLDER, safe_resolve
+from .litellm_dispatch import enabled as litellm_enabled
+from .litellm_dispatch import transport as litellm_transport
 from .placeholder import complete as placeholder_complete
 
 logger = logging.getLogger(__name__)
@@ -126,12 +132,26 @@ async def http_transport(backend: Backend, payload: dict[str, Any]) -> dict[str,
         return decoded
 
 
+def default_transport(config: RouterConfig) -> Transport:
+    """The transport a router uses when none is injected.
+
+    Plain HTTP, unless the LiteLLM dispatch adapter is switched on — in which case the
+    native-wire paid vendors it covers go through LiteLLM and every other rung still takes
+    the direct POST (:mod:`agora_provider_router.litellm_dispatch`). Choosing here rather
+    than inside the dispatch loop keeps the loop one code path: the ladder, the ceiling and
+    the placeholder do not know which vendor adapters happen to be installed.
+    """
+    if litellm_enabled(config.env):
+        return litellm_transport(http_transport, timeout=DEFAULT_TIMEOUT)
+    return http_transport
+
+
 class Router:
     """Ladder resolution + dispatch over one configuration snapshot."""
 
     def __init__(self, config: RouterConfig, transport: Transport | None = None) -> None:
         self.config = config
-        self._transport = transport or http_transport
+        self._transport = transport or default_transport(config)
 
     # --- resolution -------------------------------------------------------------
 

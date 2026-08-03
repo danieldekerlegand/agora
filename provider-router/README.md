@@ -121,6 +121,37 @@ not quotes**; override any of them with `AGORA_PRICE_<MODALITY>_<PROVIDER>` (e.g
 - **A ceiling only ever fails safe.** A negative one clamps to zero; an unreadable one is a `422`,
   not a silently-unbudgeted request. Dropping it would turn a typo into unlimited spend authority.
 
+## Borrowed vendor adapters (optional)
+
+Seven paid vendors are declared with `wire="native"` — their HTTP surface is not OpenAI-shaped, so
+the router names, ranks and reports them but resolves them to `pending-adapter` rather than sending
+them a wire format they do not speak. Some of those adapters can be **borrowed** from
+[LiteLLM](https://github.com/BerriAI/litellm) instead of written:
+
+```sh
+pip install 'agora-provider-router[litellm]'
+export AGORA_LITELLM=1
+export ANTHROPIC_API_KEY=sk-ant-...        # or GEMINI_API_KEY / GOOGLE_API_KEY
+```
+
+Anthropic and Gemini then resolve to real text rungs (default models `claude-sonnet-4-5` and
+`gemini-2.5-flash`, overridable with `AGORA_PROVIDER_<NAME>_MODEL`). The other five stay
+`pending-adapter`: LiteLLM does not cover them *in the modality this router routes them for*, and
+an honest refusal beats a translation nobody verified — the gaps are listed in
+[`docs/litellm-dispatch-adapter.md`](../docs/litellm-dispatch-adapter.md).
+
+It is **off by default and optional** for two reasons: 86 dependencies and ~166 MB is a
+deployment's call to make, and the canonical router is Erlang (ADR-0004), whose conformance suite
+asserts the two surfaces answer with identical bytes — so the Python router's default surface has
+to stay exactly what it was.
+
+The adapter is a `Transport`, nothing more. It can add rungs the router could not dial before; it
+cannot reorder the ladder, relax a ceiling, or displace the placeholder, because a rung over
+budget is refused *before* the transport is reached. Everything in "Budget ceilings" above holds
+identically with it on, and `tests/test_litellm_dispatch.py` asserts that by counting the calls
+the vendor adapter received — zero, for a zero-ceiling request. The spike behind the decision is
+[`docs/spike-litellm-leaf.md`](../docs/spike-litellm-leaf.md).
+
 ## Capability manifest
 
 `GET /.well-known/kcb-manifest.json` is the router's KCB manifest (§2) — the first concrete one in
@@ -166,6 +197,7 @@ them. Settings are read from the process environment and, under it, the env file
 | `AGORA_PREFER_LOCAL=1` | fronts the zero-spend tiers everywhere |
 | `AGORA_PRICE_TABLE` | path to a replacement price sheet (TOML/JSON) — swaps the whole shipped rate table |
 | `AGORA_PRICE_<MODALITY>_<PROVIDER>` | overrides a single rate, in budget units per unit — wins over the file and the shipped defaults |
+| `AGORA_LITELLM=1` | dials the native-wire vendors LiteLLM covers, instead of leaving them `pending-adapter` — needs the `[litellm]` extra (see **Borrowed vendor adapters**) |
 | `AGORA_ROUTER_IDENTITY` | overrides the KINP identity `/health` and the KCB manifest report (default `agora:agent:provider-router`) |
 | `AGORA_PUBLIC_BASE_URL` | the address the KCB manifest publishes for itself |
 | `AGORA_ENV_FILE` | the env file to read provider settings from |
@@ -193,8 +225,9 @@ listening on the box.
 
 Paid vendors whose HTTP surface is not OpenAI-shaped (Anthropic, Gemini, Replicate, ElevenLabs,
 the video houses) are recognised and ranked but resolve to `pending-adapter`: they are reported
-by `/doctor` and fall through rather than being dialed with a wire format they do not speak.
-Per-vendor adapters are a later story.
+by `/doctor` and fall through rather than being dialed with a wire format they do not speak. Two
+of them (Anthropic, Gemini) can borrow an adapter from LiteLLM — see **Borrowed vendor adapters**;
+the rest stay an honest refusal.
 
 ## Gate
 
@@ -213,18 +246,20 @@ uv run pytest -q
 
 ### Standalone (no sibling areas)
 
-Three tests are cross-language pins that reach up to sibling TS areas — the KCB version
-against `schemas/`, and the captured session/manifest fixtures the `console/` and
-`registry/` gates replay. In the full monorepo they RUN and hold those guards; in an
-extracted checkout that contains only `provider-router/` they **skip cleanly** (they never
-error or fail) because the sibling paths are absent. To prove the package suite is green on
-its own — built, installed into a clean venv, and run with no sibling area present:
+Some tests are cross-area pins that reach up to sibling areas — the KCB version against
+`schemas/`, the captured session/manifest fixtures the `console/` and `registry/` gates
+replay, and the byte-for-byte corpus `provider-router-erl/`'s conformance suite holds the
+canonical router to. In the full monorepo they RUN and hold those guards; in an extracted
+checkout that contains only `provider-router/` they **skip cleanly** (they never error or
+fail) because the sibling paths are absent. To prove the package suite is green on its own —
+built, installed into a clean venv, and run with no sibling area present:
 
 ```sh
 provider-router/scripts/standalone-test.sh    # builds the wheel, installs it, runs pytest
 ```
 
-It reports `... passed, 4 skipped` — the four cross-repo guards are the skips.
+It reports `144 passed, 39 skipped`: the cross-area guards above, plus the cases that need
+the optional `litellm` extra the standalone wheel is not installed with.
 
 ## Status
 

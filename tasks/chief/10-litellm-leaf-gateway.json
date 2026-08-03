@@ -27,7 +27,7 @@
         "The spike is grounded in runnable evidence, not claims: at minimum a throwaway script demonstrating LiteLLM answering an OpenAI-compatible request and demonstrating a budget ceiling being enforced (or the report records that it could not be demonstrated and why).",
         "No production code is migrated in this story and every existing area gate (make check-provider-router, make check-router-erl) stays green."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-2",
@@ -39,7 +39,7 @@
         "The gateway is still exposed as a KCB capability: its AgentCard/manifest is served and validates against the schemas package, so a peer can discover and dial it exactly as before.",
         "make check-provider-router and make check-schemas pass (and make check if more than one area is touched)."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-3",
@@ -51,7 +51,7 @@
         "The external wire contract is unchanged for callers: the same OpenAI-compatible routes, /doctor, /health, /v1/models, /v1/providers, the AgentCard, and the same AGORA_* configuration behave identically, verified by the retained/updated conformance assertions.",
         "make check passes (this story spans provider-router and console), with zero gate errors."
       ],
-      "passes": false
+      "passes": true
     }
   ],
   "mergedToMain": false

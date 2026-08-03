@@ -42,6 +42,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The borrowed vendor adapters (US-2). Optional on purpose: 86 declared dependencies and
+# ~166 MB buy two native-wire vendors this router could not otherwise dial, which is a
+# deployment's call. Nothing imports it unless AGORA_LITELLM is set — see
+# `src/agora_provider_router/litellm_dispatch.py`.
+litellm = ["litellm>=1.95"]
 dev = [
     "pytest>=8.0",
     "ruff>=0.6",
