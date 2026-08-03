@@ -339,3 +339,44 @@
   before the card can be built.
 - An example area is a workspace like any other: adding `examples/*` to the root `workspaces` puts it
   in `npm run lint/typecheck/test --workspaces`, so `make check` covers it without a new CI step.
+---
+## US-3 — Quickstart doc: install to first successful call
+- `docs/quickstart.md`: three steps — install `@agora/sdk`, run the participant starter, make the
+  first call — plus "Make it yours" (change `IDENTITY`/`CAPABILITY`/`summarize`, and the registry
+  crawl that makes you findable) and a "Going deeper" fan-out to the walkthrough, the starter
+  README, the SDK reference, prior-art and koine/KCB. It opens with **Addresses, not a relay**
+  BEFORE the first command, so nobody reads the SDK as a switchboard.
+- Every command and output in it was RUN, not written: the starter's three routes by curl on 8790,
+  and step 3's `call-a-peer.mjs` in a scratch consumer outside the tree, against tarballs packed
+  from `schemas/.publish` + `clients/sdk/.publish`.
+- **The install step is honest.** `@agora/sdk` is NOT on npm (`npm view` → E404), so a doc whose
+  first line was `npm install @agora/sdk` would fail a newcomer at step 1. The doc ships
+  `make build-sdk` + `npm pack ./schemas/.publish ./clients/sdk/.publish` → install by path — the
+  identical tarballs `npm publish` would send — and states that the same install collapses to one
+  line once published, with nothing else in the guide changing. `clients/sdk/README.md` and
+  `examples/participant-starter/README.md` now say the same thing beside their `npm install` line.
+- `README.md` links it twice: at the top of "Getting started" and as the first entry under
+  "Learn by example".
+- `examples/participant-starter/src/quickstart.test.ts` (9 tests, runs under `make check-examples`)
+  is the doc's gate: it reads `docs/quickstart.md` and re-derives the happy path from the code —
+  the names it imports exist on `@agora/sdk`, the identity/capability/paths/spec version match the
+  starter's constants, the printed answer equals `summarize(<the prompt the doc actually sends>)`,
+  step 3's logged line equals `isDialable`/`transportOf`/`endpointFor` of the real manifest, the
+  `.tgz` names carry the real package versions, every `make <target>` exists in the Makefile, every
+  `node <path>` and relative link resolves on disk, and README links the doc.
+- `make check` exit 0 (also `make check-examples` alone).
+
+### Learnings for future iterations
+- **A quickstart is a test fixture, not prose.** Doc drift is invisible until a newcomer hits it,
+  so assert the doc against the code the way `index.test.ts` asserts `SDK_API` against the module:
+  extract the doc's claims with regexes and re-derive each from the shipped exports. Guard every
+  extraction loop with `expect(matches.length).toBeGreaterThan(0)` — a regex that stops matching
+  after a doc edit otherwise turns the whole test vacuously green.
+- **Check what a doc promises to install against what is actually installable.** `npm view <pkg>`
+  is a one-line reality check; the tarball-name assertion (`agora-sdk-<version>.tgz` derived from
+  `clients/sdk/package.json`) is what keeps the install step true across a version bump.
+- The out-of-tree verification recipe from US-1 is now the doc's own Step 1, so it is exercised by
+  a human every time someone follows the guide: `make build-sdk` → `npm pack <staged dirs>` →
+  `npm install ./*.tgz` in a scratch consumer → `node` a script that imports only `@agora/sdk`.
+- `npm pack` writes tarballs into the CWD, not beside the packed directory — the doc has to name
+  the path they land at (the repo root) or the next command fails.

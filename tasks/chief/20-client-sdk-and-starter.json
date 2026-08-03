@@ -52,7 +52,7 @@
         "The doc states the addresses-not-proxies model plainly (the SDK returns an address you dial directly) so a reader does not expect a relay, and points to the existing walkthrough/prior-art for going deeper.",
         "Docs and any example code they reference pass make check (link/format gates included where they apply)."
       ],
-      "passes": false
+      "passes": true
     }
   ],
   "mergedToMain": false
