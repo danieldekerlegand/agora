@@ -159,6 +159,11 @@ generation surface. Whatever LiteLLM fronts, `/v1/audio/music-generations` keeps
 
 ### US-2 — front LiteLLM behind agora's OpenAI surface → **GO, NARROWED**
 
+> **Landed.** See [`litellm-dispatch-adapter.md`](litellm-dispatch-adapter.md) for what was
+> delegated, what was kept hand-built, and the one correction this section needs: LiteLLM
+> covers five of the seven native-wire vendors, but only **two** of those (Anthropic, Gemini)
+> line up with the modality agora actually routes the vendor for, so only two became dialable.
+
 Its gate reads: *proceed only if the spike cleared the placeholder, mlx-serve, local,
 budget-ceiling and cost-estimation needs; if any was NOT COVERED, this story instead lands the
 documented shim/keep-decision for that need and says so in its commit.*

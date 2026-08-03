@@ -28,7 +28,9 @@ router is a reference implementation, not a mandate.
 comparison apart feature by feature, with runnable evidence. Short version: LiteLLM covers the
 mlx-serve and local tiers and owns the vendor adapters, but has no always-completes terminal
 rung, no caller-supplied per-request ceiling that skips a tier without dialing it, and no
-KCB manifest — those three are agora's, and the spike shows why.
+KCB manifest — those three are agora's, and the spike shows why. The adapters it *does* own are
+borrowed rather than reimplemented, behind an opt-in flag:
+[`litellm-dispatch-adapter.md`](litellm-dispatch-adapter.md).
 
 ## discovery registry — capability discovery, addresses not proxies
 

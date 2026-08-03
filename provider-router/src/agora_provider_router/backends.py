@@ -8,8 +8,14 @@ what lets one dispatch path in :mod:`agora_provider_router.router` serve all fou
 Vendors whose HTTP surface is *not* OpenAI-shaped (Anthropic, Gemini, Replicate,
 ElevenLabs, the video houses) are declared with ``wire="native"``: they are recognised and
 reported, but resolve to ``pending-adapter`` rather than being dialed with a wire format
-they do not speak. A per-vendor adapter is a later story; silently sending them OpenAI
-JSON would be a fake tier that fails on every real request.
+they do not speak. Silently sending them OpenAI JSON would be a fake tier that fails on
+every real request.
+
+The adapters for some of them can be **borrowed** rather than written: with
+``AGORA_LITELLM=1`` (:mod:`agora_provider_router.litellm_dispatch`) a native-wire vendor
+LiteLLM covers *for the modality agora routes it for* resolves into a real rung instead. The
+adapter is off by default and the rest of this module does not change shape when it is on —
+an uncovered vendor is still ``pending-adapter``, which is an honest refusal.
 
 The mlx-serve endpoint/model table is ported from Analyzer
 (``src/filmstudio/core/mlx_serve.py``) — the single source of the mlx-serve media routes.
@@ -25,6 +31,8 @@ from pydantic import SecretStr
 
 from .config import RouterConfig
 from .ladder import MODALITIES, PLACEHOLDER
+from .litellm_dispatch import dialable as litellm_dialable
+from .litellm_dispatch import enabled as litellm_enabled
 
 Wire = Literal["openai", "native"]
 
@@ -56,12 +64,22 @@ PAID_VENDORS: dict[str, PaidVendor] = {
     "groq": PaidVendor(
         "groq", "openai", "https://api.groq.com/openai/v1", {"text": "llama-3.3-70b-versatile"}
     ),
-    # The native-wire vendors declare their base URL too. This router cannot dial them (no
-    # adapter — see the module docstring), but the vendor vocabulary ``/v1/providers``
-    # publishes is shared with the Erlang router (agora:80), which can: a console reading
-    # either one must see the same table, so the address is declared in both.
-    "anthropic": PaidVendor("anthropic", "native", "https://api.anthropic.com/v1"),
-    "gemini": PaidVendor("gemini", "native", "https://generativelanguage.googleapis.com/v1beta"),
+    # The native-wire vendors declare their base URL too. This router cannot dial them with
+    # its own transport (no adapter — see the module docstring), but the vendor vocabulary
+    # ``/v1/providers`` publishes is shared with the Erlang router (agora:80), which can: a
+    # console reading either one must see the same table, so the address is declared in both.
+    # The two with a borrowable LiteLLM adapter carry a default model as well, so enabling
+    # ``AGORA_LITELLM`` is one variable rather than three; ``AGORA_PROVIDER_<NAME>_MODEL``
+    # overrides it, and a model id ages faster than a vendor does.
+    "anthropic": PaidVendor(
+        "anthropic", "native", "https://api.anthropic.com/v1", {"text": "claude-sonnet-4-5"}
+    ),
+    "gemini": PaidVendor(
+        "gemini",
+        "native",
+        "https://generativelanguage.googleapis.com/v1beta",
+        {"text": "gemini-2.5-flash"},
+    ),
     "replicate": PaidVendor("replicate", "native", "https://api.replicate.com/v1"),
     "elevenlabs": PaidVendor("elevenlabs", "native", "https://api.elevenlabs.io/v1"),
     "runway": PaidVendor("runway", "native", "https://api.dev.runwayml.com/v1"),
@@ -180,6 +198,7 @@ def resolve_tier(
 
 def _resolve_paid(modality: str, config: RouterConfig, rank: Rank | None) -> TierResolution:
     vendors = PAID_PROVIDERS.get(modality, ())
+    borrowed = litellm_enabled(config.env)
     pending: list[str] = []
     ready: list[Backend] = []
     for name in vendors:
@@ -187,7 +206,8 @@ def _resolve_paid(modality: str, config: RouterConfig, rank: Rank | None) -> Tie
         if not (settings.has_key and settings.usable):
             continue
         vendor = PAID_VENDORS[name]
-        if vendor.wire != "openai":
+        native = vendor.wire != "openai"
+        if native and not (borrowed and litellm_dialable(name, modality)):
             pending.append(name)
             continue
         model = settings.model or (vendor.models or {}).get(modality)
@@ -200,7 +220,10 @@ def _resolve_paid(modality: str, config: RouterConfig, rank: Rank | None) -> Tie
                 provider=name,
                 modality=modality,
                 model=model,
-                base_url=settings.base_url or vendor.base_url,
+                # A native rung's address belongs to LiteLLM, which knows each vendor's own;
+                # only an explicit override is passed through, so ``/doctor`` reports exactly
+                # what will be dialed rather than a default that is really vocabulary.
+                base_url=settings.base_url if native else (settings.base_url or vendor.base_url),
                 api_key=settings.api_key,
             )
         )
