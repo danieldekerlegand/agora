@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { SPEC_VERSIONS, type CapabilityManifest } from '@agora/schemas';
 
-import { addressOf, endpointFor, isDialable, KCB_CLIENT_VERSION, transportOf } from './index.ts';
+import { addressOf, endpointFor, isDialable, KCB_CLIENT_VERSION, transportOf } from './kcb.ts';
 
 const ROUTER: CapabilityManifest = {
   kcb_version: SPEC_VERSIONS.kcb,
@@ -11,7 +11,7 @@ const ROUTER: CapabilityManifest = {
   capabilities: [{ name: 'generate.text', endpoint: 'https://router.example/v1/chat/completions' }],
 };
 
-describe('@agora/kcb-client', () => {
+describe('@agora/sdk — KCB addressing', () => {
   it('speaks the KCB version the schemas package pins', () => {
     expect(KCB_CLIENT_VERSION).toBe('0.2.0');
   });

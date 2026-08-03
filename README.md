@@ -61,7 +61,10 @@ look if you want to understand the contracts in the abstract or implement one yo
 
 ## Getting started
 
-Clone the repo and install every area's dependencies:
+In a hurry? **[The quickstart](docs/quickstart.md)** goes from installing the client SDK to
+running a discoverable peer and making your first call against it, in about five minutes.
+
+Otherwise, clone the repo and install every area's dependencies:
 
 ```sh
 make install    # uv sync + npm install (the Erlang toolchain is optional; its gate skips cleanly)
@@ -99,11 +102,20 @@ OLLAMA_BASE_URL=http://localhost:11434  agora-provider-router    # enable a loca
 
 ## Learn by example
 
+Start here — install the SDK, run a participant, make your first call, every command real:
+
+- **[Quickstart: install to first call](docs/quickstart.md)**
+
 The three-step walkthrough takes a project from nothing to fully connected — **run** the gateway,
 **discover** a capability through the registry, and **prove** the round-trip with a conformance
 scenario — with every command explained:
 
 - **[Wiring a project into agora](docs/walkthrough-wiring-a-project.md)**
+
+To go the other way — become a peer others can find — copy the ~20-line starter, which serves an
+AgentCard carrying its KCB manifest and answers on the wire:
+
+- **[The participant starter](examples/participant-starter/README.md)**
 
 ## Components
 
@@ -117,7 +129,8 @@ Each component is an independent service you can run on its own.
 | **translation engine** | [`translation/`](translation/README.md) | Translates knowledge and media between a canonical graph shape and the formats on either side of a bridge. One core, several front-ends (WebAssembly, native Python binding, HTTP service). |
 | **conformance console** | [`console/`](console/README.md) | A scenario runner + UI that drives real connections between services and asserts the guarantees held. An observer, not a hub. |
 | **trainer** | [`trainer/`](trainer/README.md) | The general-purpose model fine-tuning capability (GPU fine-tuning jobs). Specialized, corpus-specific finetuners run as their own services. |
-| **schemas / clients** | [`schemas/`](schemas/README.md) · [`clients/`](clients/) | Shared manifest schemas and protocol types, plus the client libraries that consume them. |
+| **client SDK** | [`clients/sdk/`](clients/sdk/README.md) | `@agora/sdk` — one install for a participant: serve an AgentCard carrying a KCB manifest, find a peer, get an **address** you dial yourself. |
+| **schemas** | [`schemas/`](schemas/README.md) | `@agora/schemas` — the shared manifest schemas and protocol types every area (and the SDK) is built on. |
 
 ## Layout
 
@@ -134,7 +147,8 @@ since everything is reached over the wire, never imported across a language boun
 | `resolver/` | TypeScript | `make check-resolver` |
 | `console/` | TypeScript + React | `make check-console` |
 | `schemas/` | TypeScript | `make check-schemas` |
-| `clients/*` | TypeScript | `make check-clients` |
+| `clients/sdk/` | TypeScript | `make check-clients` — the published client SDK (`make build` emits its `dist/`) |
+| `examples/participant-starter/` | TypeScript | `make check-examples` — the copy-and-run participant starter |
 | `translation/` | Rust (cargo) | `make check-translation` — build + clippy + test |
 
 There are two provider-router areas: the **Erlang app is the canonical one you deploy**, and the

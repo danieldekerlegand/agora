@@ -12,7 +12,7 @@ provider's manifest is authoritative** (§3), and **zero-cost routes rank first*
 
 ## Build & test
 
-Depends on `@agora/kcb-client` and `@agora/schemas` within the npm workspace; a Rust crate
+Depends on `@agora/sdk` and `@agora/schemas` within the npm workspace; a Rust crate
 (`path-index/`) is the optional native engine behind `path()`.
 
 ```sh

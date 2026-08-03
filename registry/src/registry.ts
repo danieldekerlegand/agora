@@ -14,7 +14,7 @@
  *    capability whose provider could not price it ranks after every priced one, or an
  *    unknown cost would masquerade as the cheapest route.
  */
-import { addressOf, endpointFor, type ProviderAddress } from '@agora/kcb-client';
+import { addressOf, endpointFor, type ProviderAddress } from '@agora/sdk';
 import {
   parseManifestBody,
   type Capability,

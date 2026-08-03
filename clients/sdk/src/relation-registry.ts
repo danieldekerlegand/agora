@@ -44,14 +44,22 @@ export interface LoadOptions {
   fetch?: RegistryFetch;
 }
 
-/** Thrown when the registry could not be retrieved. A validation failure is a RegistryError. */
+/**
+ * Thrown when the registry could not be retrieved. A validation failure is a RegistryError.
+ *
+ * `url` is a declared field assigned in the constructor rather than a TypeScript *parameter
+ * property*, because the SDK's own source is what a workspace consumer resolves: Node's
+ * strip-only TypeScript loader (`node participant.ts`) refuses a parameter property outright,
+ * so one here would make `examples/participant-starter` unrunnable in-tree.
+ */
 export class RegistryFetchError extends Error {
-  constructor(
-    message: string,
-    readonly url: string,
-  ) {
+  /** The address the load was attempting when it failed. */
+  readonly url: string;
+
+  constructor(message: string, url: string) {
     super(message);
     this.name = 'RegistryFetchError';
+    this.url = url;
   }
 }
 

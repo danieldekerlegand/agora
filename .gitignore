@@ -2,6 +2,8 @@
 # Node / TS
 node_modules/
 dist/
+# The staged publishable packages (scripts/stage-publish.mjs) — derived from dist/, never authored.
+.publish/
 *.tsbuildinfo
 # Rust (translation engine)
 target/

@@ -10,7 +10,7 @@
  * "was correctly refused" an assertable property, so {@link RefusedError} carries the
  * status and the provider's own reason into the report.
  */
-import { endpointFor, type ProviderAddress } from '@agora/kcb-client';
+import { endpointFor, type ProviderAddress } from '@agora/sdk';
 import type { Registration } from '@agora/registry';
 import type { Capability, Json, JsonObject, Plane } from '@agora/schemas';
 import { isJsonObject } from '@agora/schemas';

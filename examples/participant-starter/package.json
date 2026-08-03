@@ -1,0 +1,26 @@
+{
+  "name": "@agora/example-participant-starter",
+  "license": "Apache-2.0",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Copy-and-run participant starter — serve an AgentCard carrying a KCB manifest and answer on the wire.",
+  "exports": {
+    ".": "./src/participant.ts"
+  },
+  "dependencies": {
+    "@agora/sdk": "*"
+  },
+  "devDependencies": {
+    "@agora/registry": "*",
+    "@agora/schemas": "*"
+  },
+  "scripts": {
+    "start": "node src/participant.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@agora/sdk",
+  "license": "Apache-2.0",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "description": "Client SDK for a KCB participant — serve an AgentCard, discover a capability, get an ADDRESS to dial directly.",
+  "keywords": [
+    "koine",
+    "kcb",
+    "a2a",
+    "mcp",
+    "agent-card",
+    "capability-discovery"
+  ],
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@agora/schemas": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

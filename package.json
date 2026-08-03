@@ -10,7 +10,8 @@
     "clients/*",
     "registry",
     "resolver",
-    "console"
+    "console",
+    "examples/*"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",

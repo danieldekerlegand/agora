@@ -8,7 +8,7 @@ import {
 import { KOINE_PREDICATE_MAPPING, KOINE_VOCABULARY } from '@agora/schemas/fixtures';
 import { describe, expect, it } from 'vitest';
 
-import { loadRelationRegistry, RegistryFetchError, type RegistryFetch } from './index.ts';
+import { loadRelationRegistry, RegistryFetchError, type RegistryFetch } from './relation-registry.ts';
 
 const BASE = 'https://koine.example';
 

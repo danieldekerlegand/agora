@@ -1,4 +1,4 @@
-import type { ProviderAddress } from '@agora/kcb-client';
+import type { ProviderAddress } from '@agora/sdk';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {

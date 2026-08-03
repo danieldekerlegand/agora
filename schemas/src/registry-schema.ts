@@ -17,7 +17,7 @@
  *   vocabulary instead of two.
  *
  * Everything here is pure — text and JSON values in, validated structures out. Fetching them
- * is `@agora/relation-registry-client`, so this module stays free of I/O and of any vendored
+ * is `@agora/sdk`'s relation-registry loader, so this module stays free of I/O and of any vendored
  * copy of the data.
  */
 import { isDialectTier, isEgressClass, type DialectTier, type EgressClass } from './axes.ts';

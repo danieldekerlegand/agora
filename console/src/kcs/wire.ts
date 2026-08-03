@@ -215,7 +215,7 @@ export const openaiWire: SingleShotWire = {
  * surface when a peer offers one, else its MCP tool surface, else its A2A agent. A manifest
  * that advertises none of the three has no wire in this build and is refused *by name*
  * ({@link UnsupportedWireError}) rather than mis-dialed. (Which endpoint each wire dials is
- * `endpointFor`'s job in @agora/kcb-client; this only names the protocol.)
+ * `endpointFor`'s job in @agora/sdk; this only names the protocol.)
  */
 export function wireFor(manifest: CapabilityManifest): Wire {
   if (typeof manifest.endpoints.openai === 'string') return openaiWire;

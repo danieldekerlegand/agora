@@ -14,7 +14,7 @@
  * ships it. {@link CataloguedProvider.standin} carries the fixture path so the UI can say
  * "this is a fixture" everywhere it says the capability's name (KCS delta N).
  */
-import { addressOf, endpointFor } from '@agora/kcb-client';
+import { addressOf, endpointFor } from '@agora/sdk';
 import type { CapabilityRegistry } from '@agora/registry';
 import {
   parseManifestBody,

@@ -17,7 +17,7 @@ import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { addressOf } from '@agora/kcb-client';
+import { addressOf } from '@agora/sdk';
 import { parseManifest, type Capability, type CapabilityManifest } from '@agora/schemas';
 
 import { findCapabilityPath, type CapabilityPath, type PathQuery } from '../path.ts';

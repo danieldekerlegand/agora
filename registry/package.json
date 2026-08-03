@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@agora/kcb-client": "*",
+    "@agora/sdk": "*",
     "@agora/schemas": "*"
   },
   "devDependencies": {
