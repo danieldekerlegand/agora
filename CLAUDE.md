@@ -96,6 +96,7 @@ resolver/          TS — KINP resolve / reconcile
 console/           TS + React — conformance scenario runner + UI (observer, not a hub)
 schemas/           TS — @agora/schemas, shared manifest schemas / protocol types
 clients/sdk/       TS — @agora/sdk, THE published client SDK; returns ADDRESSES, never relays
+examples/          TS — copy-and-run sample code; consumes the SDK, is never imported by it
 translation/       Rust — the KMI/KGP translation engine (one core, several facades)
 ```
 
@@ -104,6 +105,13 @@ dependency): `src/kcb.ts` is the address projection, `src/relation-registry.ts` 
 loader, `src/index.ts` the enumerated public API. Everything else stays source-first and private.
 Adding an export means adding it to `SDK_API` too — `index.test.ts` fails on drift, and on any
 relay-shaped name.
+
+`examples/participant-starter/` is the newcomer's copy-and-run path onto the fabric: ~20 lines
+that serve an AgentCard carrying a KCB manifest and answer one A2A `message/send`. It depends on
+the **published** SDK only, and its test drives it the way an external peer would — over the wire,
+via an address the SDK projected. Keep it runnable with plain `node src/participant.ts`: Node's
+strip-only loader rejects TypeScript parameter properties and enums, so the SDK's own source must
+not grow either (see `RegistryFetchError`).
 
 The relation registry is koine's data and agora's tooling: `schemas/src/registry-schema.ts`
 validates it, `clients/sdk/src/relation-registry.ts` fetches and indexes it. The only copy here is

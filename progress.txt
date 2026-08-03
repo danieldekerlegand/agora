@@ -297,3 +297,45 @@
 - `git grep`/`grep -r` SKIPS a file it decides is binary — `registry/src/path.ts` matched
   `@agora/kcb-client` and was reported only as "Binary file … matches", so a rename sweep missed
   it and the failure surfaced two builds later. Use `grep -a` when sweeping for a moved import.
+---
+## US-2 — A ~20-line participant starter that serves an AgentCard and answers on the wire
+- New area `examples/participant-starter/` (`@agora/example-participant-starter`, private, a new
+  `examples/*` workspace): `src/participant.ts` is the copy-and-run starter and `src/participant.test.ts`
+  drives it over real HTTP. Gate `make check-examples`; it also runs inside `make check` (check-ts is
+  `--workspaces`). README.md + CLAUDE.md layout tables list the area.
+- The starter, above its "copy from here" divider (~22 lines of code): `participantManifest()` (KCB
+  §2 — identity, endpoints, one plane-typed zero-cost capability), `participantCard()` = that manifest
+  through `embedManifest`, `summarize()` (the peer's actual work, replaceable), and `handle()` — the
+  three routes. Below the divider is the A2A/JSON plumbing an A2A server library would own, so the
+  example's only dependency is `@agora/sdk` + Node.
+- Three routes, because the fabric reads a peer two different ways: `/.well-known/agent-card.json`
+  (the card, KCB manifest as its one extension), `/.well-known/kcb-manifest.json` (the BARE body —
+  `registry.register` runs `parseManifestBody`, so a crawl that got a card would be rejected), and
+  `POST /` (one A2A `message/send` → a completed Task). Sample data throughout: `example:agent:summarizer`
+  / `summarize.text`, a made-up peer.
+- The test is the acceptance criteria, end to end: start on an ephemeral port → GET the card →
+  `parseManifest` from `@agora/schemas` → `addressOf`/`isDialable`/`transportOf`/`endpointFor` from the
+  SDK → the console's own two-leg A2A dance (card GET, then `message/send` POST at `card.url`) → a
+  completed task carrying the summary. A fifth test crawls the running starter with
+  `registerFromWellKnown` and asserts `find({capability})` hands back its ADDRESS at `estUnits: 0`.
+- `make check` exit 0; `make check-examples`, `make check-clients`, `make build-sdk` each exit 0.
+  Verified by hand too: `PORT=8791 node src/participant.ts` + curl on all three routes.
+
+### Learnings for future iterations
+- **A TypeScript parameter property makes a package un-runnable by `node file.ts`.** Node 22's
+  strip-only loader throws `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` on `constructor(msg, readonly url: string)`
+  — and because a workspace consumer resolves `@agora/sdk` to its SOURCE, one parameter property in
+  `clients/sdk/src/relation-registry.ts` (`RegistryFetchError`) broke `node examples/.../participant.ts`
+  entirely. Rewritten as a declared field + constructor assignment (same public shape). Out-of-tree
+  consumers get `dist/` and never saw it, which is exactly why it went unnoticed. Same rule bans
+  `enum` and `namespace` from the SDK's and schemas' source.
+- **`registry.register` takes a manifest BODY, `parseManifest` takes a CARD.** `registerFromWellKnown`
+  GETs `/.well-known/kcb-manifest.json` and runs `parseManifestBody`; the A2A card at
+  `/.well-known/agent-card.json` carries the same body inside its extension. A participant that serves
+  only the card is dialable but not crawlable — serve both, as the router and trainer do.
+- **A card server should read its base URL off `req.headers.host`**, not off a configured port: the
+  card then names the address the client actually dialed, so the same process is correct on an
+  ephemeral test port, behind a proxy, and on its default port — and no `listen()` plumbing has to run
+  before the card can be built.
+- An example area is a workspace like any other: adding `examples/*` to the root `workspaces` puts it
+  in `npm run lint/typecheck/test --workspaces`, so `make check` covers it without a new CI step.

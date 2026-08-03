@@ -105,6 +105,11 @@ scenario — with every command explained:
 
 - **[Wiring a project into agora](docs/walkthrough-wiring-a-project.md)**
 
+To go the other way — become a peer others can find — copy the ~20-line starter, which serves an
+AgentCard carrying its KCB manifest and answers on the wire:
+
+- **[The participant starter](examples/participant-starter/README.md)**
+
 ## Components
 
 Each component is an independent service you can run on its own.
@@ -136,6 +141,7 @@ since everything is reached over the wire, never imported across a language boun
 | `console/` | TypeScript + React | `make check-console` |
 | `schemas/` | TypeScript | `make check-schemas` |
 | `clients/sdk/` | TypeScript | `make check-clients` — the published client SDK (`make build` emits its `dist/`) |
+| `examples/participant-starter/` | TypeScript | `make check-examples` — the copy-and-run participant starter |
 | `translation/` | Rust (cargo) | `make check-translation` — build + clippy + test |
 
 There are two provider-router areas: the **Erlang app is the canonical one you deploy**, and the

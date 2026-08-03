@@ -41,7 +41,7 @@
         "The starter is generic sample data only — no real project name as a literal, capability-first throughout — and lives where a newcomer can copy it (e.g. an examples/ directory).",
         "The relevant area gate passes (make check-clients / make check-schemas, or make check if it spans areas)."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-3",

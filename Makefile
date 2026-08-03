@@ -13,7 +13,7 @@ UV     := cd $(PY_DIR) && uv
 TRAINER_DIR := trainer
 UV_TRAINER  := cd $(TRAINER_DIR) && uv
 # npm workspace selectors for the TS areas.
-TS_AREAS := schemas clients/sdk registry resolver console
+TS_AREAS := schemas clients/sdk registry resolver console examples/participant-starter
 
 # The interchange artifact names — the shared list BOTH validators expose
 # (schemas/src/validator.ts ARTIFACT_SCHEMAS ⇔ artifact_validator.py). legacy's
@@ -27,7 +27,7 @@ FIXTURES  := $(CURDIR)/schemas/src/conformance/fixtures
 
 .PHONY: help install install-py install-trainer install-ts check check-provider-router \
         check-router-erl check-trainer check-ts \
-        check-schemas check-clients check-registry check-resolver check-console \
+        check-schemas check-clients check-examples check-registry check-resolver check-console \
         check-conformance check-translation build fmt clean
 
 # The Erlang provider-router (agora:80, ADR-0004) — supersedes provider-router/ (agora:50).
@@ -111,6 +111,10 @@ check-schemas:  ## Gate: the shared schemas package only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/schemas
 check-clients:  ## Gate: the client SDK only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/sdk
+# The copy-and-run participant starter (examples/) — a consumer of the published SDK, so it is
+# its own area: its test starts the starter, fetches its AgentCard and dials it on the wire.
+check-examples:  ## Gate: the participant starter example only
+	@$(MAKE) --no-print-directory ts-area PKG=@agora/example-participant-starter
 check-registry: check-path-index  ## Gate: the registry only (TS gate + the Rust path-index crate)
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/registry
 
