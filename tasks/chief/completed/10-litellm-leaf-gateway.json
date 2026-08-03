@@ -6,7 +6,11 @@
   "description": "Adopt an off-the-shelf OpenAI-compatible multi-provider gateway (LiteLLM) as the leaf model-backend, replacing the hand-built provider-router where it merely duplicates commodity functionality, while keeping agora's genuine differentiators. The provider-router is a LEAF capability (per ADR-0001): a single model-backend ladder reached over the wire and exposed as a KCB capability, distinct from the inter-participant discovery registry — so swapping its internals does not touch the registry. LiteLLM is that same category (OpenAI-compatible across many providers, fallback chains, per-request/per-key hard budgets, cost tracking). This tasklist is deliberately SPIKE-GATED: nothing migrates until a spike verifies LiteLLM actually covers agora's needs. The differentiators that must survive any swap are (1) the always-completes, zero-spend deterministic PLACEHOLDER bottom rung (a fresh install answers immediately, spends nothing, and can never fail), (2) exposing the gateway as a KCB capability via its AgentCard/manifest, and (3) per-request budget ceilings that skip any tier whose projected cost exceeds the ceiling WITHOUT dialing it. The mlx-serve and local/Ollama tiers must remain reachable. Anti-fabrication rule: a migration story passes only when the area gate is green AND the behavior is actually verified end to end (e.g. a real zero-budget request lands on the placeholder tier); an unverified swap never counts as a pass, and any need the spike finds uncovered is DOCUMENTED as a gap rather than forced.",
   "parked": false,
   "dependsOn": [],
-  "touches": ["agora-provider-router", "agora-schemas", "agora-console"],
+  "touches": [
+    "agora-provider-router",
+    "agora-schemas",
+    "agora-console"
+  ],
   "iters": 9,
   "warmup": [
     "cd provider-router && uv sync --extra dev",
@@ -54,5 +58,5 @@
       "passes": true
     }
   ],
-  "mergedToMain": false
+  "mergedToMain": "d1a0527"
 }
