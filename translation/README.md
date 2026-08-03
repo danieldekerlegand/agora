@@ -62,10 +62,12 @@ library for `translation-core` to link. The engine therefore reaches OTIO throug
 **Python facade**, and the dependency surface is exactly two OTIO calls:
 
 ```
-translation-core   crates/core/src/media.rs   carries the OTIO document, checks KMI §4.1,
-                                              names §4.3's adapters — converts nothing
+translation-core   crates/core/src/media/     otio.rs carries the OTIO document, checks
+                                              KMI §4.1, names §4.3's adapters — converts
+                                              nothing. koine.rs is the additive layer.
 translation-py     crates/py/src/otio.rs      drives opentimelineio.adapters:
                                               read_from_string / write_to_string
+                   crates/py/src/koine.rs     the additive layer at the facade — no OTIO
 ```
 
 | Facade | Timeline path? | Why |
@@ -97,6 +99,34 @@ Round-trip fidelity is asserted on both legs: canonical → canonical through OT
 serializer is lossless, and canonical → CMX3600 / FCP7 `xmeml` → canonical preserves the
 clips, tracks and timing those formats model — lossily at each **format's** own edges
 (§4.3), which is why adapter output must travel with the asset-id ↔ path media map.
+
+### What agora keeps: koine's additive layer over OTIO (§4.2)
+
+Adopting OTIO settled the composition and nothing else. The three things OTIO has no model
+for are koine's, and they are unchanged by the adoption — `crates/core/src/media/koine.rs`:
+
+| §4.2 | agora | Where it lives |
+|---|---|---|
+| **(a) identity** | `AssetId` — a KINP asset id is the **hash of the bytes**, so an id that is a *name* is refused | inside the timeline, at `media_reference.metadata.koine.asset` |
+| **(b) lineage** | `LineageGraph` over §3's four relations, none of them identity-bearing | **outside** — KGP assertions over assets |
+| **(c) knowledge** | `analysis_assertions` — media analysis → world-scoped KGP claims | **outside** — KGP assertions in the asset's world |
+
+Only (a) travels inside the document, and that is exactly what a path-addressing NLE format
+drops (KMI §9.5): an EDL carries paths, not namespaced metadata. So the §4.3 media map is
+load-bearing, and `Timeline::relink` is the repair — asserted against OTIO's real `cmx_3600`
+adapter in `crates/py/tests/test_otio_koine_layer.py`. It restores identity and never mints
+it: an id already present outranks the map, and a location the map does not name stays
+unidentified and is *reported* rather than guessed.
+
+(b) and (c) survive any adapter for a stronger reason — they were never in the document.
+That is also why the analysis bridge is additive over OTIO rather than replaced by it: an
+OTIO `Marker` has no confidence, no provenance and no world, so knowledge stays a KGP
+assertion, scoped to the analyzed asset's `source_world` — or, for a composite, to each
+**constituent's** world traced through lineage (delta H), because scoping a generated render
+to one world would drop its clips' claims out of every fictional world. A claim the bridge
+cannot scope is an error, never a claim in consensus reality. The assertions project onto
+the engine's own fact vocabulary (`rel/3` + `rel_conf` / `rel_world` / `rel_source`
+companions), so a claim is a record the ProbLog emitter can render — not generated text.
 
 ## The vendor-wire codec (`crates/wire`)
 

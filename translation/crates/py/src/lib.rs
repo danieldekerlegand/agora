@@ -13,7 +13,9 @@
 //! adopts OpenTimelineIO as the canonical timeline, OTIO ships as a C++ core with a
 //! Python binding and no usable Rust one, so this is the facade that can drive OTIO's own
 //! library and adapters in-process. That path adds no codec either — it is OTIO doing the
-//! work.
+//! work. Beside it sits koine's **additive layer** over OTIO (`koine` module, KMI §4.2):
+//! the content-addressed asset identity an adapter's path-addressed output drops, and the
+//! §4.3 media map that brings it home.
 //!
 //! It is one facade over the single [`translation_core`] implementation — no second
 //! codec lives here — so its bytes are identical to the native crate's (and,
@@ -23,6 +25,7 @@
 //! bytes come out as `str`; the extension imports nothing outside its own package at
 //! runtime.
 
+mod koine;
 mod otio;
 
 use pyo3::exceptions::PyValueError;
@@ -167,5 +170,13 @@ fn translation_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(otio::otio_adapters, m)?)?;
     m.add_function(wrap_pyfunction!(otio::timeline_from_adapter, m)?)?;
     m.add_function(wrap_pyfunction!(otio::timeline_to_adapter, m)?)?;
+    // koine's additive layer over OTIO (KMI §4.2). These need no OTIO at all — they are
+    // pure core over the parsed document — but they belong beside the adapters, because
+    // an adapter is what drops the asset ids they read and restore. See `koine.rs`.
+    m.add_function(wrap_pyfunction!(koine::timeline_assets, m)?)?;
+    m.add_function(wrap_pyfunction!(koine::timeline_unidentified, m)?)?;
+    m.add_function(wrap_pyfunction!(koine::timeline_media_map, m)?)?;
+    m.add_function(wrap_pyfunction!(koine::timeline_relink, m)?)?;
+    m.add_function(wrap_pyfunction!(koine::kmi_media_plane, m)?)?;
     Ok(())
 }

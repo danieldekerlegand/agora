@@ -1,39 +1,17 @@
-//! The media-timeline path — OpenTimelineIO (OTIO), adopted rather than reinvented.
+//! OTIO's half of the media-timeline path: the canonical timeline, carried whole.
 //!
-//! KMI 0.3.0 §4 (koine `ADR-0005`) makes an **OTIO `Timeline`, in OTIO's own JSON
-//! serialization**, the canonical composition model. So this module deliberately does
-//! *not* define a timeline model: there is no struct here for a track, a cut, or an EDL
-//! row, and no bespoke canonical-timeline serialization to keep in step with OTIO's.
+//! KMI 0.3.0 §4 (koine `ADR-0005`) adopts the OTIO `Timeline` as the canonical composition
+//! model, so nothing here is a timeline model of ours — there is no struct for a track, a
+//! cut, or an EDL row, and no bespoke canonical serialization to keep in step with OTIO's.
 //! What lives here is
 //!
 //! 1. the KMI media-plane constants (§2/§4) — the media types a media-plane port names,
 //! 2. the §4.3 table naming **OTIO's own** adapters, and
 //! 3. a read-only projection over an OTIO document that checks §4.1 conformance and lets
-//!    koine's additive layer (§4.2) be read off it.
+//!    koine's additive layer ([`super::koine`], §4.2) be read off it.
 //!
-//! # How the engine reaches OTIO
-//!
-//! OTIO is a C++ core with a Python binding. The `opentimelineio` name on crates.io is an
-//! explicitly-marked *placeholder* (`0.1.0`, "Rust bindings for OpenTimelineIO
-//! (placeholder)") with no bindings in it, so there is no Rust library to link and no
-//! honest way for this crate to run OTIO in-process. The engine therefore reaches OTIO —
-//! its reader, its writer, and every adapter in [`NLE_ADAPTERS`] — through the engine's
-//! **Python facade**, `crates/py`: `translation_py.timeline_from_adapter` /
-//! `timeline_to_adapter` drive `opentimelineio.adapters` in the host interpreter, and the
-//! Rust in that facade only hands documents across and calls back here for the §4.1
-//! check. Every byte of composition parsing and every NLE conversion is OTIO's own code.
-//!
-//! Consequences worth stating plainly, because they are the point of adopting OTIO:
-//!
-//! - **This crate never parses or writes an EDL.** `timeline → CMX3600` is
-//!   `opentimelineio.adapters`' `cmx_3600`, not a translator of ours.
-//! - **The canonical bytes are OTIO's writer's.** [`Timeline::to_otio_json`] re-emits the
-//!   same document through `serde_json` for callers that only moved it around; it
-//!   normalizes object key order (as any JSON map does) and so is structure-preserving,
-//!   not byte-preserving. The byte-canonical form a timeline asset is content-addressed
-//!   over (§4/§2) is what OTIO's own serializer produced.
-//! - **The WASM facade has no media-timeline path.** There is no OTIO in a wasm sandbox;
-//!   a TypeScript consumer reaches the timeline path over the fabric, not in-process.
+//! See the [parent module](super) for how the engine reaches OTIO's reader, writer, and
+//! adapters, and for what this crate deliberately does not do.
 
 use crate::error::Error;
 use serde_json::Value;
@@ -251,7 +229,10 @@ impl Timeline {
             .filter(|child| otio_class(child) == Some("Track"))
             .map(|child| Track {
                 name: child.get("name").and_then(Value::as_str),
-                kind: child.get("kind").and_then(Value::as_str).unwrap_or_default(),
+                kind: child
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default(),
                 children: children_of(child),
             })
             .collect()
@@ -324,7 +305,7 @@ fn otio_schema(node: &Value) -> Option<&str> {
 }
 
 /// The class half of a node's `OTIO_SCHEMA` (`"Clip"` of `"Clip.2"`).
-fn otio_class(node: &Value) -> Option<&str> {
+pub(crate) fn otio_class(node: &Value) -> Option<&str> {
     otio_schema(node).map(|schema| schema.split('.').next().unwrap_or(schema))
 }
 
@@ -371,9 +352,10 @@ fn validate_children(children: &[Value]) -> Result<(), Error> {
         })?;
         match otio_class(child) {
             Some("Track") => {
-                let kind = child.get("kind").and_then(Value::as_str).ok_or_else(|| {
-                    media_err("an OTIO Track declares a `kind` (KMI §4.1)")
-                })?;
+                let kind = child
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| media_err("an OTIO Track declares a `kind` (KMI §4.1)"))?;
                 if kind != "Video" && kind != "Audio" {
                     return Err(media_err(format!(
                         "track kind {kind:?} is outside the profile KMI describes — \
@@ -409,9 +391,8 @@ fn validate_clip(clip: &Value, schema: &str) -> Result<(), Error> {
     }
     if let Some(range) = clip.get("source_range") {
         if !range.is_null() {
-            time_range(range).map_err(|err| {
-                media_err(format!("{schema} has an invalid source_range: {err}"))
-            })?;
+            time_range(range)
+                .map_err(|err| media_err(format!("{schema} has an invalid source_range: {err}")))?;
         }
     }
     Ok(())
