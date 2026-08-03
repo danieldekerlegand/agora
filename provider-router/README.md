@@ -246,18 +246,20 @@ uv run pytest -q
 
 ### Standalone (no sibling areas)
 
-Three tests are cross-language pins that reach up to sibling TS areas — the KCB version
-against `schemas/`, and the captured session/manifest fixtures the `console/` and
-`registry/` gates replay. In the full monorepo they RUN and hold those guards; in an
-extracted checkout that contains only `provider-router/` they **skip cleanly** (they never
-error or fail) because the sibling paths are absent. To prove the package suite is green on
-its own — built, installed into a clean venv, and run with no sibling area present:
+Some tests are cross-area pins that reach up to sibling areas — the KCB version against
+`schemas/`, the captured session/manifest fixtures the `console/` and `registry/` gates
+replay, and the byte-for-byte corpus `provider-router-erl/`'s conformance suite holds the
+canonical router to. In the full monorepo they RUN and hold those guards; in an extracted
+checkout that contains only `provider-router/` they **skip cleanly** (they never error or
+fail) because the sibling paths are absent. To prove the package suite is green on its own —
+built, installed into a clean venv, and run with no sibling area present:
 
 ```sh
 provider-router/scripts/standalone-test.sh    # builds the wheel, installs it, runs pytest
 ```
 
-It reports `... passed, 4 skipped` — the four cross-repo guards are the skips.
+It reports `144 passed, 39 skipped`: the cross-area guards above, plus the cases that need
+the optional `litellm` extra the standalone wheel is not installed with.
 
 ## Status
 

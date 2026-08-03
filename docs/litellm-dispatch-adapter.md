@@ -106,4 +106,6 @@ routing report, the same AgentCard.
 Nothing. The spike's verdict for US-3 was **NO-GO** and the reasons are unaffected by this
 story — if anything they are reinforced. The adapter adds vendors *below* the transport
 boundary; the behaviours the dual Erlang/Python router encodes, and that the conformance
-corpus pins, are all above it and all still hand-built. See §4 of the spike report.
+corpus pins, are all above it and all still hand-built. See §4 of the spike report, and
+[`router-hand-built-behaviours.md`](router-hand-built-behaviours.md) for the inventory US-3
+landed: every kept behaviour, its module on both sides, and the assertions that hold it.

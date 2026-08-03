@@ -185,6 +185,11 @@ work either way:
 
 ### US-3 — retire or repoint the dual Erlang/Python router and its corpus → **NO-GO**
 
+> **Landed as documentation.** The full keep-list — behaviour by behaviour, with its site and
+> its assertions in both routers — is
+> [`router-hand-built-behaviours.md`](router-hand-built-behaviours.md), which also records why
+> the corpus is *live* rather than frozen and adds the Python-side check that keeps it so.
+
 Its gate reads: *proceed only if the spike confirmed LiteLLM covers the behaviours the
 byte-identical Erlang/Python dual router encodes; otherwise this story documents precisely
 which router behaviours must remain hand-built and stops there.* It did not. Three independent

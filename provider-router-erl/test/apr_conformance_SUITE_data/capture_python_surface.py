@@ -19,6 +19,12 @@ Regenerate (from the repo root) with::
     uv --project provider-router run python \\
       provider-router-erl/test/apr_conformance_SUITE_data/capture_python_surface.py \\
       > provider-router-erl/test/apr_conformance_SUITE_data/python-surface.json
+
+Both halves of the equality are checked. ``apr_conformance_SUITE`` replays the capture
+against the Erlang router — but only where rebar3 is installed, since ``make
+check-router-erl`` skips otherwise. ``provider-router/tests/test_python_surface_corpus.py``
+re-runs this script and diffs the bytes, so a Python change cannot silently leave the corpus
+describing a surface no code produces (see ``docs/router-hand-built-behaviours.md``).
 """
 
 from __future__ import annotations
