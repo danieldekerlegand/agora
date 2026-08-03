@@ -12,7 +12,7 @@ out of the way).
 ## Run it
 
 ```sh
-npm install @agora/sdk
+npm install @agora/sdk                                 # or install the packed tarball — see the quickstart
 node src/participant.ts                                # PORT=8790 by default
 
 curl localhost:8790/.well-known/agent-card.json        # your card, KCB manifest inside
@@ -56,6 +56,8 @@ data — a made-up peer. Describe what *you* actually do.
 
 ## Going deeper
 
+- [`docs/quickstart.md`](../../docs/quickstart.md) — install the SDK, run this starter, make your
+  first call against it. Every command real.
 - [`docs/walkthrough-wiring-a-project.md`](../../docs/walkthrough-wiring-a-project.md) — the other
   direction: running the gateway, discovering a capability, proving a round-trip.
 - [`clients/sdk/README.md`](../../clients/sdk/README.md) — the SDK's full surface.

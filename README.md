@@ -61,7 +61,10 @@ look if you want to understand the contracts in the abstract or implement one yo
 
 ## Getting started
 
-Clone the repo and install every area's dependencies:
+In a hurry? **[The quickstart](docs/quickstart.md)** goes from installing the client SDK to
+running a discoverable peer and making your first call against it, in about five minutes.
+
+Otherwise, clone the repo and install every area's dependencies:
 
 ```sh
 make install    # uv sync + npm install (the Erlang toolchain is optional; its gate skips cleanly)
@@ -98,6 +101,10 @@ OLLAMA_BASE_URL=http://localhost:11434  agora-provider-router    # enable a loca
 ```
 
 ## Learn by example
+
+Start here — install the SDK, run a participant, make your first call, every command real:
+
+- **[Quickstart: install to first call](docs/quickstart.md)**
 
 The three-step walkthrough takes a project from nothing to fully connected — **run** the gateway,
 **discover** a capability through the registry, and **prove** the round-trip with a conformance

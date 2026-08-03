@@ -8,7 +8,10 @@ it dials directly).
 npm install @agora/sdk
 ```
 
-That is the whole dependency list — `@agora/schemas` comes with it, and nothing else does.
+That is the whole dependency list — `@agora/schemas` comes with it, and nothing else does. Until
+that package is on a public registry, `make build-sdk` + `npm pack` produces the identical
+tarballs to install from a path; [`docs/quickstart.md`](../../docs/quickstart.md) walks that
+through to a first call.
 
 ## Addresses, never a relay
 
