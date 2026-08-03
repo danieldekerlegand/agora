@@ -246,3 +246,54 @@
 - `eventsFrom` reads only `direction: 'frame'` entries. That single line is what separates "the
   console's own traffic" (the timeline) from "what crossed the fabric" (the feed); widening it to
   responses would put every manual invoke into the passive feed.
+---
+## US-1 — Publish a coherent client SDK with a stable public API (@agora/sdk 0.1.0)
+- `clients/kcb-client/` + `clients/relation-registry-client/` are now ONE package,
+  `clients/sdk/` (`@agora/sdk`): `src/kcb.ts` (the address projection), `src/relation-registry.ts`
+  (the registry loader), `src/index.ts` (the single published entry point, which also re-exports
+  the AgentCard/manifest slice of `@agora/schemas` so the install really is one line).
+  `registry/` and `console/` import `@agora/sdk`; `make check-clients` gates the one package.
+- The surface documents itself: `SDK_API` (discover / participate / knowledge), `SDK_VERSION`,
+  `describeSdk() → { version, specs, api, relaysPayloads: false }`. `src/index.test.ts` imports
+  ONLY `@agora/sdk` (never a deep path), asserts the enumerated index equals the real runtime
+  exports both ways, and fails on any relay-shaped export name.
+- Publishing: `tsconfig.build.json` emits `dist/`; `scripts/stage-publish.mjs` assembles
+  `<pkg>/.publish/` (dist + README + a derived package.json whose exports point at dist).
+  `make build-sdk`, `make publish-dry-run`. `@agora/schemas` is published alongside it as the
+  SDK's one dependency (0.1.0, no longer `private`).
+- `make check` exit 0. Verified out-of-tree for real: `npm pack` the two staged dirs into a scratch
+  consumer, `npm install` them, `node` runs a card→manifest→address round trip, and
+  `tsc --module nodenext --moduleResolution nodenext` resolves the types.
+
+### Learnings for future iterations
+- **`publishConfig.exports` does not work.** npm 10.9 leaves `exports` untouched when it builds the
+  tarball, so a package that develops from `src/` and ships `dist/` cannot switch entry points that
+  way — the published package pointed consumers at `src/index.ts`, which is not even shipped
+  (`ERR_MODULE_NOT_FOUND`). The fix is `scripts/stage-publish.mjs`: stage a derived package into
+  `.publish/` rather than mutating package.json in place (a crash mid-publish would otherwise leave
+  the workspace pointing at dist and break every in-tree import).
+- **Prove out-of-tree resolution by leaving the tree.** `npm publish --dry-run` lists filenames and
+  says nothing about whether `import '@agora/sdk'` resolves. Packing into a scratch dir, installing
+  the tarball and running `node` is the only check that catches an `exports` map that points at
+  files nobody shipped. Do the same for types with `tsc --moduleResolution nodenext`.
+- **Emit is possible without giving up source-first.** `rewriteRelativeImportExtensions: true`
+  (TS ≥5.7) lets the source keep the repo's real `./x.ts` specifiers AND emit runnable `./x.js`.
+  A `tsconfig.build.json` extending the package's own tsconfig with `noEmit: false` + `rootDir`/
+  `outDir` is all a publishable package needs. tsc copies no assets, though: `schemas/scripts/
+  copy-schema-assets.mjs` puts `koine-schemas/*.json` beside the emitted `validator.js`, because
+  that module resolves them off its OWN directory.
+- **Node-only code must not sit on a package's main entry point.** `@agora/schemas`'s index
+  re-exported the ajv validator, which imports `node:fs`/`node:path`; a bundler reports
+  `"join" is not exported by "__vite-browser-external"` at LINK time — before tree-shaking can drop
+  the unused module, and `sideEffects: false` does not help. It is now the `@agora/schemas/validator`
+  subpath, and `version-drift.test.ts` asserts BOTH halves (the subpath exists in `exports`, and the
+  index does not carry `validate`/`ARTIFACT_SCHEMAS`).
+- **⚠️ `make build` is RED, and was before this story.** `npm run build -w @agora/console` fails:
+  the console's browser bundle reaches Node-only modules through the `@agora/registry` index
+  (`path-index.ts`, then `store.ts`/`server.ts`/`main.ts` behind it). `make check` never ran the
+  bundle, so it rotted unnoticed. The SDK's publish path is `make build-sdk`, which does not depend
+  on it. Fixing it properly means giving `@agora/registry` (and `@agora/resolver`) a Node-only
+  subpath the way schemas now has — a story of its own, not a line in this one.
+- `git grep`/`grep -r` SKIPS a file it decides is binary — `registry/src/path.ts` matched
+  `@agora/kcb-client` and was reported only as "Binary file … matches", so a rename sweep missed
+  it and the failure surfaced two builds later. Use `grep -a` when sweeping for a moved import.

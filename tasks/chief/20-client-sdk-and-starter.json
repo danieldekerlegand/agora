@@ -6,7 +6,11 @@
   "description": "Make agora as easy to adopt as MCP/A2A — where ease of use comes from a one-line SDK install plus a self-describing endpoint, not from repo count. Today agora's client libraries (clients/kcb-client, clients/relation-registry-client) are source-first packages buried in the monorepo workspace: usable in-tree, but not something a newcomer can `install` and call in a minute. This tasklist delivers the DX lever: (1) consolidate and PUBLISH the clients/* packages as a coherent, versioned client SDK with a stable public API (an install-and-import package, not a workspace-only source export); (2) a minimal ~20-line 'participant starter' — a copy-and-run example that serves an AgentCard carrying a KCB manifest extension and answers on the wire, so a newcomer becomes a discoverable participant with almost no code; and (3) a quickstart doc that walks a newcomer from install to first successful call. All work stays capability-first: no project name as a literal, the starter is generic sample code. This does NOT change the registry's addresses-not-proxies contract — the SDK returns addresses the caller dials directly, and must never grow a relay method.",
   "parked": false,
   "dependsOn": [],
-  "touches": ["agora-clients", "agora-schemas", "agora"],
+  "touches": [
+    "agora-clients",
+    "agora-schemas",
+    "agora"
+  ],
   "iters": 9,
   "warmup": [
     "make install-ts",
@@ -26,7 +30,7 @@
         "make check-clients and make check-schemas pass, with the koine spec version still pinned/asserted so nothing drifts.",
         "make build produces the publishable artifact(s) (or the packaging is otherwise wired so the SDK can be published) without breaking any other area's gate."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-2",
