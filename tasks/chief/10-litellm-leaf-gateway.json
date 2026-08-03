@@ -27,7 +27,7 @@
         "The spike is grounded in runnable evidence, not claims: at minimum a throwaway script demonstrating LiteLLM answering an OpenAI-compatible request and demonstrating a budget ceiling being enforced (or the report records that it could not be demonstrated and why).",
         "No production code is migrated in this story and every existing area gate (make check-provider-router, make check-router-erl) stays green."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-2",
