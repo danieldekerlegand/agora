@@ -1,0 +1,55 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/20-client-sdk-and-starter",
+  "baseBranch": "main",
+  "description": "Make agora as easy to adopt as MCP/A2A — where ease of use comes from a one-line SDK install plus a self-describing endpoint, not from repo count. Today agora's client libraries (clients/kcb-client, clients/relation-registry-client) are source-first packages buried in the monorepo workspace: usable in-tree, but not something a newcomer can `install` and call in a minute. This tasklist delivers the DX lever: (1) consolidate and PUBLISH the clients/* packages as a coherent, versioned client SDK with a stable public API (an install-and-import package, not a workspace-only source export); (2) a minimal ~20-line 'participant starter' — a copy-and-run example that serves an AgentCard carrying a KCB manifest extension and answers on the wire, so a newcomer becomes a discoverable participant with almost no code; and (3) a quickstart doc that walks a newcomer from install to first successful call. All work stays capability-first: no project name as a literal, the starter is generic sample code. This does NOT change the registry's addresses-not-proxies contract — the SDK returns addresses the caller dials directly, and must never grow a relay method.",
+  "parked": false,
+  "dependsOn": [],
+  "touches": ["agora-clients", "agora-schemas", "agora"],
+  "iters": 9,
+  "warmup": [
+    "make install-ts",
+    "sed -n '1,60p' clients/kcb-client/src/index.ts",
+    "cat clients/kcb-client/package.json clients/relation-registry-client/package.json",
+    "sed -n '1,90p' docs/walkthrough-wiring-a-project.md",
+    "sed -n '1,70p' /Users/dldekerlegand/Development/koine/specs/capability-bus.md"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Publish a coherent client SDK with a stable public API",
+      "acceptanceCriteria": [
+        "The clients/* packages are consolidated into a coherent, installable SDK with a documented, stable public surface: a one-line install (a single package the newcomer adds, or a clearly named small set) rather than a workspace-only source export, with a declared semantic version and exports that resolve for an out-of-tree consumer.",
+        "The public API is explicitly enumerated (an index of the exported types/functions) and covers, at minimum, discovering a capability and receiving an ADDRESS to dial directly — never a relay/'call-it-for-me' method (ADR-0001 addresses-not-proxies).",
+        "A test consumes the SDK the way an external caller would (importing only the published entry point, not deep internal paths) and passes.",
+        "make check-clients and make check-schemas pass, with the koine spec version still pinned/asserted so nothing drifts.",
+        "make build produces the publishable artifact(s) (or the packaging is otherwise wired so the SDK can be published) without breaking any other area's gate."
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-2",
+      "title": "A ~20-line participant starter that serves an AgentCard and answers on the wire",
+      "acceptanceCriteria": [
+        "A minimal starter template (target ~20 lines of user-facing code, small enough to read at a glance) uses the published SDK to serve an AgentCard carrying a KCB manifest extension and to answer a request on the wire — turning a newcomer into a discoverable, dial-able participant.",
+        "The starter actually runs: a test or script starts it, fetches its AgentCard, validates the KCB manifest against the schemas package, and gets a successful answer to one request.",
+        "The starter is generic sample data only — no real project name as a literal, capability-first throughout — and lives where a newcomer can copy it (e.g. an examples/ directory).",
+        "The relevant area gate passes (make check-clients / make check-schemas, or make check if it spans areas)."
+      ],
+      "passes": false
+    },
+    {
+      "id": "US-3",
+      "title": "Quickstart doc: install to first successful call",
+      "acceptanceCriteria": [
+        "A quickstart doc (e.g. docs/quickstart.md, linked from README) walks a newcomer from a one-line SDK install through running the participant starter to their first successful call, with every command real and copy-pasteable.",
+        "The doc's happy path matches the shipped SDK API and starter exactly (no placeholder or aspirational commands): following it verbatim produces a served AgentCard and a successful response.",
+        "The doc states the addresses-not-proxies model plainly (the SDK returns an address you dial directly) so a reader does not expect a relay, and points to the existing walkthrough/prior-art for going deeper.",
+        "Docs and any example code they reference pass make check (link/format gates included where they apply)."
+      ],
+      "passes": false
+    }
+  ],
+  "mergedToMain": false
+}
