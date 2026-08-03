@@ -16,6 +16,10 @@ pub enum Error {
     /// Graph data could not be mapped back to canonical TSV on a Neo4j cursor
     /// export (`Neo4jExportError` in culture-scrape).
     Neo4j(String),
+    /// A document on the media-timeline path is not a KMI-conformant OTIO timeline
+    /// (media-interchange.md §4). Never a *conversion* failure — converting is OTIO's
+    /// adapters' work, and their errors are OTIO's own.
+    Media(String),
     /// An underlying IO failure while writing to a sink.
     Io(std::io::Error),
 }
@@ -27,6 +31,7 @@ impl fmt::Display for Error {
             Error::Schema(msg) => write!(f, "schema error: {msg}"),
             Error::Datalog(msg) => write!(f, "datalog error: {msg}"),
             Error::Neo4j(msg) => write!(f, "neo4j error: {msg}"),
+            Error::Media(msg) => write!(f, "media error: {msg}"),
             Error::Io(err) => write!(f, "io error: {err}"),
         }
     }

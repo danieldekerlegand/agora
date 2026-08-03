@@ -12,6 +12,12 @@
 //! Embeddable-first: the whole matrix is pure in-memory serde with no filesystem or
 //! network dependency, so TS (WASM) and Python (PyO3) consumers translate locally
 //! with zero network hop.
+//!
+//! Beside the knowledge-plane matrix sits the **media-timeline path** ([`media`]), which
+//! is deliberately *not* a codec of ours: KMI §4 adopts OpenTimelineIO, so a timeline is
+//! an OTIO document carried whole, and every conversion — CMX3600, FCP, AAF — is run by
+//! OTIO's own adapters through the engine's Python facade. See [`media`] for the
+//! mechanism and why there is no Rust binding to link.
 
 #![deny(clippy::all)]
 
@@ -19,6 +25,7 @@ mod csv;
 pub mod datalog;
 mod error;
 mod graph;
+pub mod media;
 pub mod neo4j;
 mod schema;
 mod tsv;
@@ -36,6 +43,11 @@ pub use csv::{
 };
 pub use error::Error;
 pub use graph::{Cell, Graph, Row};
+pub use media::{
+    Clip, MediaReference, NleAdapter, RationalTime, TimeRange, Timeline, Track, KMI_VERSION,
+    LEGACY_EDL_MEDIA_TYPE, NLE_ADAPTERS, OTIO_BUNDLE_MEDIA_TYPE, OTIO_JSON_ADAPTER,
+    OTIO_MEDIA_TYPE,
+};
 pub use neo4j::{
     build_statements, edge_cypher, export_to_tsv, graph_to_load_script, graph_to_neo4j_export,
     node_cypher, render_load_script, CypherStatement, ExportResult, GraphCursor, Neo4jEdge,
