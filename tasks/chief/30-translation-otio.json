@@ -3,10 +3,14 @@
   "project": "agora",
   "branchName": "chief/30-translation-otio",
   "baseBranch": "main",
-  "description": "Adopt OpenTimelineIO (OTIO) as the media-timeline model in agora's translation engine, once koine's KMI has made OTIO its canonical timeline (the cross-repo dependency below). OTIO (Academy Software Foundation, Pixar-origin) IS a canonical-timeline-plus-adapters and already ships the CMX3600/FCP adapters that a bespoke EDL translator would otherwise reimplement — so the translation engine should read/write OTIO for the media-timeline path via OTIO's own library/adapters rather than a hand-rolled EDL format. What agora KEEPS as its additive koine layer (the parts OTIO does not do) is preserved unchanged: asset ids as content-addressed KINP entities, the asset-lineage graph, and the analysis-to-knowledge bridge that turns media analysis into KGP claims. Today the translation engine's media path only handles tabular text exports (crates/service exposes a media plane over TSV/CSV); this tasklist adds the OTIO timeline path alongside the existing knowledge-plane translations. BLOCKED until the koine spec change lands: the canonical timeline shape and the additive-layer boundary are defined by koine's KMI, so this must not start until koine:10-kmi-adopt-otio is merged — implementing against a moving spec would fork the contract.",
+  "description": "Adopt OpenTimelineIO (OTIO) as the media-timeline model in agora's translation engine, once koine's KMI has made OTIO its canonical timeline (the cross-repo dependency below). OTIO (Academy Software Foundation, Pixar-origin) IS a canonical-timeline-plus-adapters and already ships the CMX3600/FCP adapters that a bespoke EDL translator would otherwise reimplement \u2014 so the translation engine should read/write OTIO for the media-timeline path via OTIO's own library/adapters rather than a hand-rolled EDL format. What agora KEEPS as its additive koine layer (the parts OTIO does not do) is preserved unchanged: asset ids as content-addressed KINP entities, the asset-lineage graph, and the analysis-to-knowledge bridge that turns media analysis into KGP claims. Today the translation engine's media path only handles tabular text exports (crates/service exposes a media plane over TSV/CSV); this tasklist adds the OTIO timeline path alongside the existing knowledge-plane translations. BLOCKED until the koine spec change lands: the canonical timeline shape and the additive-layer boundary are defined by koine's KMI, so this must not start until koine:10-kmi-adopt-otio is merged \u2014 implementing against a moving spec would fork the contract.",
   "parked": false,
-  "dependsOn": ["koine:10-kmi-adopt-otio"],
-  "touches": ["agora-translation"],
+  "dependsOn": [
+    "koine:10-kmi-adopt-otio"
+  ],
+  "touches": [
+    "agora-translation"
+  ],
   "iters": 9,
   "warmup": [
     "rustc --version && cargo --version",
@@ -21,23 +25,23 @@
       "title": "Read/write OTIO on the media-timeline path via OTIO's library/adapters",
       "acceptanceCriteria": [
         "GATED ON koine:10-kmi-adopt-otio: do not start until the koine KMI OTIO spec change is merged; the story implements against that landed canonical timeline, not a bespoke EDL format.",
-        "The translation engine reads and writes OTIO for the media-timeline path, using OTIO's own library/adapters (including its CMX3600/FCP adapters) rather than a hand-rolled EDL translator — no bespoke canonical-timeline serialization is introduced or kept for this path.",
+        "The translation engine reads and writes OTIO for the media-timeline path, using OTIO's own library/adapters (including its CMX3600/FCP adapters) rather than a hand-rolled EDL translator \u2014 no bespoke canonical-timeline serialization is introduced or kept for this path.",
         "A round-trip test proves fidelity: an OTIO timeline in, translated through the engine, and back out preserves the timeline structure the KMI spec requires (clips, tracks, timing) without loss.",
         "The mechanism for reaching OTIO from the Rust engine is documented in the crate (whether via an OTIO Rust binding, or via the engine's Python/service facade calling OTIO) so the dependency and its surface are explicit.",
         "make check-translation passes (build + clippy + test), zero warnings."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-2",
       "title": "Preserve the additive koine layer over OTIO",
       "acceptanceCriteria": [
         "Asset ids on the OTIO path remain content-addressed KINP entities and the asset-lineage graph is preserved: translating a timeline neither invents nor drops the content-addressed identity of its referenced assets, and lineage edges survive the round trip.",
-        "The analysis-to-knowledge bridge still emits KGP claims from media analysis for OTIO-sourced timelines exactly as for the prior media path — the bridge is additive over OTIO, not replaced by it.",
+        "The analysis-to-knowledge bridge still emits KGP claims from media analysis for OTIO-sourced timelines exactly as for the prior media path \u2014 the bridge is additive over OTIO, not replaced by it.",
         "Tests assert the additive layer specifically: a content-addressed asset id is stable across a translate cycle, and an analysis-derived claim is produced as a plane-typed KGP assertion (not generated text).",
         "make check-translation passes."
       ],
-      "passes": false
+      "passes": true
     }
   ],
   "mergedToMain": false

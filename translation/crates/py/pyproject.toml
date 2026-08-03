@@ -13,6 +13,14 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
 ]
 
+# The media-timeline path (KMI §4) drives OpenTimelineIO in-process — koine adopted OTIO
+# as the canonical timeline, so agora uses it rather than reimplementing it. It is an
+# extra, not a dependency: every other path through the extension is pure Rust, and a
+# caller who never touches a timeline never installs it. The NLE adapters of §4.3 ship as
+# separate OTIO plugin distributions since OTIO 0.15.
+[project.optional-dependencies]
+otio = ["opentimelineio>=0.17", "otio-cmx3600-adapter", "otio-fcp-adapter"]
+
 [tool.maturin]
 # The compiled module a Python caller imports as `import translation_py`. `-m` /
 # `--manifest-path` in test.sh points maturin at the adjacent Cargo.toml so it builds

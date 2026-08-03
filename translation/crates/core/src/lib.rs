@@ -12,6 +12,15 @@
 //! Embeddable-first: the whole matrix is pure in-memory serde with no filesystem or
 //! network dependency, so TS (WASM) and Python (PyO3) consumers translate locally
 //! with zero network hop.
+//!
+//! Beside the knowledge-plane matrix sits the **media-timeline path** ([`media`]), which
+//! is deliberately *not* a codec of ours: KMI §4 adopts OpenTimelineIO, so a timeline is
+//! an OTIO document carried whole, and every conversion — CMX3600, FCP, AAF — is run by
+//! OTIO's own adapters through the engine's Python facade. See [`media`] for the
+//! mechanism and why there is no Rust binding to link. What agora *does* own on that path
+//! is koine's additive layer over OTIO ([`media::koine`]): content-addressed asset
+//! identity, the asset-lineage graph, and the analysis → knowledge bridge that turns media
+//! findings into KGP assertions on this crate's own fact vocabulary.
 
 #![deny(clippy::all)]
 
@@ -19,6 +28,7 @@ mod csv;
 pub mod datalog;
 mod error;
 mod graph;
+pub mod media;
 pub mod neo4j;
 mod schema;
 mod tsv;
@@ -36,6 +46,14 @@ pub use csv::{
 };
 pub use error::Error;
 pub use graph::{Cell, Graph, Row};
+pub use media::{
+    analysis_assertions, assertion_facts, AnalysisObservation, AssetEnvelope, AssetId,
+    AssetReference, Assertion, Clip, LineageGraph, LineageLink, LineageRelation, MediaMap,
+    MediaReference, NleAdapter, RationalTime, TimeRange, Timeline, Track,
+    ANALYSIS_BRIDGE_INPUT_PLANE, ANALYSIS_BRIDGE_OUTPUT_PLANE, ASSET_KIND, DEFAULT_MEDIA_KEY,
+    KMI_VERSION, KOINE_METADATA_KEY, LEGACY_EDL_MEDIA_TYPE, LINEAGE_DOMAIN, NLE_ADAPTERS,
+    OTIO_BUNDLE_MEDIA_TYPE, OTIO_JSON_ADAPTER, OTIO_MEDIA_TYPE,
+};
 pub use neo4j::{
     build_statements, edge_cypher, export_to_tsv, graph_to_load_script, graph_to_neo4j_export,
     node_cypher, render_load_script, CypherStatement, ExportResult, GraphCursor, Neo4jEdge,

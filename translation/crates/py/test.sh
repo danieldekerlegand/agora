@@ -28,8 +28,14 @@ echo "  -> uv venv (CPython 3.12)"
 export VIRTUAL_ENV="$VENV"
 export PATH="$VENV/bin:$PATH"
 
-echo "  -> uv pip install maturin pytest"
-"$UV" pip install --quiet maturin pytest
+# opentimelineio + the two NLE adapter plugins are the media-timeline path's runtime
+# dependency (KMI §4 adopts OTIO; since OTIO 0.15 the adapters are separate
+# distributions). They are optional for a caller — nothing else in the extension needs
+# them — but the gate installs them so the OTIO round trip runs for real rather than
+# skipping.
+echo "  -> uv pip install maturin pytest opentimelineio (+ NLE adapters)"
+"$UV" pip install --quiet maturin pytest \
+  opentimelineio otio-cmx3600-adapter otio-fcp-adapter
 
 echo "  -> maturin develop -p translation-py"
 maturin develop --manifest-path "$HERE/Cargo.toml"
