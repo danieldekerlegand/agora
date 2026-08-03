@@ -120,7 +120,7 @@ and `assertPackEgress` lets a consumer reject a pack that still carries some.
 `assertRelationsResolve` cross-checks that a mapping crossing as a claim names a declared relation;
 `assertSignatureStability` rejects an edit that moved a published
 `relation · arity · arg_roles · symmetric`, because that silently re-hashes every claim id derived
-from it (KGP §3). `@agora/relation-registry-client` fetches `predicate-mapping.json`, follows it to
+from it (KGP §3). `@agora/sdk`'s relation-registry loader fetches `predicate-mapping.json`, follows it to
 the vocabulary files, validates and indexes them — and never writes or mirrors.
 
 ## The resolver

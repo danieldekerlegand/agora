@@ -26,14 +26,21 @@ npm run regen:koine-fixture    # refresh the relation-registry test fixture
 
 ## What it exports
 
-Everything is re-exported from `src/index.ts` (the generated test fixture is deliberately **not**
-— it is reachable only as the `@agora/schemas/fixtures` subpath).
+Everything is re-exported from `src/index.ts` **except** the two entry points that are not
+environment-free: the validator (`@agora/schemas/validator` — it reads the vendored schemas off
+disk, so it is Node-only, and re-exporting it put `node:fs`/`node:path` in the module graph of
+every consumer including the console's browser bundle) and the generated test fixture
+(`@agora/schemas/fixtures` — test data, not a library surface).
+
+This package is **published** alongside `@agora/sdk`, which is its one dependent outside the
+workspace; `make build-sdk` emits its `dist/` and stages the publishable copy.
 
 - **`versions.ts`** — `SPEC_VERSIONS = { kcb: '0.2.0', kinp: '0.2.0', kgp: '0.4.0', kft: '0.3.0',
   kcs: '0.2.0' }`. The single source of the spec versions; `provider-router`'s
   `test_skeleton.py` reads this file and asserts the Python `KCB_VERSION` agrees, so drift is a
   gate failure, not a production surprise.
-- **`validator.ts` / `validate.ts`** — the ajv (draft-2020-12) **structural** validator over the
+- **`validator.ts` / `validate.ts`** (imported as `@agora/schemas/validator`) — the ajv
+  (draft-2020-12) **structural** validator over the
   six ported koine interchange artifacts: `validate(name, instance): string[]` (empty ⇒ conforms)
   and `ARTIFACT_SCHEMAS` (`grounding-pack`, `canonical-world-export`,
   `entity-grounding-snapshot`, `canonical-graph-export`, `dataset-jsonl-header`, `finetune-job`).

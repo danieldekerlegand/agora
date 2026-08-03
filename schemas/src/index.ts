@@ -15,11 +15,19 @@
  *   `registryVersion` this build speaks
  * - `axes.ts`     — dialect (KGP §5) / egress (§7.2) / trust, and the egress enforcement
  * - `registry-schema.ts` — the registry's own schema and validator, over both its artifacts
- * - `validator.ts` — the ajv validator over the ported koine interchange schemas (legacy-absorbed)
- * - `validate.ts`  — the CLI over `validator.ts` (exit 0/1/2), twin of the Python validator's CLI
  *
- * `./fixtures` is a second entry point, carrying a snapshot of the real koine registry for
- * tests. It is deliberately not re-exported here: it is test data, not a library surface.
+ * Everything above is **environment-free**: pure functions over values, so this entry point is
+ * safe in a browser bundle. The two exceptions are their own entry points, because they are not:
+ *
+ * - `./validator` — the ajv validator over the ported koine interchange schemas
+ *   (legacy-absorbed). It reads the vendored schemas off disk, so it imports `node:fs`/`node:path`
+ *   and is **Node-only**. Re-exporting it here put those builtins in the module graph of every
+ *   consumer, which is exactly how the console's browser bundle broke: a bundler reports
+ *   `"join" is not exported by "__vite-browser-external"` at LINK time, before tree-shaking gets
+ *   the chance to drop the unused module. Node-only code stays behind a Node-only specifier.
+ *   `validate.ts` is the CLI over it (exit 0/1/2), twin of the Python validator's CLI.
+ * - `./fixtures` — a snapshot of the real koine registry for tests. Test data, not a library
+ *   surface.
  */
 export { SPEC_VERSIONS } from './versions.ts';
 export { RELATION_REGISTRY } from './relation-registry.ts';
@@ -81,7 +89,6 @@ export {
   type TrustTier,
   type Withheld,
 } from './axes.ts';
-export { ARTIFACT_SCHEMAS, validate, type ArtifactName } from './validator.ts';
 export { canonicalJson, isJsonObject, type Json, type JsonObject } from './json.ts';
 export { isPlane, PLANES, type Plane } from './planes.ts';
 export {

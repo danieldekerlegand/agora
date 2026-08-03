@@ -6,7 +6,7 @@
   "type": "module",
   "description": "Conformance console — scenario runner + UI, an observer on real direct connections.",
   "dependencies": {
-    "@agora/kcb-client": "*",
+    "@agora/sdk": "*",
     "@agora/registry": "*",
     "@agora/resolver": "*",
     "@agora/schemas": "*",

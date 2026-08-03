@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ProviderAddress } from '@agora/kcb-client';
+import type { ProviderAddress } from '@agora/sdk';
 import { SPEC_VERSIONS } from '@agora/schemas';
 import {
   createResolverServer,

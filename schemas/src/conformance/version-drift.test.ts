@@ -21,9 +21,8 @@ import { fileURLToPath } from 'node:url';
 import type { ValidateFunction } from 'ajv/dist/2020.js';
 import { describe, expect, it } from 'vitest';
 import * as schemas from '../index.ts';
-import { validate } from '../index.ts';
 import { SPEC_VERSIONS } from '../versions.ts';
-import { ARTIFACT_SCHEMAS, BASE_URI, buildAjv, type ArtifactName } from '../validator.ts';
+import { ARTIFACT_SCHEMAS, BASE_URI, buildAjv, validate, type ArtifactName } from '../validator.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); // schemas/src/conformance
 const SNAPSHOT_DIR = join(HERE, '..', 'koine-schemas');
@@ -71,15 +70,21 @@ function koineSchemasDir(): string {
 }
 
 describe('validation home is agora, not legacy (ADR-0001 / ADR-0003)', () => {
-  it('exposes the artifact validator on the @agora/schemas surface', () => {
+  it('exposes the artifact validator on the @agora/schemas surface, as its own entry point', () => {
     // Consumers resolve interchange validation through `@agora/schemas` — never a `legacy-contract`
-    // import. `validate`/`ARTIFACT_SCHEMAS` are on the package's public surface (index.ts), the way
-    // `parseManifest`/`parseScenario` are.
-    expect(typeof schemas.validate).toBe('function');
-    expect(schemas.validate).toBe(validate);
-    expect(Object.keys(schemas.ARTIFACT_SCHEMAS).sort()).toEqual(
-      Object.keys(ARTIFACT_SCHEMAS).sort(),
-    );
+    // import. It is a SUBPATH (`@agora/schemas/validator`) rather than an index re-export because
+    // it reads the vendored schemas off disk: `node:fs`/`node:path` on the main entry point put
+    // those builtins in every consumer's module graph and broke the console's browser bundle at
+    // link time. Same package, same home for validation — one specifier further in.
+    const exports = (JSON.parse(readFileSync(join(HERE, '..', '..', 'package.json'), 'utf8')) as {
+      exports: Record<string, string>;
+    }).exports;
+    expect(exports['./validator']).toBe('./src/validator.ts');
+    expect(typeof validate).toBe('function');
+    expect(Object.keys(ARTIFACT_SCHEMAS).length).toBeGreaterThan(0);
+    // ...and the main entry point stays environment-free, which is the half that rots silently.
+    expect(schemas).not.toHaveProperty('validate');
+    expect(schemas).not.toHaveProperty('ARTIFACT_SCHEMAS');
   });
 
   it('every ported schema resolves under the koine base-URI, never legacy', () => {

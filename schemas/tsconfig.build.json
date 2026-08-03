@@ -1,0 +1,21 @@
+{
+  // The PUBLISH build — see `clients/sdk/tsconfig.build.json` for why it exists. `@agora/schemas`
+  // is published because it is `@agora/sdk`'s one runtime dependency: the SDK is the one-line
+  // install, and this comes with it.
+  //
+  // Excluded from the published build: `src/fixtures` (a snapshot of koine's real registry — test
+  // data, deliberately off the library surface per index.ts) and the conformance corpus. So the
+  // published package carries `.` and not the `./fixtures` subpath, which is why publishConfig
+  // declares only the one entry point.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "exclude": ["src/**/*.test.ts", "src/fixtures", "src/conformance"]
+}

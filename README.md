@@ -117,7 +117,8 @@ Each component is an independent service you can run on its own.
 | **translation engine** | [`translation/`](translation/README.md) | Translates knowledge and media between a canonical graph shape and the formats on either side of a bridge. One core, several front-ends (WebAssembly, native Python binding, HTTP service). |
 | **conformance console** | [`console/`](console/README.md) | A scenario runner + UI that drives real connections between services and asserts the guarantees held. An observer, not a hub. |
 | **trainer** | [`trainer/`](trainer/README.md) | The general-purpose model fine-tuning capability (GPU fine-tuning jobs). Specialized, corpus-specific finetuners run as their own services. |
-| **schemas / clients** | [`schemas/`](schemas/README.md) · [`clients/`](clients/) | Shared manifest schemas and protocol types, plus the client libraries that consume them. |
+| **client SDK** | [`clients/sdk/`](clients/sdk/README.md) | `@agora/sdk` — one install for a participant: serve an AgentCard carrying a KCB manifest, find a peer, get an **address** you dial yourself. |
+| **schemas** | [`schemas/`](schemas/README.md) | `@agora/schemas` — the shared manifest schemas and protocol types every area (and the SDK) is built on. |
 
 ## Layout
 
@@ -134,7 +135,7 @@ since everything is reached over the wire, never imported across a language boun
 | `resolver/` | TypeScript | `make check-resolver` |
 | `console/` | TypeScript + React | `make check-console` |
 | `schemas/` | TypeScript | `make check-schemas` |
-| `clients/*` | TypeScript | `make check-clients` |
+| `clients/sdk/` | TypeScript | `make check-clients` — the published client SDK (`make build` emits its `dist/`) |
 | `translation/` | Rust (cargo) | `make check-translation` — build + clippy + test |
 
 There are two provider-router areas: the **Erlang app is the canonical one you deploy**, and the

@@ -20,7 +20,20 @@ import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
 import type { AnySchemaObject, ValidateFunction } from 'ajv/dist/2020.js';
 
-const SCHEMAS_DIR = join(dirname(fileURLToPath(import.meta.url)), 'koine-schemas');
+/**
+ * Where the vendored schemas sit, resolved LAZILY — this module must have no top-level side
+ * effect. `index.ts` re-exports `validate`, so every consumer of `@agora/schemas` pulls this
+ * module into its graph; a bundler drops it (with ajv, `node:fs` and the rest) only while its
+ * body stays pure. Computing this at module scope kept it alive and broke the console's browser
+ * bundle on `node:path`. Keep it a call, not a const.
+ *
+ * In the published package the emitted `dist/validator.js` sits beside `dist/koine-schemas/`,
+ * copied there by `scripts/copy-schema-assets.mjs` — which is why this is relative to the module
+ * and not to the process's cwd.
+ */
+function vendoredSchemasDir(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), 'koine-schemas');
+}
 
 /**
  * The interchange artifacts agora validates, mapped to the koine schema file that governs each —
@@ -64,11 +77,11 @@ export const BASE_URI = 'https://koine.ecosystem/schemas/';
  * (`registry.with_resource` ×2). For the ported koine schemas `$id === BASE_URI + file`, so the
  * guard collapses the pair to one `addSchema` and ajv never sees a duplicate id.
  *
- * Defaults to the vendored snapshot (`SCHEMAS_DIR`); the version-drift guard passes the LIVE
+ * Defaults to the vendored snapshot ({@link vendoredSchemasDir}); the version-drift guard passes the LIVE
  * `koine/schemas/` directory so it exercises this exact registration against koine's own files, not
  * the snapshot. Exported for that test but not re-exported from `index.ts` — off the library surface.
  */
-export function buildAjv(schemasDir: string = SCHEMAS_DIR): Ajv2020 {
+export function buildAjv(schemasDir: string = vendoredSchemasDir()): Ajv2020 {
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   for (const file of readdirSync(schemasDir).filter((f) => f.endsWith('.schema.json'))) {
     const schema = JSON.parse(readFileSync(join(schemasDir, file), 'utf8')) as AnySchemaObject;
@@ -90,7 +103,7 @@ export function validate(name: string, instance: unknown): string[] {
     throw new Error(`unknown schema '${name}' (valid: ${valid})`);
   }
   const validateFn = buildAjv().getSchema(BASE_URI + file) as ValidateFunction | undefined;
-  if (!validateFn) throw new Error(`schema '${file}' failed to load from ${SCHEMAS_DIR}`);
+  if (!validateFn) throw new Error(`schema '${file}' failed to load from ${vendoredSchemasDir()}`);
   if (validateFn(instance)) return [];
   return (validateFn.errors ?? []).map((e) => `${e.instancePath || '<root>'}: ${e.message}`);
 }

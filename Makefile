@@ -13,7 +13,7 @@ UV     := cd $(PY_DIR) && uv
 TRAINER_DIR := trainer
 UV_TRAINER  := cd $(TRAINER_DIR) && uv
 # npm workspace selectors for the TS areas.
-TS_AREAS := schemas clients/kcb-client clients/relation-registry-client registry resolver console
+TS_AREAS := schemas clients/sdk registry resolver console
 
 # The interchange artifact names — the shared list BOTH validators expose
 # (schemas/src/validator.ts ARTIFACT_SCHEMAS ⇔ artifact_validator.py). legacy's
@@ -109,8 +109,8 @@ check-conformance: install-ts install-py  ## Gate: CLI-smoke every artifact thro
 # Per-area gates, for a story that touches exactly one package.
 check-schemas:  ## Gate: the shared schemas package only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/schemas
-check-clients:  ## Gate: the client libraries only
-	@$(MAKE) --no-print-directory ts-area PKG="@agora/kcb-client @agora/relation-registry-client"
+check-clients:  ## Gate: the client SDK only
+	@$(MAKE) --no-print-directory ts-area PKG=@agora/sdk
 check-registry: check-path-index  ## Gate: the registry only (TS gate + the Rust path-index crate)
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/registry
 
@@ -142,10 +142,27 @@ ts-area: install-ts
 	npm run typecheck $(addprefix -w ,$(PKG))
 	npm run test $(addprefix -w ,$(PKG))
 
-build: install  ## Produce the distributable artifacts (console bundle, router + trainer wheels)
+build: install  ## Produce the distributable artifacts (SDK + schemas dists, console bundle, router + trainer wheels)
 	npm run build
 	$(UV) build
 	$(UV_TRAINER) build
+
+# --- the publishable TypeScript surface ---
+# @agora/sdk and its one dependency @agora/schemas are the ONLY packages that leave this repo.
+# In-tree the workspace is source-first (`exports` → `src/index.ts`, tsc emits nothing), but an
+# out-of-tree consumer cannot compile our TypeScript, so publishing means emitting `dist/` (JS +
+# declarations) and letting `publishConfig.exports` repoint the published tarball at it.
+#
+# Its own target rather than only `make build`, because `build` also runs the console's vite
+# bundle, which is red independently of the SDK (browser build, Node-only modules on the
+# @agora/registry index — see progress.txt). The SDK's publish path must not wait on that.
+.PHONY: build-sdk publish-dry-run
+build-sdk: install-ts  ## Emit + stage the publishable @agora/sdk and @agora/schemas packages
+	npm run build -w @agora/schemas -w @agora/sdk
+	node scripts/stage-publish.mjs
+
+publish-dry-run: build-sdk  ## Show exactly what `npm publish` would ship for the SDK and its dependency
+	npm publish --dry-run ./schemas/.publish ./clients/sdk/.publish
 
 fmt:  ## Auto-format the Python areas (the TS areas are lint-only)
 	$(UV) run ruff format .
@@ -155,4 +172,5 @@ fmt:  ## Auto-format the Python areas (the TS areas are lint-only)
 
 clean:  ## Remove build output and installed deps
 	rm -rf node_modules */node_modules clients/*/node_modules console/dist \
+		schemas/dist schemas/.publish clients/sdk/dist clients/sdk/.publish \
 		$(PY_DIR)/dist $(PY_DIR)/.venv $(TRAINER_DIR)/dist $(TRAINER_DIR)/.venv

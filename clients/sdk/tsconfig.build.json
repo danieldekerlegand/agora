@@ -1,0 +1,20 @@
+{
+  // The PUBLISH build. In-tree the workspace is source-first (`exports` → `src/index.ts`, tsc
+  // emits nothing), but an out-of-tree consumer cannot compile our TypeScript — so publishing
+  // means emitting JS + declarations here, and `publishConfig.exports` in package.json points
+  // the published package at `dist/` instead of `src/`.
+  //
+  // `rewriteRelativeImportExtensions` is what lets the source keep its real `.ts` specifiers
+  // (the repo-wide convention) and still emit runnable `./kcb.js` imports.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "exclude": ["src/**/*.test.ts"]
+}

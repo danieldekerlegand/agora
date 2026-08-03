@@ -1,15 +1,28 @@
 {
   "name": "@agora/schemas",
   "license": "Apache-2.0",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
+  "sideEffects": false,
   "description": "Shared koine manifest schemas and protocol types (KINP/KGP/KCB/KMI/KCS).",
+  "keywords": [
+    "koine",
+    "kcb",
+    "kgp",
+    "kinp",
+    "json-schema",
+    "capability-manifest"
+  ],
   "exports": {
     ".": "./src/index.ts",
+    "./validator": "./src/validator.ts",
     "./fixtures": "./src/fixtures/koine-registry.ts"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-schema-assets.mjs",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "regen:koine-fixture": "node scripts/regen-koine-fixture.mjs",
@@ -19,5 +32,8 @@
   },
   "dependencies": {
     "ajv": "^8.17.1"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
