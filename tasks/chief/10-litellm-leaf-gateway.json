@@ -51,7 +51,7 @@
         "The external wire contract is unchanged for callers: the same OpenAI-compatible routes, /doctor, /health, /v1/models, /v1/providers, the AgentCard, and the same AGORA_* configuration behave identically, verified by the retained/updated conformance assertions.",
         "make check passes (this story spans provider-router and console), with zero gate errors."
       ],
-      "passes": false
+      "passes": true
     }
   ],
   "mergedToMain": false
