@@ -41,7 +41,7 @@
         "Tests assert the additive layer specifically: a content-addressed asset id is stable across a translate cycle, and an analysis-derived claim is produced as a plane-typed KGP assertion (not generated text).",
         "make check-translation passes."
       ],
-      "passes": false
+      "passes": true
     }
   ],
   "mergedToMain": false
