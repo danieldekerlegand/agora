@@ -39,7 +39,7 @@
         "The gateway is still exposed as a KCB capability: its AgentCard/manifest is served and validates against the schemas package, so a peer can discover and dial it exactly as before.",
         "make check-provider-router and make check-schemas pass (and make check if more than one area is touched)."
       ],
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-3",
