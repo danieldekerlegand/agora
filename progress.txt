@@ -557,3 +557,73 @@ exit 0.
   bundle as independently red — so `@agora/knowledge`'s `node:crypto` changes nothing measurable.
   A story that fixes the console bundle will need to move all of that behind a Node-only
   specifier, the way `@agora/schemas/validator` already is.
+---
+## US-4 — The client surfaces a producer OUTSIDE this repo needs (G2/G4), clients/sdk/
+
+Confirmed first: nothing in G2/G4 needed rebuilding. The registry serves `/register`,
+`/crawl`, `/find`, `/address`, `/remove`, `/finetune/select`, `/path`; the router publishes
+`endpoints.openai` + an `auth.budget_units` block; the resolver has its own HTTP surface from
+US-3. What did NOT work was reaching any of it from outside the workspace: both onboarding docs
+(`docs/quickstart.md`, `examples/participant-starter/README.md`) told an installed consumer to
+`import { createRegistry } from '@agora/registry'` — a **private** workspace package no
+`npm install` can resolve. So the push-registration path and the gateway base-url path existed
+in-tree only. Two thin client modules on the published SDK close exactly that, and no runtime
+was added.
+
+- `clients/sdk/src/discovery.ts` — `createDiscoveryClient(registryUrl, {fetch?})`:
+  `describe` / `publish` / `find` / `address` / `withdraw`, i.e. the verbs `describeRegistry()`
+  has always advertised, over HTTP. `DISCOVERY_ROUTES` is the complete, exported list of routes
+  it will ever dial (a test asserts none is relay-shaped). `publish` runs `parseManifestBody`
+  LOCALLY first, so a malformed manifest fails in the producer's process instead of arriving as
+  a 400 from a stranger, and it refuses a registry that echoes a different identity than the one
+  published. `address` maps 404 → `undefined` (not knowing is an answer, not a failure).
+- `clients/sdk/src/openai.ts` — `openAiConfigFor(manifest, {capability?, budgetUnits?})` →
+  `{baseUrl, headers, model?, honorsBudgetUnits, budgetUnitsKey?}`. The config an OpenAI client
+  is CONSTRUCTED with; it never dials. `undefined` (never a guess) when the provider publishes no
+  `openai` endpoint, when it does not publish the named capability, or when that capability's own
+  endpoint is not hosted under the OpenAI base — the last check delegates to `transportOf`, so
+  there is one implementation of that precedence.
+- `examples/participant-starter/src/onboarding.test.ts` — the whole path end to end against the
+  REAL `createRegistryServer` and the REAL `registerProviderRouter` crawl: publish → find →
+  dial the peer DIRECTLY → discover the gateway → project a config → make the call. The gateway
+  is `console/src/fixtures/provider-router.session.json` (a capture of the real zero-spend
+  router, pinned current by `provider-router/tests/`) replayed strictly, so a request the
+  projected config built wrong is refused with a 409 rather than answered.
+
+Docs: quickstart's "Make it yours" now shows the SDK push path plus a new "Calling a model
+through the gateway" section; the walkthrough gained a "From outside this repo" subsection;
+`clients/sdk/README.md` documents `SDK_API.discover`'s new members and the new `SDK_API.gateway`
+group. `make check` exit 0 (`make build-sdk` too — the new modules ship in the publish build).
+
+Files: `clients/sdk/src/{discovery,openai}.ts` + their tests (new, 27 tests),
+`clients/sdk/src/index.ts` (+ `SDK_API.gateway`, `type Plane`), `clients/sdk/README.md`,
+`examples/participant-starter/src/onboarding.test.ts` (new, 9 tests) + `quickstart.test.ts` +
+`README.md`, `docs/{quickstart,walkthrough-wiring-a-project}.md`.
+
+### Learnings for future iterations
+
+- **"It exists in the tree" is not "a consumer can reach it".** Every surface US-4 needed was
+  already implemented; the gap was entirely one of *packaging* — `@agora/registry` is
+  `"private": true`, so an out-of-tree producer had no path to the index at all. When a story
+  says "confirm the client-facing surface", the check that finds the gap is: would this snippet
+  run against the packed tarballs? Two docs shipped a snippet that could not.
+- **The "no relay" invariant is about payloads, not about I/O.** Adding a client that dials the
+  *registry* is compatible with `relaysPayloads: false` — what crosses it is a manifest, a query
+  and an identity. The way to keep that honest is to make the route list an exported constant
+  and assert on it, the same discipline `describeRegistry().verbs` uses.
+- **Project the address from the manifest, not from the index's copy of it.** KCB §3 makes the
+  provider's document authoritative and the registry a cache; `providerFrom` therefore runs
+  `addressOf(parseManifestBody(match.registration.manifest))` and ignores `match.address`. A
+  test drives a registry answering with a contradicting address to pin it. (The consequence: a
+  `find` result depends on the wire carrying `registration.manifest`, which is registry API.)
+- **A discovered ceiling must not be invented.** `auth.budget_units` is the provider *declaring*
+  it honours a KCB §5 ceiling and naming the header/body key. Sending `X-Agora-Budget-Units` to
+  a provider that declared nothing would look like a cap and be none, so the config reports
+  `honorsBudgetUnits: false` and sends no header — the caller learns before it spends.
+- **A captured session is a better test double than a written one.** The console already had
+  `provider-router.session.json` + `replaySession`; reusing that capture (manifest + one exact
+  exchange, 409 on any deviation) proved the SDK's projection against the real router without
+  the TS gate booting Python. Re-pointing the captured base URL at an ephemeral port is exactly
+  what `AGORA_PUBLIC_BASE_URL` does in production, so the substitution costs no fidelity.
+- **The registry's default port is 8787** (`DEFAULT_REGISTRY_PORT`), not 8080 — worth reading
+  `main.ts` before writing a port into a doc; the doc tests check imports and links, not ports.

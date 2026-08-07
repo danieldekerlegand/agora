@@ -67,7 +67,7 @@
         "A producer can register a KCB capability manifest with agora's existing registry and be discovered + directly dialed (no proxying), and can route provider calls through the router via a documented client/base-url — demonstrated by a test, reusing the EXISTING registry/resolver/router (no reimplementation).",
         "Any gap is closed with a thin client helper/doc in clients/, not a new runtime; `make check` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
