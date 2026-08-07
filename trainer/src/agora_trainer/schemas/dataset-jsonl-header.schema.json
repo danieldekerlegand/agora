@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://koine.ecosystem/schemas/dataset-jsonl-header.schema.json",
   "title": "DatasetJsonlHeader",
-  "description": "The first record of every training-exhaust JSONL file exported by any conformant producer (world rules/conversations/truths, edit + generation + preference logs, curated builder output). Guarantees the trust tier (KGP §7) + license class (§7.1) + provenance travel with the data.",
+  "description": "The first record of every training-record JSONL file exported by any conformant producer (world rules/conversations/truths, edit + generation + preference logs, QA labels, curated builder output). The file itself is referenced from a finetune job as a KMI asset with media type application/vnd.koine.dataset+jsonl (KFT §4.1, dataset.records[]); this header is also copied inline into the job manifest (dataset.header) so the provider can run the KFT §4.2 egress gate and the §7 spend estimate BEFORE fetching a byte. Guarantees the trust tier (KGP §7) + license class (§7.1) + egress class (§7.2) + provenance travel with the data. Every axis here is a FILE-LEVEL aggregate: egress is the most restrictive class over the file's rows, license their union, recordCount their number. A producer whose rows differ in class splits the file rather than widening the header (KFT §4.1).",
   "type": "object",
   "properties": {
     "record": { "const": "header" },
@@ -11,6 +11,15 @@
     "source": { "type": "string", "minLength": 1, "description": "The emitting participant's KINP namespace (identity.md §3.4), e.g. worldsim | analyzer | refkb." },
     "tier": { "$ref": "provenance.schema.json#/$defs/tier" },
     "license": { "$ref": "provenance.schema.json#/$defs/license" },
+    "egress": {
+      "$ref": "provenance.schema.json#/$defs/egress",
+      "description": "Egress class of the file — the MOST RESTRICTIVE class over its rows (KGP §7.2, KFT §4.1/§4.2, FT-N). The gate reads this; a provider MUST NOT infer egress from `tier`, which is descriptive, not enforcing. Absent = the KGP §7.2 `exportable` default, so understating it is a producer bug rather than a permissive choice."
+    },
+    "recordCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of training rows after this header (FT-P). One asset id may hold ten rows or ten million, so this is the only cardinality a provider has for the KFT §7 admission-time spend estimate without transferring the file; it is re-checked on fetch."
+    },
     "generatedAt": { "type": "string" },
     "provenance": { "type": "object", "description": "emitter-specific: world ids, run ids, corpus DVC hashes." }
   },

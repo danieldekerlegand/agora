@@ -39,7 +39,7 @@
       "type": "string",
       "enum": ["exportable", "local-only"],
       "default": "exportable",
-      "description": "Egress class per KGP §7.2 — whether a record may cross a project boundary at all: exportable (default) or local-only. Enforced at pack construction (producer filters local-only out) and on import (consumer rejects local-only and reports). Its own axis, separate from the descriptive provenance trust tier (§7) and the dialect (§5) axis."
+      "description": "Egress class per KGP §7.2 — whether a record may cross a project boundary at all: exportable (default) or local-only. Enforced at pack construction (producer filters local-only out) and on import (consumer rejects local-only and reports). Enforcement is NEVER delegated to a serialization or projection (KGP §4.1): local-only content is filtered before any encoding — TSV, JSON, Neo4j, ProbLog, or RDF-star — is emitted, and the class travels in a projection only so a consumer can re-check it. Its own axis, separate from the descriptive provenance trust tier (§7) and the dialect (§5) axis."
     },
     "csid": {
       "type": "string",
@@ -49,7 +49,7 @@
     "claimId": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*:claim:sha256-[0-9a-f]{64}$",
-      "description": "The KINP assertion-envelope id (identity.md §7.1): <namespace>:claim:sha256-<hex>, e.g. analyzer:claim:sha256-9f3c…. Content-addressed — the hash of the normalized claim (KGP §3), so identical claims from different producers dedup/merge — never a producer-local ad-hoc fact id."
+      "description": "The KINP assertion-envelope id (identity.md §7.1): <namespace>:claim:sha256-<hex>, e.g. analyzer:claim:sha256-9f3c…. Content-addressed — the hash of the normalized claim (KGP §3), so identical claims from different producers dedup/merge — never a producer-local ad-hoc fact id. Minted from KGP §3's byte canonicalization alone (a hash function plus the immutable relation registry, with no context document in the identity path — KGP §3.4, ADR-0006); confidence, embedding, valid_time and all of prov are excluded from it, which is what makes the cross-producer merge work (§3.1). A consumer that receives this id as an annotation on an RDF-star projection MUST re-derive it per §3 from the recovered canonical and reject a disagreeing annotation (§4.1)."
     },
     "assetId": {
       "type": "string",

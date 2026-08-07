@@ -43,6 +43,7 @@ more than one. Zero errors, exit 0. `make help` lists everything.
 | `clients/*` | `make check-clients` |
 | `registry/` | `make check-registry` |
 | `resolver/` | `make check-resolver` |
+| `knowledge/` | `make check-knowledge` |
 | `console/` | `make check-console` |
 | `translation/` | `make check-translation` |
 
@@ -93,6 +94,7 @@ provider-router/   Python — the same ladder, superseded (the contract of recor
 trainer/           Python — the general KFT `finetune` capability (separate from provider-router)
 registry/          TS — thin KCB discovery (route-by-lookup, NEVER proxy)
 resolver/          TS — KINP resolve / reconcile
+knowledge/         TS — the KGP knowledge-sync bridge (admit any producer's claims, deliver a pack)
 console/           TS + React — conformance scenario runner + UI (observer, not a hub)
 schemas/           TS — @agora/schemas, shared manifest schemas / protocol types
 clients/sdk/       TS — @agora/sdk, THE published client SDK; returns ADDRESSES, never relays
