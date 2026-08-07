@@ -9,11 +9,13 @@
  *
  * **Addresses, never a relay.** By ADR-0001 (decisions 2–4) the control plane hands back
  * *addresses*; the caller dials the provider itself, directly, over MCP/A2A/OpenAI. So this
- * surface is pure and synchronous apart from {@link loadRelationRegistry} (which fetches koine's
- * own registry data and nothing else): there is no `invoke`, no `call`, no `send`, and there must
- * never be one — an SDK that dialed on the caller's behalf would make the commons the traffic hub
- * the topology exists to avoid. {@link SDK_API} enumerates the surface and `index.test.ts` fails
- * the build if a relay-shaped name ever appears in it.
+ * surface is pure and synchronous but for two members that talk to the **control plane** and
+ * nothing else — {@link loadRelationRegistry}, which fetches koine's own registry data, and
+ * {@link createDiscoveryClient}, which publishes your manifest to a KCB registry and asks it for
+ * addresses. Neither carries a peer's payload: there is no `invoke`, no `call`, no `send`, and
+ * there must never be one — an SDK that dialed on the caller's behalf would make the commons the
+ * traffic hub the topology exists to avoid. {@link SDK_API} enumerates the surface and
+ * `index.test.ts` fails the build if a relay-shaped name ever appears in it.
  *
  * The published surface is this module and only this module: a consumer that reaches into
  * `@agora/sdk/src/…` is depending on a path this package does not promise.
@@ -28,6 +30,27 @@ export {
   type ProviderEndpoints,
   type Transport,
 } from './kcb.ts';
+
+export {
+  createDiscoveryClient,
+  DISCOVERY_ROUTES,
+  DiscoveryError,
+  type DiscoveredCapability,
+  type DiscoveredProvider,
+  type DiscoveryClient,
+  type DiscoveryFetch,
+  type DiscoveryOptions,
+  type DiscoveryQuery,
+  type PublishedRegistration,
+  type RegistryDescription,
+} from './discovery.ts';
+
+export {
+  BUDGET_UNITS_HEADER,
+  openAiConfigFor,
+  type OpenAiClientConfig,
+  type OpenAiConfigOptions,
+} from './openai.ts';
 
 export {
   indexRegistry,
@@ -65,6 +88,7 @@ export {
   type ManifestAuth,
   type ManifestSigning,
   type MediaPort,
+  type Plane,
   type Port,
 } from '@agora/schemas';
 
@@ -81,14 +105,25 @@ export const SDK_VERSION = '0.1.0';
  * findable, `knowledge` loads the shared relation vocabulary.
  */
 export const SDK_API = {
-  /** Turn a manifest into an ADDRESS and decide what to dial it over. Never dials. */
+  /**
+   * Turn a manifest into an ADDRESS and decide what to dial it over, and reach a KCB registry
+   * to publish your own manifest or ask it for someone else's address. Never dials a peer.
+   */
   discover: [
     'addressOf',
     'endpointFor',
     'isDialable',
     'transportOf',
     'KCB_CLIENT_VERSION',
+    'createDiscoveryClient',
+    'DISCOVERY_ROUTES',
+    'DiscoveryError',
   ],
+  /**
+   * Configure YOUR OpenAI client against a gateway you discovered — a base URL and the header
+   * it publishes for a spend ceiling. It builds the configuration; the call stays yours.
+   */
+  gateway: ['openAiConfigFor', 'BUDGET_UNITS_HEADER'],
   /** Serve and read the AgentCard + KCB manifest extension that makes a peer discoverable. */
   participate: [
     'embedManifest',

@@ -179,16 +179,48 @@ into your own project and change three things above its `copy from here` divider
 Everything below the divider is A2A/JSON handling a real deployment would take from an A2A server
 library; it is spelled out so the starter depends on nothing beyond `@agora/sdk` and Node.
 
-Publishing the card is what makes you findable. A registry crawls it, indexes what you said you can
-do, and hands your **address** to callers — it never relays their traffic:
+Publishing the card is what makes you findable. A registry indexes what you said you can do and
+hands your **address** to callers — it never relays their traffic. It can *crawl* your manifest
+if it can reach you; if it cannot (you are behind a NAT, or you are a short-lived job), **push**
+it instead, with the SDK you already installed:
 
 ```ts
-import { createRegistry, registerFromWellKnown } from '@agora/registry';
+import { createDiscoveryClient } from '@agora/sdk';
 
-const registry = createRegistry();
-await registerFromWellKnown(registry, 'http://127.0.0.1:8790');
-const [match] = registry.find({ capability: 'summarize.text' });   // match.address is yours
+const discovery = createDiscoveryClient('http://127.0.0.1:8787');   // a running registry
+console.log((await discovery.describe()).proxiesTraffic);           // false — check before you publish
+
+await discovery.publish(manifest);                                  // the manifest you serve
+const [found] = await discovery.find({ capability: 'summarize.text' });
+console.log(found.address);                                         // yours; callers dial it directly
 ```
+
+The client speaks five lookup verbs (`describe`, `publish`, `find`, `address`, `withdraw`) and
+nothing else — `DISCOVERY_ROUTES` is the whole list. Your manifest and your queries go to the
+registry; your traffic never does.
+
+## Calling a model through the gateway
+
+The same move works for the model gateway. Find it by capability, then configure **your own**
+OpenAI client from the manifest it published — the SDK hands you a base URL and the header that
+provider takes a spend ceiling in, and you make the call:
+
+```ts
+import { createDiscoveryClient, openAiConfigFor } from '@agora/sdk';
+
+const discovery = createDiscoveryClient('http://127.0.0.1:8787');
+const [gateway] = await discovery.find({ capability: 'generate.text' });
+
+const config = openAiConfigFor(gateway.manifest, { capability: 'generate.text', budgetUnits: 0 });
+// → { baseUrl: 'http://127.0.0.1:8000/v1', headers: { 'X-Agora-Budget-Units': '0' },
+//     model: 'placeholder-text', honorsBudgetUnits: true, budgetUnitsKey: 'budget_units' }
+const openai = new OpenAI({ baseURL: config.baseUrl, apiKey: 'unused', defaultHeaders: config.headers });
+```
+
+`openAiConfigFor` returns `undefined` rather than a guess when that provider is not an
+OpenAI-compatible gateway for what you asked, and it never invents a ceiling header a provider
+did not declare — `honorsBudgetUnits` tells you before you spend. Starting the gateway itself is
+[step 1 of the walkthrough](walkthrough-wiring-a-project.md).
 
 ## Going deeper
 
@@ -198,7 +230,7 @@ const [match] = registry.find({ capability: 'summarize.text' });   // match.addr
 - [**The participant starter**](../examples/participant-starter/README.md) — the starter's routes,
   line by line.
 - [**`@agora/sdk` reference**](../clients/sdk/README.md) — the full public API: `SDK_API.discover`,
-  `SDK_API.participate`, `SDK_API.knowledge`.
+  `SDK_API.gateway`, `SDK_API.participate`, `SDK_API.knowledge`.
 - [**How agora relates to existing tools**](prior-art.md) — what is deliberately reused (A2A agent
   cards, MCP, the OpenAI API) and what agora adds.
 - [**koine**](https://github.com/danieldekerlegand/koine) — the specifications this implements.

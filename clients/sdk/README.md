@@ -16,9 +16,10 @@ through to a first call.
 ## Addresses, never a relay
 
 By ADR-0001 (decisions 2–4) the KCB control plane hands back **addresses**; the caller opens the
-connection itself, directly, over A2A/MCP/OpenAI. So this SDK is pure and synchronous apart from
-`loadRelationRegistry` (which fetches koine's registry data and nothing else): it does not dial, it
-does not carry a payload, and it has no `invoke` / `call` / `send`. It never will —
+connection itself, directly, over A2A/MCP/OpenAI. So this SDK is pure and synchronous but for two
+members that talk to the **control plane** and nothing else — `loadRelationRegistry` (koine's
+registry data) and `createDiscoveryClient` (your manifest out, addresses back). Neither carries a
+peer's payload: it does not dial a provider, and it has no `invoke` / `call` / `send`. It never will —
 `describeSdk().relaysPayloads` is `false` and `src/index.test.ts` fails the build if a relay-shaped
 name ever appears on the surface. An SDK that dialed on your behalf would make the commons the
 traffic hub the topology exists to avoid.
@@ -42,6 +43,40 @@ Everything below is exported from the package root (`@agora/sdk`) and enumerated
 - Types: `ProviderAddress { identity; endpoints }`, `ProviderEndpoints { mcp?; a2a?; [name] }`,
   `Transport = 'mcp' | 'a2a' | 'openai'`.
 
+A registry is reached over HTTP, because its in-process API is a workspace package no consumer
+installs:
+
+- `createDiscoveryClient(registryUrl, options?): DiscoveryClient` — `publish(manifest)` (the §3
+  push path, for a producer a registry cannot crawl), `find(query?)`, `address(identity)`,
+  `withdraw(identity)`, `describe()`. Uses `globalThis.fetch` unless you pass `options.fetch`.
+- `DISCOVERY_ROUTES` — every route the client will ever dial, by verb. All five are lookups; a
+  registry has no route that relays a payload, and `describe().proxiesTraffic` is how you check
+  a strange one before publishing to it.
+- `DiscoveryError` (carries `url` and, when the registry answered, `status`). A malformed manifest
+  throws `ManifestError` instead — `publish` parses locally, so that failure happens in your
+  process rather than as a 400 from a stranger.
+- A match's `address` is projected here from the manifest the registry returned, not copied from
+  the index: KCB §3 makes the provider's own document authoritative and the index a cache.
+- Types: `DiscoveryClient`, `DiscoveryQuery { capability?; plane?; world? }`, `DiscoveredProvider`,
+  `DiscoveredCapability`, `PublishedRegistration`, `RegistryDescription`, `DiscoveryFetch`,
+  `DiscoveryOptions`.
+
+### `SDK_API.gateway` — pointing your own OpenAI client at a discovered gateway
+
+- `openAiConfigFor(manifest, options?): OpenAiClientConfig | undefined` — the `baseUrl`, `headers`
+  and `model` you construct an OpenAI client with, read off the provider's manifest. `undefined`
+  rather than a guess when the provider publishes no `openai` endpoint, does not publish the named
+  capability, or serves it somewhere that base URL does not host.
+- `BUDGET_UNITS_HEADER` — the default spend-ceiling header (`X-Agora-Budget-Units`). A provider
+  that publishes `auth.budget_units.header` names its own and that one wins; ask for a ceiling of a
+  provider that declares none and `honorsBudgetUnits` is `false` and **no header is invented** —
+  you learn the ceiling will not be honored before you spend, not after (KCB §5).
+- Types: `OpenAiClientConfig { baseUrl; headers; model?; honorsBudgetUnits; budgetUnitsKey? }`,
+  `OpenAiConfigOptions { capability?; budgetUnits? }`.
+
+It builds the configuration; the call stays yours — nothing here opens a connection or carries a
+prompt.
+
 ### `SDK_API.participate` — the document that makes you findable
 
 The KCB manifest rides as one **extension of your A2A AgentCard** (KCB §2), not as a second
@@ -57,7 +92,7 @@ well-known document.
 - `isCompatibleKcbVersion(version)`, `KCB_MANIFEST_EXTENSION_URI`, `SPEC_VERSIONS`.
 - Types: `AgentCard`, `AgentCapabilities`, `AgentExtension`, `CapabilityManifest`, `Capability`,
   `CapabilityCost`, `KnowledgePort` / `MediaPort` / `EntityPort` / `Port`, `ManifestAuth`,
-  `ManifestSigning`.
+  `ManifestSigning`, `Plane`.
 
 ### `SDK_API.knowledge` — the shared relation vocabulary
 
@@ -105,6 +140,19 @@ if (isDialable(address)) {
   const wire = transportOf(address, capability);  // → 'a2a' | 'mcp' | 'openai'
   // You open `wire` against `url`. Nothing flows through the commons.
 }
+```
+
+```ts
+import { createDiscoveryClient, openAiConfigFor } from '@agora/sdk';
+
+// 3. Announce yourself to a registry, then find someone by what they do.
+const discovery = createDiscoveryClient('http://127.0.0.1:8787');
+await discovery.publish(manifest);                            // you are in the index
+const [found] = await discovery.find({ capability: 'generate.text' });
+
+// 4. Point YOUR OpenAI client at the gateway you found. This returns config; you make the call.
+const config = openAiConfigFor(found.manifest, { capability: 'generate.text', budgetUnits: 0 });
+const client = new OpenAI({ baseURL: config.baseUrl, apiKey: 'unused', defaultHeaders: config.headers });
 ```
 
 ## Build & test
