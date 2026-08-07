@@ -28,6 +28,12 @@ import type { KinpKind } from '@agora/schemas';
 
 import { createMemoryCache, type ResolverCache } from './cache.ts';
 import { createLocalResolver, describeResolver } from './index.ts';
+import {
+  createGroundingResolver,
+  GroundingPackError,
+  type GroundingOptions,
+  type GroundingResolver,
+} from './grounding.ts';
 import type { LinkStore } from './persistence.ts';
 import { createAuthorityResolver, type AuthorityFetch } from './authority.ts';
 import type { MergePolicy } from './policy.ts';
@@ -60,6 +66,12 @@ export interface ResolverServerOptions {
   /** The durable equivalence-layer store (applied / reviewQueue). Ignored unless an authority
    * resolver is built here (§11 decision 2). */
   links?: LinkStore;
+  /**
+   * Grounding-pack ingest options (KGP §5/§7.1/§7.2 gating, the merge policy the ingested links
+   * are held to). The service always mounts the ingest surface — with nothing ingested the
+   * grounding resolver answers exactly as its delegate does — so this only tunes it.
+   */
+  grounding?: Omit<GroundingOptions, 'delegate'>;
 }
 
 /** A bound address — what {@link ResolverService.listen} resolves to. */
@@ -70,8 +82,12 @@ export interface ServiceAddress {
 
 /** A running resolver HTTP surface. */
 export interface ResolverService {
-  /** The resolver behind the service — the same seam the routes delegate to. */
-  readonly resolver: Resolver;
+  /**
+   * The resolver behind the service — the same seam the routes delegate to. It is always a
+   * {@link GroundingResolver}: the configured resolver, wrapped so an ingested pack's `same_as`
+   * edges join the query-time closure it computes (KINP §4.1).
+   */
+  readonly resolver: GroundingResolver;
   /** The underlying Node server, for callers that need it (signals, keep-alive tuning). */
   readonly server: Server;
   /** Start listening. `port` 0 (the default) picks an ephemeral port for tests. */
@@ -91,8 +107,30 @@ class HttpError extends Error {
   }
 }
 
-/** Build the resolver an {@link ResolverServerOptions} describes. */
-function resolverFor(options: ResolverServerOptions): Resolver {
+/**
+ * Build the resolver an {@link ResolverServerOptions} describes, and wrap it so grounding packs
+ * can be ingested against it.
+ *
+ * The wrap is unconditional and costs nothing when nothing has been ingested: with an empty
+ * equivalence layer the grounding resolver returns its delegate's answer unchanged, and defers
+ * `reconcile` to it entirely — so the authority-free service still refuses a name loudly rather
+ * than inventing an id.
+ */
+function resolverFor(options: ResolverServerOptions): GroundingResolver {
+  // The durable link store and the merge policy belong to whichever resolver actually *decides*
+  // links, and to exactly one of them — two owners would rehydrate the same list twice and
+  // double-count every write. An authority delegate is that decider and already holds them
+  // (`delegateFor`); a plain local resolver has no ledger at all, so the wrapper is.
+  const owns = options.authority === undefined && options.resolver === undefined;
+  return createGroundingResolver({
+    ...options.grounding,
+    delegate: delegateFor(options),
+    ...(owns && options.links !== undefined ? { links: options.links } : {}),
+    ...(owns && options.policy !== undefined ? { policy: options.policy } : {}),
+  });
+}
+
+function delegateFor(options: ResolverServerOptions): Resolver {
   if (options.resolver) return options.resolver;
   if (options.authority === undefined) return createLocalResolver();
   const dialed: Parameters<typeof createAuthorityResolver>[0] = { endpoint: options.authority };
@@ -137,7 +175,7 @@ export function createResolverServer(options: ResolverServerOptions = {}): Resol
 async function handle(
   req: IncomingMessage,
   res: ServerResponse,
-  resolver: Resolver,
+  resolver: GroundingResolver,
 ): Promise<void> {
   try {
     const url = new URL(req.url ?? '/', 'http://resolver.local');
@@ -151,6 +189,15 @@ async function handle(
         error: err.name,
         message: err.message,
         authority: err.authorityIdentity,
+      });
+    } else if (err instanceof GroundingPackError) {
+      // A pack this consumer must not hold (§5 dialect, §7.2 egress) or cannot read. The
+      // violations ride along because §7.2 requires reporting, not silent dropping.
+      sendJson(res, 400, {
+        error: err.name,
+        code: err.code,
+        message: err.message,
+        violations: err.violations,
       });
     } else if (err instanceof ResolverUnavailableError) {
       // A refusal: this resolver structurally cannot answer (no authority, or a name to
@@ -170,7 +217,7 @@ async function route(
   url: URL,
   req: IncomingMessage,
   res: ServerResponse,
-  resolver: Resolver,
+  resolver: GroundingResolver,
 ): Promise<void> {
   const path = url.pathname;
 
@@ -195,6 +242,14 @@ async function route(
   if (method === 'POST' && path === '/reconcile') {
     const query = reconciliationQueryFromBody(await readJson(req));
     return sendJson(res, 200, await resolver.reconcile(query));
+  }
+
+  // Ingest a KGP GroundingPack (§2) into the equivalence layer. Still not a relay: what is
+  // submitted is world knowledge and the `same_as`/`based_on` edges over it, and what comes back
+  // is a report of what was admitted, queued and refused. Nothing is forwarded anywhere, and
+  // nothing is stored merged — `resolve` walks the closure per call (KINP §4.1).
+  if (method === 'POST' && path === '/grounding-packs') {
+    return sendJson(res, 200, resolver.ingest(await readJson(req)));
   }
 
   // Anything else — including /invoke, /link, /forward — is not a verb this service has.

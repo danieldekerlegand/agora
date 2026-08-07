@@ -104,6 +104,120 @@ describe('the resolver HTTP service (identity only, never a payload)', () => {
   });
 });
 
+describe('the grounding-pack ingest surface over the wire (KGP §2)', () => {
+  let service: ResolverService;
+  let base: string;
+
+  const LOCAL = 'herbarium:local:ent:e-8842';
+  const CANONICAL = 'refkb:ent:napoleon-i';
+
+  function pack(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      kgp_version: '0.4.0',
+      pack_id: `sha256-${'a'.repeat(64)}`,
+      producer: 'herbarium',
+      worlds: ['refkb:world:consensus-reality'],
+      kind: 'snapshot',
+      basis: null,
+      dialect: 'grounding-only',
+      entities: [],
+      assertions: [],
+      links: [
+        {
+          id: 'herbarium:claim:x',
+          relation: 'same_as',
+          args: [LOCAL, CANONICAL],
+          world: 'refkb:world:consensus-reality',
+          confidence: 0.98,
+          provenance: { source: 'herbarium', confidence: 0.98 },
+          license: 'CC-BY-4.0',
+        },
+      ],
+      provenance: [],
+      manifest: { counts: {}, created: '2026-08-06T00:00:00.000Z', license_policy: {} },
+      ...overrides,
+    };
+  }
+
+  function post(body: unknown): Promise<Response> {
+    return fetch(`${base}/grounding-packs`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  beforeEach(async () => {
+    service = createResolverServer();
+    const { host, port } = await service.listen();
+    base = `http://${host}:${port}`;
+  });
+
+  afterEach(() => service.close());
+
+  it('declares the pack contract it accepts alongside the §8 verbs', async () => {
+    const description = (await (await fetch(`${base}/`)).json()) as ResolverDescription;
+    expect(description.ingests).toEqual(['grounding-pack']);
+    // Ingest is not a fourth identity verb — §8 names two the service serves, and that list
+    // is what a caller reads to know it is not being offered a transform gateway.
+    expect(description.verbs).toEqual(['resolve', 'reconcile']);
+  });
+
+  it('ingests a pack and answers the merged view over its same_as edges, computed per call', async () => {
+    const ingested = await post(pack());
+    expect(ingested.status).toBe(200);
+    expect(await ingested.json()).toMatchObject({ producer: 'herbarium', entities: 0 });
+
+    const resolved = (await (
+      await fetch(`${base}/resolve?id=${encodeURIComponent(LOCAL)}`)
+    ).json()) as ResolvedIdentity;
+    expect(resolved.sameAs).toEqual([CANONICAL]);
+    // A pack we hold is knowledge we hold: it never promotes an answer to the authority's.
+    expect(resolved.authority).toBe('local');
+  });
+
+  it('refuses a pack carrying local-only content with a 4xx and the violations (§7.2)', async () => {
+    const refused = await post(
+      pack({
+        entities: [
+          {
+            csid: CANONICAL,
+            entityType: 'person',
+            fields: { name: 'Napoleon I' },
+            provenance: { source: 'herbarium', confidence: 1 },
+            license: 'CC-BY-4.0',
+            egress: 'local-only',
+          },
+        ],
+      }),
+    );
+    expect(refused.status).toBe(400);
+    const body = (await refused.json()) as {
+      error: string;
+      code: string;
+      violations: unknown[];
+    };
+    expect(body.error).toBe('GroundingPackError');
+    expect(body.code).toBe('local-only');
+    expect(body.violations).toHaveLength(1);
+    // Refused whole: nothing from the pack entered the equivalence layer.
+    const resolved = (await (
+      await fetch(`${base}/resolve?id=${encodeURIComponent(LOCAL)}`)
+    ).json()) as ResolvedIdentity;
+    expect(resolved.sameAs).toEqual([]);
+  });
+
+  it('refuses a pack whose dialect exceeds what it evaluates, by code (§5)', async () => {
+    const refused = await post(pack({ dialect: 'full-prolog' }));
+    expect(refused.status).toBe(400);
+    expect(((await refused.json()) as { code: string }).code).toBe('dialect-exceeded');
+  });
+
+  it('serves the ingest surface on POST only — a GET is still a 404, not a listing', async () => {
+    expect((await fetch(`${base}/grounding-packs`)).status).toBe(404);
+  });
+});
+
 describe('the resolver HTTP service dialing an authority', () => {
   let service: ResolverService;
   let base: string;

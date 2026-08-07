@@ -9,6 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@agora/knowledge": "*",
     "@agora/schemas": "*"
   },
   "scripts": {

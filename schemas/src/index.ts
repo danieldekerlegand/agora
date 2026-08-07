@@ -93,10 +93,12 @@ export { canonicalJson, isJsonObject, type Json, type JsonObject } from './json.
 export { isPlane, PLANES, type Plane } from './planes.ts';
 export {
   isKinpId,
+  isProvisionalLocal,
   isWorldId,
   kindOf,
   KINP_KINDS,
   parseKinpId,
+  parseProvisionalLocal,
   worldOf,
   type KinpId,
   type KinpKind,
