@@ -128,6 +128,51 @@ Tranche D) is where the live version lives, not because agora knows these caller
 | `90-finetune-client` | **orchestrator** | The KCB **client** replacing `Runner::Stub` — discover → invoke → **subscribe** to the real §6 stream, un-404-ing export (§5.3) and the registry (§8), issuing `invoke:finetune` grants (§7). | `koine:20-kft-finetune-profile` (dials `agora:90` + `pinakes:90` at runtime) |
 | `agora:41-finetune-job-validator` | **agora** | The ajv/jsonschema validator + conformance CI for `finetune-job.schema.json` (§3); semantic admission (modality×method, egress) stays in the providers. | `agora:40-absorb-legacy-validators-ci`, `koine:20-kft-finetune-profile` |
 
+## The KFT dataset bridge — a producer's training exhaust, by reference (`40:US-2`)
+
+`POST /datasets` is the **producer-facing** intake, the sibling of `knowledge/`'s KGP bridge on the
+training plane. An ordinary application emits *training exhaust* — accepted NL edits, generations,
+preference pairs, QA labels — through a thin adapter (koine ADR-0008); the bridge is the generic
+commons path that turns it into an admitted, routed finetune run. Nothing here canonicalizes
+anybody's records: what arrives is already a by-reference KFT dataset or it is refused.
+
+**By reference, never inlined** (§4.1, FT-M). A record file is a **KMI asset** carrying
+`application/vnd.koine.dataset+jsonl`, referenced from `dataset.records[]`. The trainer's manifest
+advertises a `training-records` port for it on every modality, so path search routes it there
+rather than mis-routing a JSONL at the image/video port.
+
+**The gate runs before a byte moves.** Each `records[]` entry carries its `dataset-jsonl-header`
+inline, positionally (FT-O), and that is what admission reads:
+
+| Check | Clause | Refusal |
+|---|---|---|
+| one header per referenced file | FT-O | `header-missing` / `header-orphan` |
+| egress read from the header, **never** inferred from `tier` | FT-N | `header-egress` |
+| a declared license class (the §5.4 union the output inherits) | §4.3 | `license-missing` / `license-refused` |
+| no rows smuggled into the manifest | §4.1 | `records-inlined` |
+| `recordCount` sizes the spend estimate | FT-P | `budget` |
+| the inline header is verified against the file on fetch | §4.1 | `header-mismatch` / `record-count-overrun` |
+
+The trust tier stays **descriptive** — a `personal` corpus its owner is happy to publish is not
+pinned, and a `curated` corpus that must not leave is not green-lit. That is FT-N, and it is why
+the header carries the class explicitly.
+
+**Routing is the registry's call, dialing is the bridge's** (§8/FT-K). The bridge does not
+re-implement the specialized-then-cheaper precedence — it asks `POST /finetune/select` and reads
+the verdict, so agora has exactly one implementation of FT-K. It then applies the one rule the
+registry cannot: a `local-only` run may not be handed to a provider outside the originating trust
+boundary (`provider-egress`) — shipping the job out is the same breach as renting it a cloud GPU.
+The winner's address is dialed **directly** (ADR-0001 decision 3); an unbroken tie is surfaced
+(`provider-tie`), never settled here.
+
+Point `AGORA_TRAINER_REGISTRY_URL` at a registry to get the real multi-provider selection; unset,
+this trainer is its own sole candidate. `X-Agora-Provider` names an explicit target (a header, not
+a job field — the ratified job schema closes the manifest). The captured registry verdicts in
+`registry/src/fixtures/finetune-selection.json` are a **cross-language pin**: `select.test.ts`
+asserts the registry still produces them, `tests/test_registry_selection.py` that the bridge still
+reads them. Regenerate with
+`AGORA_CAPTURE=1 npx vite-node registry/src/fixtures/generate-finetune-selection.ts`.
+
 ## Run it
 
 Standalone — no repo-root Makefile, no sibling areas. Install the package and launch the console
@@ -142,9 +187,11 @@ agora-trainer                        # the [project.scripts] console entry point
 python -m agora_trainer
 ```
 
-It serves `/health`, the A2A agent card at `/.well-known/agent-card.json`, and the KCB manifest
-at `/.well-known/kcb-manifest.json` — exactly the endpoints the manifest advertises, and only
-those (ADR-0001 decision 3).
+It serves `/health`, the A2A agent card at `/.well-known/agent-card.json`, the KCB manifest at
+`/.well-known/kcb-manifest.json`, and the `finetune` task surface at `/invoke` — exactly the
+endpoints the manifest advertises, and only those (ADR-0001 decision 3). `POST /datasets` is the
+producer-facing dataset bridge above; it is a *caller* of `/invoke`, not an advertised capability
+endpoint of its own.
 
 ## Gate
 

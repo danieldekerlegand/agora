@@ -20,6 +20,11 @@ from . import TRAINER_IDENTITY
 BASE_URL_ENV = "AGORA_TRAINER_PUBLIC_BASE_URL"
 DEFAULT_BASE_URL = "http://127.0.0.1:8001"
 
+#: Where the KCB discovery registry lives, so the dataset bridge can ask it which `finetune`
+#: provider gets a job (KFT §8/FT-K, :func:`agora_trainer.bridge.registry_directory`). Unset —
+#: the default — means no registry is indexed and this trainer is the only candidate.
+REGISTRY_URL_ENV = "AGORA_TRAINER_REGISTRY_URL"
+
 
 class TrainerConfig(BaseModel):
     """Everything the trainer's HTTP surface and manifest need, parsed once from the env."""
@@ -30,10 +35,17 @@ class TrainerConfig(BaseModel):
     base_url: str = DEFAULT_BASE_URL
     #: The trainer's KINP identity — published in the manifest and reported by ``/health``.
     identity: str = TRAINER_IDENTITY
+    #: The KCB discovery registry the dataset bridge asks for provider selection (KFT §8). Empty
+    #: means none is configured — the bridge then has this trainer as its only candidate.
+    registry_url: str = ""
 
     def describe(self) -> dict[str, object]:
         """A reportable, secret-free view (the trainer holds no secrets at this stage)."""
-        return {"identity": self.identity, "base_url": self.base_url}
+        return {
+            "identity": self.identity,
+            "base_url": self.base_url,
+            "registry_url": self.registry_url,
+        }
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> TrainerConfig:
@@ -41,4 +53,9 @@ class TrainerConfig(BaseModel):
         source = os.environ if env is None else env
         base_url = (source.get(BASE_URL_ENV) or DEFAULT_BASE_URL).rstrip("/")
         identity = (source.get("AGORA_TRAINER_IDENTITY") or TRAINER_IDENTITY).strip()
-        return cls(base_url=base_url, identity=identity or TRAINER_IDENTITY)
+        registry_url = (source.get(REGISTRY_URL_ENV) or "").rstrip("/")
+        return cls(
+            base_url=base_url,
+            identity=identity or TRAINER_IDENTITY,
+            registry_url=registry_url,
+        )

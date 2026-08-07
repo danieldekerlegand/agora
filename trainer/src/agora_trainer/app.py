@@ -20,10 +20,24 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from . import KCB_VERSION, KFT_VERSION, __version__
+from .bridge import (
+    Directory,
+    Dispatch,
+    http_dispatch,
+    registry_directory,
+    self_directory,
+    submit,
+)
 from .config import TrainerConfig
 from .engine import UnsupportedJob
 from .grant import Grant
-from .manifest import AGENT_CARD_PATH, MANIFEST_PATH, agent_card, capability_manifest
+from .manifest import (
+    AGENT_CARD_PATH,
+    INVOKE_PATH,
+    MANIFEST_PATH,
+    agent_card,
+    capability_manifest,
+)
 from .runner import RunRejected, run
 from .validate import Problem, Report, Status
 
@@ -32,9 +46,18 @@ app = FastAPI(title="agora trainer", version=__version__)
 #: The §6 telemetry stream's content type — newline-delimited JSON, one event per line.
 TELEMETRY_MEDIA_TYPE = "application/x-ndjson"
 
+#: The KFT dataset bridge's producer-facing intake (§4.1) — where an application's thin adapter
+#: (ADR-0008) offers its training exhaust as a by-reference dataset. Distinct from ``/invoke``:
+#: that is this trainer answering as a *provider*, this is the commons admitting and routing.
+BRIDGE_PATH = "/datasets"
+
 #: The header carrying the `invoke:finetune` grant's gpu-seconds ceiling (KFT §7). Absent → an
 #: ungated grant (signing the token is the caller's governance, US-6); a value gates spend.
 BUDGET_HEADER = "X-Agora-Budget-Units"
+
+#: An explicit `finetune` target for the bridge's FT-K selection (KFT §8) — honored over the
+#: specialized/cheaper tiebreak when that provider actually serves the job.
+PROVIDER_HEADER = "X-Agora-Provider"
 
 #: The admission verdict → HTTP status, the transport twin of the CLI exit codes
 #: (0 ok / 1 invalid / 2 usage): a valid job streams (200), a schema/semantic failure is
@@ -53,6 +76,26 @@ def get_config() -> TrainerConfig:
 
 
 ConfigDep = Annotated[TrainerConfig, Depends(get_config)]
+
+
+def get_directory(config: ConfigDep) -> Directory:
+    """Which `finetune` providers exist — the registry when one is configured, else just us.
+
+    A dependency rather than a module constant so a test (or a deployment wiring its own
+    discovery) overrides it by identity, the same seam ``get_config`` uses.
+    """
+    if config.registry_url:
+        return registry_directory(config.registry_url)
+    return self_directory(config.identity, f"{config.base_url}{INVOKE_PATH}")
+
+
+def get_dispatch() -> Dispatch:
+    """How an admitted job reaches the selected provider — a direct `invoke` over HTTP."""
+    return http_dispatch()
+
+
+DirectoryDep = Annotated[Directory, Depends(get_directory)]
+DispatchDep = Annotated[Dispatch, Depends(get_dispatch)]
 
 
 @app.get("/health")
@@ -121,6 +164,40 @@ async def invoke(request: Request) -> Response:
         media_type=TELEMETRY_MEDIA_TYPE,
         headers={"X-Agora-Job": str(payload["job"])},
     )
+
+
+@app.post(BRIDGE_PATH)
+async def datasets(request: Request, directory: DirectoryDep, dispatch: DispatchDep) -> Response:
+    """The KFT dataset bridge (§4.1) — a producer offers its training exhaust *by reference*.
+
+    The producer-facing half of the training plane: the body is a finetune job manifest whose
+    ``dataset`` names KGP packs, KMI assets and its own ``records[]`` files, each described by an
+    inline ``dataset-jsonl-header``. The bridge runs the whole §4 gate over those descriptions —
+    **before any byte moves** — then asks the registry which `finetune` provider gets the job
+    (§8/FT-K) and dials that provider directly (ADR-0001 decision 3).
+
+    ``202`` when the job was admitted and dispatched (the run itself streams from the *provider*,
+    which may be this trainer or a peer); ``422`` with the graded report when the corpus, the
+    egress envelope, the license union, the spend ceiling or the provider selection refused it;
+    ``400`` when the body is not readable as a job at all. ``X-Agora-Provider`` names an explicit
+    target (KFT §8) — a header rather than a job field, since the ratified job schema closes the
+    manifest and carries no such property.
+    """
+    try:
+        payload = await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+        return _reject(_usage_report("request body is not valid JSON"))
+    if not isinstance(payload, dict):
+        return _reject(_usage_report("a finetune job must be a JSON object"))
+    result = submit(
+        payload,
+        grant=_grant_from(request),
+        directory=directory,
+        dispatch=dispatch,
+        provider=request.headers.get(PROVIDER_HEADER),
+    )
+    status = 202 if result.ok else _HTTP_STATUS[result.report.status]
+    return JSONResponse(status_code=status, content=result.describe())
 
 
 def _grant_from(request: Request) -> Grant:

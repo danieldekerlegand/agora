@@ -9,6 +9,13 @@ resolver is an honest **offline stand-in** — it treats every input as ``export
 nominal cardinality, exactly as the LLaMA-Factory adapter replays a recorded run rather than
 fabricating a GPU. A test (or a real deployment) injects a resolver returning real per-input
 facts; the seam is the same injection pattern the engine adapter uses for its run source.
+
+**A record file is the exception, and deliberately so** (KFT §4.1, FT-N/FT-P). Its
+``dataset-jsonl-header`` rides the job manifest precisely so its egress class, license and row
+count are resolvable **without** fetching a byte — that is the whole reason the inline copy
+exists. So the offline resolver does not stand in for a record file: it reads the real declared
+facts off the header (:mod:`agora_trainer.records`), and the fetch, when it happens, only
+*verifies* them.
 """
 
 from __future__ import annotations
@@ -18,6 +25,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from .egress import EXPORTABLE, most_restrictive
+from .licensing import DEFAULT_POLICY, LicensePolicy, union_class
+from .records import headers_of, records_of
 
 #: The nominal per-corpus sample count the offline resolver assumes when it cannot fetch real
 #: metadata. A live resolver replaces this with the cardinality fetched from KMI/KGP (KFT §7,
@@ -51,11 +60,14 @@ class ResolvedInputs:
     knowledge: tuple[RecordFacts, ...] = ()
     #: The resolved KMI media assets.
     media: tuple[RecordFacts, ...] = ()
+    #: The resolved ``dataset.records[]`` training-record files — a producer's exhaust (FT-M),
+    #: each fact read off its positional ``dataset-jsonl-header`` (FT-N/FT-P).
+    records: tuple[RecordFacts, ...] = ()
 
     @property
     def data(self) -> tuple[RecordFacts, ...]:
-        """The training data (knowledge ∪ media) — the samples the estimate is sized from."""
-        return (*self.knowledge, *self.media)
+        """The training data (knowledge ∪ media ∪ records) — what the estimate is sized from."""
+        return (*self.knowledge, *self.media, *self.records)
 
     @property
     def all_inputs(self) -> tuple[RecordFacts, ...]:
@@ -72,17 +84,57 @@ class ResolvedInputs:
         """Total training-sample count across the data (the base is not a sample)."""
         return sum(r.samples for r in self.data)
 
+    def union_license(self, policy: LicensePolicy = DEFAULT_POLICY) -> str:
+        """The §4.3/§5.4 union license class over ``{data ∪ base}`` (FT-B).
+
+        Most restrictive wins: a non-commercial base makes the model non-commercial however
+        permissive the corpus. An input this build could not describe carries no class and is
+        skipped — the *declared* ones are what a record file's header guarantees (FT-N), and
+        :func:`~agora_trainer.records.check_dataset` is what refuses a header that omits it.
+        """
+        return union_class(policy.classify(r.license) for r in self.all_inputs if r.license)
+
 
 #: A resolver maps a job to its resolved inputs — the injection seam for a live `fetch:asset`
 #: path (KMI §7) or a test's explicit facts.
 Resolver = Callable[[dict[str, Any]], ResolvedInputs]
 
 
+def record_facts(job: dict[str, Any]) -> tuple[RecordFacts, ...]:
+    """The ``dataset.records[]`` facts, read off the inline headers — no fetch (FT-N/FT-P).
+
+    Unlike a pack or a media asset, a record file's admission facts are *declared in the
+    manifest*: that is what ``dataset.header`` is for. So these are the producer's real numbers,
+    not a stand-in — the egress class read explicitly (never inferred from ``tier``, FT-N), the
+    license class, and ``recordCount`` as the cardinality the §7 estimate is sized from (FT-P).
+    A header positioned past the last ``records[]`` entry is the pre-0.4.0 degenerate form — a
+    corpus description with no reference slot; its axes still count, but it contributes no rows.
+    """
+    headers = headers_of(job)
+    refs = records_of(job)
+    facts: list[RecordFacts] = []
+    for index, header in enumerate(headers):
+        if header is None:
+            continue  # `check_dataset` reports it; nothing here guesses at its axes.
+        described = index < len(refs)
+        facts.append(
+            RecordFacts(
+                ref=refs[index] if described else f"/dataset/header/{index}",
+                egress=header.egress,
+                license=header.license,
+                samples=(header.record_count or 0) if described else 0,
+            )
+        )
+    return tuple(facts)
+
+
 def default_resolver(job: dict[str, Any]) -> ResolvedInputs:
-    """The offline stand-in: every input ``exportable`` with a nominal cardinality (KFT §4.1).
+    """The offline stand-in: every *fetchable* input ``exportable``, nominally sized (KFT §4.1).
 
     Honest about what it can know without a live fabric: it cannot `fetch` real KMI/KGP metadata,
-    so it does not pretend to — an unrestricted, nominally-sized corpus. A deployment injects a
+    so it does not pretend to — an unrestricted, nominally-sized corpus for the pack and asset
+    refs. The ``dataset.records[]`` files are not a guess: :func:`record_facts` reads their
+    declared headers, which ride the manifest for exactly this reason. A deployment injects a
     resolver that returns the fetched facts; a test injects :func:`static_resolver`.
     """
     dataset = job.get("dataset", {}) or {}
@@ -94,7 +146,7 @@ def default_resolver(job: dict[str, Any]) -> ResolvedInputs:
     media = tuple(
         RecordFacts(ref=str(ref), samples=DEFAULT_CARDINALITY) for ref in dataset.get("media", ())
     )
-    return ResolvedInputs(base=base, knowledge=knowledge, media=media)
+    return ResolvedInputs(base=base, knowledge=knowledge, media=media, records=record_facts(job))
 
 
 def static_resolver(inputs: ResolvedInputs) -> Resolver:
