@@ -474,3 +474,86 @@ exit 0.
   `test_manifest.py`'s "advertises no endpoint it does not serve" assertion, and the regenerated
   `registry/src/fixtures/trainer.manifest.json` (whose regeneration command is in the failure
   message).
+
+## US-3 — KINP resolution + grounding-pack ingestion, query-time merge (40:US-3)
+
+**What landed.** The identity half of the fabric data plane, in `resolver/`. A producer
+references world knowledge it did not mint and must say which canonical thing one of its local
+records refers to; koine ADR-0008 decision 5 closed that fork — a source-local-id `same_as`,
+`based_on` across a non-inheriting world boundary, and nothing at all below threshold. There is
+no `mentions` relation and the resolver is the enforcement point.
+
+New `resolver/src/grounding.ts` — `createGroundingResolver(options)` wraps ANY delegate resolver
+(default the local one) with a KGP GroundingPack ingest surface plus the equivalence layer it
+feeds:
+
+- `ingest(pack)` reads the §2 envelope and refuses **whole** what a consumer must not hold:
+  dialect tier above what it evaluates (§5), `local-only` content (§7.2 — refused AND reported,
+  with the violations on the error, never silently stripped), a malformed envelope, a different
+  spec major. Per record: the §7.1 license allowlist, and each link's claim id re-derived from
+  its `hash_input` (§3.1/§4.1) with the un-re-derivable ones **counted** (`report.unverified`)
+  rather than passed off as checked.
+- A link under any relation KINP does not reserve is refused with ADR-0008's reason — exactly
+  where a `mentions` edge lands. Only `same_as`/`based_on` become equivalence edges; the other
+  reserved relations (`part_of`, `instance_of`, `retracts`, `supersedes`) are reported as carried
+  but not walked.
+- Below its world's threshold an ingested link **does not enter the layer at all** — it goes to
+  the review queue (§4.5, §11 decision 2). A link with no stated confidence reads as 0, so it
+  queues rather than merging on an assumption.
+- `resolve` computes the merged view **per call** over that layer, reusing `closureOver` from
+  `authority.ts` — the walk that never crosses a `based_on` edge (§4.3). A test resolves the same
+  id, ingests a second pack, resolves again: the view widens and the first answer is untouched.
+- `reconcile` grounds a mention with an exact-id/key → exact-normalized-name → fuzzy cascade over
+  the ingested entities, then hands the candidates to the EXISTING `decideLink`. No second
+  implementation of §4.5 or §11 decision 2 — ambiguity, threshold and the world rule are
+  unchanged; ambiguous and unmatched descriptors emit nothing and queue.
+
+Supporting:
+- `schemas/src/identity.ts`: `kindOf` now reads a **provisional local** (`<ns>:local:<kind>:<id>`,
+  KINP §3.4's normative row + §6). New `parseProvisionalLocal` / `isProvisionalLocal`.
+- `resolver/src/server.ts`: `POST /grounding-packs`; `GroundingPackError` → 400 with `code` and
+  the §7.2 violations. The service's resolver is now ALWAYS a `GroundingResolver` over the
+  configured one — with nothing ingested it answers byte-identically to before.
+- `describeResolver()` gains `kgpVersion` + `ingests: ['grounding-pack']`.
+- `@agora/resolver` now depends on `@agora/knowledge`.
+
+Files: `resolver/src/grounding.ts` (new), `resolver/src/grounding.test.ts` (new, 29 tests),
+`resolver/src/{index,server}.ts` + their tests, `resolver/{package.json,README.md}`,
+`schemas/src/identity.ts` + `index.ts` + `identity.test.ts`. 84 resolver tests; `make check`
+exit 0.
+
+### Learnings for future iterations
+
+- **A provisional local was not a KINP id to this codebase.** `parseKinpId` reads three segments
+  and `kindOf` added the five-segment world-scoped form, but `<ns>:local:ent:e-8842` — §3.4's
+  normative row, and the id every grounding `same_as` starts from — parsed as nothing, so the
+  local resolver refused to dereference it. `knowledge/src/claim.ts` had already special-cased
+  the same four-segment shape in `canonicalIdentifier`, which is the tell: when two areas need a
+  form the grammar module does not read, fix the grammar. Widening `kindOf` (not `parseKinpId`)
+  kept the blast radius to zero — `isKinpId` still gates manifests on the compact form.
+- **Wrapping the service's resolver needs one owner for the LinkStore.** `createResolverServer`
+  now composes grounding over the configured resolver. Passing `links`/`policy` to *both* would
+  rehydrate the same list twice and double-count every write, so the store goes to whichever
+  actually decides links (an authority delegate if there is one, else the wrapper), and the
+  wrapper's `reviewQueue`/`applied` getters CONCATENATE the delegate's — otherwise a caller
+  reading `service.resolver.reviewQueue` silently loses half the queue to the delegate.
+- **§2.1's `pack_id` is deliberately NOT verified on ingest.** The clause is
+  `sha256(canonical(manifest ⊕ sorted(entities) ⊕ …))` and `⊕` is not byte-fixed; agora's
+  `packId()` is one reading of it, so rejecting a foreign pack against it would make a generic
+  bridge producer-specific. The claim id (§3, fully byte-fixed) is what gets re-derived instead —
+  and §4.1 requires exactly that of a consumer. Only the `pack_id` *format* is checked.
+- **The version pin cuts both ways.** `SPEC_VERSIONS.kgp` is `0.4.0` while koine's KGP is `0.5.0`
+  (Candidate). Ingest compares **majors only** and documents why: 0.5.0 was additive (§3.4/§4.1
+  are about a projection this module never reads), so `isCompatibleKcbVersion`'s 0.x rule
+  (same-minor) would have rejected a conformant producer that moved first. Still open from US-1:
+  whether to bump the pin at all before KGP re-ratifies.
+- **`inspectPackEgress` reports a violating entity record without an id**, because
+  `EgressBearing` reads `record.id` and a KGP §2 entity record is keyed by `csid`. Section +
+  index still locates it exactly, so this was left alone rather than widened in `schemas/`, but
+  a future story that wants ids in the §7.2 report knows where to look.
+- **The console imports `@agora/resolver` at its root**, so anything added to that index enters
+  the browser bundle's module graph. `node:http`/`node:fs` are already there (server.ts,
+  persistence.ts) and `make check` does not run `vite build` — the Makefile records the console
+  bundle as independently red — so `@agora/knowledge`'s `node:crypto` changes nothing measurable.
+  A story that fixes the console bundle will need to move all of that behind a Node-only
+  specifier, the way `@agora/schemas/validator` already is.
