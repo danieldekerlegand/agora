@@ -380,3 +380,50 @@
   `npm install ./*.tgz` in a scratch consumer → `node` a script that imports only `@agora/sdk`.
 - `npm pack` writes tarballs into the CWD, not beside the packed directory — the doc has to name
   the path they land at (the repo root) or the next command fails.
+---
+## US-1 (40-fabric-data-plane-bridges) — KGP knowledge sync: producer claims → a KGP consumer
+- New TS area `knowledge/` (`@agora/knowledge`, workspace + `make check-knowledge`; listed in
+  README "Components"/"Layout" and CLAUDE.md). The KGP data-plane bridge: `POST /claims` from ANY
+  producer → admitted, packed, delivered to one KGP consumer → a receipt with graded rejections.
+- `claim.ts` is KGP §3's byte discipline (the load-bearing part): `world|relation(args)`, symmetric
+  operands sorted, CURIEs NFC + namespace/kind lowercased (local id opaque, provisional-local
+  `ns:local:…` emitted as-is), typed literals per rule 5, `sha256-<hex>`. Everything §3.1 excludes
+  (confidence, prov, license, egress, valid_time, embedding_model) really is excluded — a test
+  asserts two producers' same fact mints ONE id (§3.3), which is the merge property.
+- `admission.ts` grades every refusal with a code + the clause: unknown-relation (registry
+  relations.tsv), arity-mismatch, malformed-argument/-world, local-only (§7.2), dialect-exceeded
+  (§5), license-missing/-refused (§7.1), provenance-missing, untrusted-source,
+  confidence-below-threshold, claim-id-mismatch. Reported, never silently dropped.
+- `pack.ts` builds the §2 envelope + §2.1 content address (canonicalJson over manifest ⊕ the
+  id-sorted record lists), files KINP's reserved relations under `links`, ledgers licenses in the
+  manifest, and carries each record's exact `hash_input` so a consumer re-verifies with one SHA.
+  Entities are NOT inlined — the bridge is a conduit with a gate, never a second knowledge store.
+- `consumer.ts` projects a peer's KCB manifest → the knowledge-plane sink → its address, dialed
+  direct. `main.ts` reads `AGORA_KNOWLEDGE_*` and refuses to boot with no consumer/registry.
+- Also refreshed two DERIVED koine snapshots that had gone stale against koine:40, mechanically:
+  `schemas/src/koine-schemas/` (`npm run -w @agora/schemas regen:koine-schemas`) and the trainer's
+  vendored KFT schemas. **The trainer's drift test was RED before this story** — `make check` could
+  not have passed on this branch without it.
+- `make check` exit 0 (65 tests in the new area).
+
+### Learnings for future iterations
+- **The koine schema snapshot in `schemas/src/koine-schemas/` has NO drift gate.** The trainer's
+  Python copy has `tests/test_schema_drift.py` and goes red; the TypeScript copy is only checked by
+  `npm run -w @agora/schemas regen:koine-schemas:check`, which nothing in `make check` runs. So the
+  TS validator can silently validate against a contract koine has moved past. Run the `:check`
+  script by hand after any koine bump — or wire it into `check-schemas` (a story of its own).
+- **⚠️ For US-2 (KFT):** koine's spec HEADERS now read KGP 0.5.0 / KFT 0.4.0 while koine's own
+  `specs/README.md` index still says 0.4.0 / 0.3.0 — upstream is inconsistent, and agora pins the
+  index's numbers in `schemas/src/versions.ts`. The refreshed `dataset-jsonl-header` schema adds
+  `egress` and `recordCount` (file-level aggregates the §4.2 gate reads). Decide the version pin
+  deliberately; bumping it is a three-language edit (TS `versions.ts`, Python `KCB_VERSION`, the
+  Erlang conformance suite).
+- **`exactOptionalPropertyTypes` shapes how you build optional fields**: `{...x, license: undefined}`
+  is a type error, so a test that wants a field ABSENT constructs the literal without it, and
+  production code spreads conditionally (`...(v === undefined ? {} : { k: v })`) — the idiom already
+  all over the registry.
+- **A `type` alias gets TypeScript's implicit index signature; an `interface` does not.** `GroundingPack`
+  had to be a type alias to be passable to `@agora/schemas`'s `assertPackEgress` (which takes an open
+  record). Making the shared §7.2 enforcement reachable beat the nominal shape.
+- **`@typescript-eslint/no-unused-vars` as configured here does NOT honor rest siblings**: the
+  `const { license: _license, ...rest } = x` omit-a-key idiom is an eslint error in this repo.

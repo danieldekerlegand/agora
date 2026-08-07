@@ -24,7 +24,7 @@
         "A generic KGP-sync surface accepts claims conformant to koine ADR-0006 + the relation registry from an arbitrary producer and delivers them to a configured KGP consumer, validating relations against registry/relations.tsv and rejecting unknown relations.",
         "It is producer-agnostic (a test drives it with a synthetic non-Argos producer payload) and carries no app-specific canonicalization; `make check` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
