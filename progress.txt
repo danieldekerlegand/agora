@@ -427,3 +427,50 @@
   record). Making the shared §7.2 enforcement reachable beat the nominal shape.
 - **`@typescript-eslint/no-unused-vars` as configured here does NOT honor rest siblings**: the
   `const { license: _license, ...rest } = x` omit-a-key idiom is an eslint error in this repo.
+---
+## US-2 — KFT dataset bridge: by-reference training-exhaust admission -> the trainer (40:US-2)
+Built in `trainer/` (Python) rather than as a new TS area, because the §4 gate is NORMATIVE
+*provider* behavior and the trainer's `admission.py`/`resolve.py` were blind to KFT 0.4.0's
+`dataset.records[]` slot entirely — a TS bridge would have duplicated the gate and left the
+provider blind. Files: new `records.py` (§4.1 FT-M/N/O/P), `licensing.py` (§7.1 classes, §4.3/§5.4
+union), `bridge.py` (admit → select → envelope → dial); `resolve.py`, `admission.py`,
+`manifest.py`, `config.py`, `app.py` extended. `registry/src/server.ts` now serves the
+`selectFinetune` verb it always advertised. 172 trainer tests + 141 registry tests; `make check`
+exit 0.
+
+### Learnings for future iterations
+- **`describeRegistry().verbs` was advertising a verb the HTTP surface did not serve.**
+  `selectFinetune` existed only as a TypeScript `import`, so the Python bridge could not reach the
+  one implementation of the FT-K precedence. Worth grepping the other `describe()` verb lists
+  against the routes before assuming a capability is reachable over the wire.
+- **A record file is the one input the offline resolver must NOT stand in for.** Its
+  `dataset-jsonl-header` rides the manifest precisely so egress/license/cardinality resolve
+  without a fetch (FT-N/FT-P). `default_resolver` now reads the real declared facts for
+  `records[]` while still being an honest stand-in for packs and assets — mixing the two would
+  have made the gate's own numbers fictional.
+- **License is NOT an admission gate at the provider (KFT §4.3) — resist making it one.** The
+  first cut refused any input with no license class, which fires on every job the offline resolver
+  produces (it cannot know the base model's license). The gate that IS reachable and correct is
+  the *header's* declared class: the producer controls it, the schema requires it, and the §5.4
+  union the output inherits is unanswerable without it. Deployment allowlists stay opt-in.
+- **`dataset.header` predates `dataset.records[]`.** A lone header with no records is the
+  pre-0.4.0 degenerate form (the existing `valid_text_job` fixture is one). Rejecting it would
+  have broken every prior story's tests for no contract reason; it is accepted, and its axes still
+  count toward the aggregate.
+- **The koine job schema closes the manifest (`additionalProperties: false`) and has no
+  `provider` field**, so KFT §8's "a job MAY name a target provider" cannot ride the body. It is a
+  `submit(provider=…)` argument / `X-Agora-Provider` header instead — a routing preference, not
+  part of what is being asked for. Worth revisiting as a koine edit rather than inventing a field.
+- **`vite-node`, not `node`, for any generator that reaches `registry.ts`** (parameter property →
+  `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` under Node's strip-only loader — the same constraint
+  `examples/participant-starter` keeps the SDK under). And `vite-node` does not leave the script
+  path in `process.argv`, so an entry-point guard silently never fires: use an explicit env flag
+  (`AGORA_CAPTURE=1`).
+- **A second cross-language fixture landed**: `registry/src/fixtures/finetune-selection.json`,
+  read by `registry/src/select.test.ts` AND `trainer/tests/test_registry_selection.py`. Same
+  discipline as `trainer.manifest.json` — regenerate, never hand-edit. Changing the trainer's
+  manifest now invalidates BOTH fixtures.
+- **Adding an endpoint to the trainer manifest is a three-file edit**: `manifest.py`,
+  `test_manifest.py`'s "advertises no endpoint it does not serve" assertion, and the regenerated
+  `registry/src/fixtures/trainer.manifest.json` (whose regeneration command is in the failure
+  message).

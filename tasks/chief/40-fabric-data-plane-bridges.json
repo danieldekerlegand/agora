@@ -2,9 +2,17 @@
   "name": null,
   "project": "agora",
   "branchName": "chief/40-fabric-data-plane-bridges",
-  "description": "Implement the generic runtime services that let ANY fabric producer (a cuneiform export, or any A2A/MCP app emitting koine contracts) participate — so ecosystem connectivity lives in agora's koine implementation, not in each app. This is the agora half of the 'apps are thin producers, agora bridges the data planes' decision (koine:40). Each service consumes/produces a RATIFIED koine contract and is generic over the producer: KGP knowledge sync (ADR-0006), KFT training-data admission -> trainer/lugh (fine-tuning.md), KINP resolution + grounding-pack ingestion (identity.md, grounding-pack.md). G2/G4 (KCB discovery registry, KINP resolver, provider-router) already EXIST in agora — the work there is confirming/exposing the client-facing surfaces a producer needs, not rebuilding. Behavioral reference (NOT to copy): the Argos repo at tag `fabric-reference` (~/Development/argos: bridge/, kcb_manifest.py, kgp_claim.py, kinp_curie.py, core/provider_router.py). agora gates on `make check`.",
-  "dependsOn": ["koine:40-fabric-producer-contracts"],
-  "touches": ["trainer", "clients", "resolver", "registry", "schemas"],
+  "description": "Implement the generic runtime services that let ANY fabric producer (a cuneiform export, or any A2A/MCP app emitting koine contracts) participate \u2014 so ecosystem connectivity lives in agora's koine implementation, not in each app. This is the agora half of the 'apps are thin producers, agora bridges the data planes' decision (koine:40). Each service consumes/produces a RATIFIED koine contract and is generic over the producer: KGP knowledge sync (ADR-0006), KFT training-data admission -> trainer/lugh (fine-tuning.md), KINP resolution + grounding-pack ingestion (identity.md, grounding-pack.md). G2/G4 (KCB discovery registry, KINP resolver, provider-router) already EXIST in agora \u2014 the work there is confirming/exposing the client-facing surfaces a producer needs, not rebuilding. Behavioral reference (NOT to copy): the Argos repo at tag `fabric-reference` (~/Development/argos: bridge/, kcb_manifest.py, kgp_claim.py, kinp_curie.py, core/provider_router.py). agora gates on `make check`.",
+  "dependsOn": [
+    "koine:40-fabric-producer-contracts"
+  ],
+  "touches": [
+    "trainer",
+    "clients",
+    "resolver",
+    "registry",
+    "schemas"
+  ],
   "iters": 14,
   "warmup": [
     "make help 2>/dev/null | head -30",
@@ -14,12 +22,14 @@
     "git -C ~/Development/argos show fabric-reference:src/filmstudio/bridge/canonical_export.py | head -50",
     "git -C ~/Development/argos show fabric-reference:src/filmstudio/bridge/dataset_export.py | head -50"
   ],
-  "verify": ["make check"],
+  "verify": [
+    "make check"
+  ],
   "userStories": [
     {
       "id": "US-1",
       "title": "KGP knowledge sync: accept producer claims, deliver to a KGP consumer",
-      "description": "A generic service that accepts KGP knowledge claims (RDF/PROV/JSON-LD per koine ADR-0006, keyed on the shared relation registry) from any producer over MCP/A2A and syncs/delivers them to a KGP consumer (pinakes, or any KGP endpoint). It is agnostic to WHICH app produced the claims — it validates against the koine relation registry + KGP shape and forwards by reference. No app-specific canonical mapping lives here (that is the producer's thin adapter, cuneiform:126). Reference for the claim/graph shape: Argos bridge/canonical_export.py + grounding.py at tag fabric-reference; the contract is koine ADR-0006 + registry/relations.tsv.",
+      "description": "A generic service that accepts KGP knowledge claims (RDF/PROV/JSON-LD per koine ADR-0006, keyed on the shared relation registry) from any producer over MCP/A2A and syncs/delivers them to a KGP consumer (pinakes, or any KGP endpoint). It is agnostic to WHICH app produced the claims \u2014 it validates against the koine relation registry + KGP shape and forwards by reference. No app-specific canonical mapping lives here (that is the producer's thin adapter, cuneiform:126). Reference for the claim/graph shape: Argos bridge/canonical_export.py + grounding.py at tag fabric-reference; the contract is koine ADR-0006 + registry/relations.tsv.",
       "acceptanceCriteria": [
         "A generic KGP-sync surface accepts claims conformant to koine ADR-0006 + the relation registry from an arbitrary producer and delivers them to a configured KGP consumer, validating relations against registry/relations.tsv and rejecting unknown relations.",
         "It is producer-agnostic (a test drives it with a synthetic non-Argos producer payload) and carries no app-specific canonicalization; `make check` green."
@@ -30,20 +40,20 @@
     {
       "id": "US-2",
       "title": "KFT dataset bridge: by-reference training-exhaust admission -> trainer/lugh",
-      "description": "Implement the KFT data-plane bridge (fine-tuning.md §4): accept a producer's training-exhaust as a BY-REFERENCE dataset (KGP/KMI refs + a dataset-jsonl-header, never inlined), apply the NORMATIVE egress/license/trust gate, and submit a KFT finetune job to the trainer (lugh, or agora's own trainer for the general envelope). Reuse trainer/ + schemas/. This is where the 'training exhaust' an app emits becomes an actual finetune job, gated. Reference: Argos bridge/dataset_export.py at tag fabric-reference; contract is koine fine-tuning.md + the dataset-jsonl-header/finetune-job schemas + the e2e-finetune scenario.",
+      "description": "Implement the KFT data-plane bridge (fine-tuning.md \u00a74): accept a producer's training-exhaust as a BY-REFERENCE dataset (KGP/KMI refs + a dataset-jsonl-header, never inlined), apply the NORMATIVE egress/license/trust gate, and submit a KFT finetune job to the trainer (lugh, or agora's own trainer for the general envelope). Reuse trainer/ + schemas/. This is where the 'training exhaust' an app emits becomes an actual finetune job, gated. Reference: Argos bridge/dataset_export.py at tag fabric-reference; contract is koine fine-tuning.md + the dataset-jsonl-header/finetune-job schemas + the e2e-finetune scenario.",
       "acceptanceCriteria": [
-        "The bridge admits a by-reference KFT dataset (dataset-jsonl-header, KGP/KMI refs), enforces the egress/license/trust gate (§4) — refusing an over-envelope or unlicensed dataset with a graded reason — and submits a finetune job to the trainer; a lugh-envelope job routes to lugh, an over-envelope one is refused/routed per KFT.",
+        "The bridge admits a by-reference KFT dataset (dataset-jsonl-header, KGP/KMI refs), enforces the egress/license/trust gate (\u00a74) \u2014 refusing an over-envelope or unlicensed dataset with a graded reason \u2014 and submits a finetune job to the trainer; a lugh-envelope job routes to lugh, an over-envelope one is refused/routed per KFT.",
         "No training data is inlined (by-reference only); driven end-to-end by a test mirroring koine's e2e-finetune scenario; `make check` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
       "id": "US-3",
       "title": "KINP resolution + grounding-pack ingestion (query-time merge view)",
-      "description": "Expose generic KINP identity resolution (identity.md): resolve identifiers, compute the merged-entity VIEW at query time from `same_as` claims (§4 — merge is a query-time view, never stored), and ingest a grounding-pack (grounding-pack.md) of world-knowledge a producer references for grounding. Grounding a mention to a canonical entity is a source-local-id `same_as` (per koine:40's locked decision — NO `mentions` relation), resolved here. Reuse resolver/. Reference: Argos bridge/grounding.py + grounding_pack.py + kinp_curie.py at tag fabric-reference; contract is koine identity.md + grounding-pack.md + registry (same_as).",
+      "description": "Expose generic KINP identity resolution (identity.md): resolve identifiers, compute the merged-entity VIEW at query time from `same_as` claims (\u00a74 \u2014 merge is a query-time view, never stored), and ingest a grounding-pack (grounding-pack.md) of world-knowledge a producer references for grounding. Grounding a mention to a canonical entity is a source-local-id `same_as` (per koine:40's locked decision \u2014 NO `mentions` relation), resolved here. Reuse resolver/. Reference: Argos bridge/grounding.py + grounding_pack.py + kinp_curie.py at tag fabric-reference; contract is koine identity.md + grounding-pack.md + registry (same_as).",
       "acceptanceCriteria": [
-        "A resolver surface dereferences a KINP identifier and returns the merged-entity view computed at query time from same_as claims (nothing stored merged), and ingests a grounding-pack per grounding-pack.md; unknown/ambiguous below-threshold cases emit nothing and queue for review (identity.md §11).",
+        "A resolver surface dereferences a KINP identifier and returns the merged-entity view computed at query time from same_as claims (nothing stored merged), and ingests a grounding-pack per grounding-pack.md; unknown/ambiguous below-threshold cases emit nothing and queue for review (identity.md \u00a711).",
         "Grounding uses same_as only (no mentions relation), producer-agnostic; `make check` green."
       ],
       "passes": false,
@@ -52,9 +62,9 @@
     {
       "id": "US-4",
       "title": "Confirm the KCB-manifest + provider-router client surfaces a producer needs (G2/G4)",
-      "description": "G2 (KCB discovery registry, KINP resolver) and G4 (provider-router) already exist in agora — DO NOT rebuild them. Confirm and, where thin, expose the CLIENT-facing surfaces a fabric producer needs: (a) publish/register a producer's KCB capability manifest to the discovery registry and be discoverable + dial-able (ADR-0001: registry returns addresses, peers dial direct, no proxy); (b) route a producer's OpenAI-compatible calls through the provider-router via a documented base-url/client (the thin client side of Argos core/provider_router.py). Add small client helpers/docs in clients/ only if a producer cannot already do this against the existing runtime. Reference: Argos kcb_manifest.py + provider_router.py at tag fabric-reference; koine capability-bus.md.",
+      "description": "G2 (KCB discovery registry, KINP resolver) and G4 (provider-router) already exist in agora \u2014 DO NOT rebuild them. Confirm and, where thin, expose the CLIENT-facing surfaces a fabric producer needs: (a) publish/register a producer's KCB capability manifest to the discovery registry and be discoverable + dial-able (ADR-0001: registry returns addresses, peers dial direct, no proxy); (b) route a producer's OpenAI-compatible calls through the provider-router via a documented base-url/client (the thin client side of Argos core/provider_router.py). Add small client helpers/docs in clients/ only if a producer cannot already do this against the existing runtime. Reference: Argos kcb_manifest.py + provider_router.py at tag fabric-reference; koine capability-bus.md.",
       "acceptanceCriteria": [
-        "A producer can register a KCB capability manifest with agora's existing registry and be discovered + directly dialed (no proxying), and can route provider calls through the router via a documented client/base-url — demonstrated by a test, reusing the EXISTING registry/resolver/router (no reimplementation).",
+        "A producer can register a KCB capability manifest with agora's existing registry and be discovered + directly dialed (no proxying), and can route provider calls through the router via a documented client/base-url \u2014 demonstrated by a test, reusing the EXISTING registry/resolver/router (no reimplementation).",
         "Any gap is closed with a thin client helper/doc in clients/, not a new runtime; `make check` green."
       ],
       "passes": false,
