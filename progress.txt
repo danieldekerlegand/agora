@@ -380,3 +380,250 @@
   `npm install ./*.tgz` in a scratch consumer → `node` a script that imports only `@agora/sdk`.
 - `npm pack` writes tarballs into the CWD, not beside the packed directory — the doc has to name
   the path they land at (the repo root) or the next command fails.
+---
+## US-1 (40-fabric-data-plane-bridges) — KGP knowledge sync: producer claims → a KGP consumer
+- New TS area `knowledge/` (`@agora/knowledge`, workspace + `make check-knowledge`; listed in
+  README "Components"/"Layout" and CLAUDE.md). The KGP data-plane bridge: `POST /claims` from ANY
+  producer → admitted, packed, delivered to one KGP consumer → a receipt with graded rejections.
+- `claim.ts` is KGP §3's byte discipline (the load-bearing part): `world|relation(args)`, symmetric
+  operands sorted, CURIEs NFC + namespace/kind lowercased (local id opaque, provisional-local
+  `ns:local:…` emitted as-is), typed literals per rule 5, `sha256-<hex>`. Everything §3.1 excludes
+  (confidence, prov, license, egress, valid_time, embedding_model) really is excluded — a test
+  asserts two producers' same fact mints ONE id (§3.3), which is the merge property.
+- `admission.ts` grades every refusal with a code + the clause: unknown-relation (registry
+  relations.tsv), arity-mismatch, malformed-argument/-world, local-only (§7.2), dialect-exceeded
+  (§5), license-missing/-refused (§7.1), provenance-missing, untrusted-source,
+  confidence-below-threshold, claim-id-mismatch. Reported, never silently dropped.
+- `pack.ts` builds the §2 envelope + §2.1 content address (canonicalJson over manifest ⊕ the
+  id-sorted record lists), files KINP's reserved relations under `links`, ledgers licenses in the
+  manifest, and carries each record's exact `hash_input` so a consumer re-verifies with one SHA.
+  Entities are NOT inlined — the bridge is a conduit with a gate, never a second knowledge store.
+- `consumer.ts` projects a peer's KCB manifest → the knowledge-plane sink → its address, dialed
+  direct. `main.ts` reads `AGORA_KNOWLEDGE_*` and refuses to boot with no consumer/registry.
+- Also refreshed two DERIVED koine snapshots that had gone stale against koine:40, mechanically:
+  `schemas/src/koine-schemas/` (`npm run -w @agora/schemas regen:koine-schemas`) and the trainer's
+  vendored KFT schemas. **The trainer's drift test was RED before this story** — `make check` could
+  not have passed on this branch without it.
+- `make check` exit 0 (65 tests in the new area).
+
+### Learnings for future iterations
+- **The koine schema snapshot in `schemas/src/koine-schemas/` has NO drift gate.** The trainer's
+  Python copy has `tests/test_schema_drift.py` and goes red; the TypeScript copy is only checked by
+  `npm run -w @agora/schemas regen:koine-schemas:check`, which nothing in `make check` runs. So the
+  TS validator can silently validate against a contract koine has moved past. Run the `:check`
+  script by hand after any koine bump — or wire it into `check-schemas` (a story of its own).
+- **⚠️ For US-2 (KFT):** koine's spec HEADERS now read KGP 0.5.0 / KFT 0.4.0 while koine's own
+  `specs/README.md` index still says 0.4.0 / 0.3.0 — upstream is inconsistent, and agora pins the
+  index's numbers in `schemas/src/versions.ts`. The refreshed `dataset-jsonl-header` schema adds
+  `egress` and `recordCount` (file-level aggregates the §4.2 gate reads). Decide the version pin
+  deliberately; bumping it is a three-language edit (TS `versions.ts`, Python `KCB_VERSION`, the
+  Erlang conformance suite).
+- **`exactOptionalPropertyTypes` shapes how you build optional fields**: `{...x, license: undefined}`
+  is a type error, so a test that wants a field ABSENT constructs the literal without it, and
+  production code spreads conditionally (`...(v === undefined ? {} : { k: v })`) — the idiom already
+  all over the registry.
+- **A `type` alias gets TypeScript's implicit index signature; an `interface` does not.** `GroundingPack`
+  had to be a type alias to be passable to `@agora/schemas`'s `assertPackEgress` (which takes an open
+  record). Making the shared §7.2 enforcement reachable beat the nominal shape.
+- **`@typescript-eslint/no-unused-vars` as configured here does NOT honor rest siblings**: the
+  `const { license: _license, ...rest } = x` omit-a-key idiom is an eslint error in this repo.
+---
+## US-2 — KFT dataset bridge: by-reference training-exhaust admission -> the trainer (40:US-2)
+Built in `trainer/` (Python) rather than as a new TS area, because the §4 gate is NORMATIVE
+*provider* behavior and the trainer's `admission.py`/`resolve.py` were blind to KFT 0.4.0's
+`dataset.records[]` slot entirely — a TS bridge would have duplicated the gate and left the
+provider blind. Files: new `records.py` (§4.1 FT-M/N/O/P), `licensing.py` (§7.1 classes, §4.3/§5.4
+union), `bridge.py` (admit → select → envelope → dial); `resolve.py`, `admission.py`,
+`manifest.py`, `config.py`, `app.py` extended. `registry/src/server.ts` now serves the
+`selectFinetune` verb it always advertised. 172 trainer tests + 141 registry tests; `make check`
+exit 0.
+
+### Learnings for future iterations
+- **`describeRegistry().verbs` was advertising a verb the HTTP surface did not serve.**
+  `selectFinetune` existed only as a TypeScript `import`, so the Python bridge could not reach the
+  one implementation of the FT-K precedence. Worth grepping the other `describe()` verb lists
+  against the routes before assuming a capability is reachable over the wire.
+- **A record file is the one input the offline resolver must NOT stand in for.** Its
+  `dataset-jsonl-header` rides the manifest precisely so egress/license/cardinality resolve
+  without a fetch (FT-N/FT-P). `default_resolver` now reads the real declared facts for
+  `records[]` while still being an honest stand-in for packs and assets — mixing the two would
+  have made the gate's own numbers fictional.
+- **License is NOT an admission gate at the provider (KFT §4.3) — resist making it one.** The
+  first cut refused any input with no license class, which fires on every job the offline resolver
+  produces (it cannot know the base model's license). The gate that IS reachable and correct is
+  the *header's* declared class: the producer controls it, the schema requires it, and the §5.4
+  union the output inherits is unanswerable without it. Deployment allowlists stay opt-in.
+- **`dataset.header` predates `dataset.records[]`.** A lone header with no records is the
+  pre-0.4.0 degenerate form (the existing `valid_text_job` fixture is one). Rejecting it would
+  have broken every prior story's tests for no contract reason; it is accepted, and its axes still
+  count toward the aggregate.
+- **The koine job schema closes the manifest (`additionalProperties: false`) and has no
+  `provider` field**, so KFT §8's "a job MAY name a target provider" cannot ride the body. It is a
+  `submit(provider=…)` argument / `X-Agora-Provider` header instead — a routing preference, not
+  part of what is being asked for. Worth revisiting as a koine edit rather than inventing a field.
+- **`vite-node`, not `node`, for any generator that reaches `registry.ts`** (parameter property →
+  `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` under Node's strip-only loader — the same constraint
+  `examples/participant-starter` keeps the SDK under). And `vite-node` does not leave the script
+  path in `process.argv`, so an entry-point guard silently never fires: use an explicit env flag
+  (`AGORA_CAPTURE=1`).
+- **A second cross-language fixture landed**: `registry/src/fixtures/finetune-selection.json`,
+  read by `registry/src/select.test.ts` AND `trainer/tests/test_registry_selection.py`. Same
+  discipline as `trainer.manifest.json` — regenerate, never hand-edit. Changing the trainer's
+  manifest now invalidates BOTH fixtures.
+- **Adding an endpoint to the trainer manifest is a three-file edit**: `manifest.py`,
+  `test_manifest.py`'s "advertises no endpoint it does not serve" assertion, and the regenerated
+  `registry/src/fixtures/trainer.manifest.json` (whose regeneration command is in the failure
+  message).
+
+## US-3 — KINP resolution + grounding-pack ingestion, query-time merge (40:US-3)
+
+**What landed.** The identity half of the fabric data plane, in `resolver/`. A producer
+references world knowledge it did not mint and must say which canonical thing one of its local
+records refers to; koine ADR-0008 decision 5 closed that fork — a source-local-id `same_as`,
+`based_on` across a non-inheriting world boundary, and nothing at all below threshold. There is
+no `mentions` relation and the resolver is the enforcement point.
+
+New `resolver/src/grounding.ts` — `createGroundingResolver(options)` wraps ANY delegate resolver
+(default the local one) with a KGP GroundingPack ingest surface plus the equivalence layer it
+feeds:
+
+- `ingest(pack)` reads the §2 envelope and refuses **whole** what a consumer must not hold:
+  dialect tier above what it evaluates (§5), `local-only` content (§7.2 — refused AND reported,
+  with the violations on the error, never silently stripped), a malformed envelope, a different
+  spec major. Per record: the §7.1 license allowlist, and each link's claim id re-derived from
+  its `hash_input` (§3.1/§4.1) with the un-re-derivable ones **counted** (`report.unverified`)
+  rather than passed off as checked.
+- A link under any relation KINP does not reserve is refused with ADR-0008's reason — exactly
+  where a `mentions` edge lands. Only `same_as`/`based_on` become equivalence edges; the other
+  reserved relations (`part_of`, `instance_of`, `retracts`, `supersedes`) are reported as carried
+  but not walked.
+- Below its world's threshold an ingested link **does not enter the layer at all** — it goes to
+  the review queue (§4.5, §11 decision 2). A link with no stated confidence reads as 0, so it
+  queues rather than merging on an assumption.
+- `resolve` computes the merged view **per call** over that layer, reusing `closureOver` from
+  `authority.ts` — the walk that never crosses a `based_on` edge (§4.3). A test resolves the same
+  id, ingests a second pack, resolves again: the view widens and the first answer is untouched.
+- `reconcile` grounds a mention with an exact-id/key → exact-normalized-name → fuzzy cascade over
+  the ingested entities, then hands the candidates to the EXISTING `decideLink`. No second
+  implementation of §4.5 or §11 decision 2 — ambiguity, threshold and the world rule are
+  unchanged; ambiguous and unmatched descriptors emit nothing and queue.
+
+Supporting:
+- `schemas/src/identity.ts`: `kindOf` now reads a **provisional local** (`<ns>:local:<kind>:<id>`,
+  KINP §3.4's normative row + §6). New `parseProvisionalLocal` / `isProvisionalLocal`.
+- `resolver/src/server.ts`: `POST /grounding-packs`; `GroundingPackError` → 400 with `code` and
+  the §7.2 violations. The service's resolver is now ALWAYS a `GroundingResolver` over the
+  configured one — with nothing ingested it answers byte-identically to before.
+- `describeResolver()` gains `kgpVersion` + `ingests: ['grounding-pack']`.
+- `@agora/resolver` now depends on `@agora/knowledge`.
+
+Files: `resolver/src/grounding.ts` (new), `resolver/src/grounding.test.ts` (new, 29 tests),
+`resolver/src/{index,server}.ts` + their tests, `resolver/{package.json,README.md}`,
+`schemas/src/identity.ts` + `index.ts` + `identity.test.ts`. 84 resolver tests; `make check`
+exit 0.
+
+### Learnings for future iterations
+
+- **A provisional local was not a KINP id to this codebase.** `parseKinpId` reads three segments
+  and `kindOf` added the five-segment world-scoped form, but `<ns>:local:ent:e-8842` — §3.4's
+  normative row, and the id every grounding `same_as` starts from — parsed as nothing, so the
+  local resolver refused to dereference it. `knowledge/src/claim.ts` had already special-cased
+  the same four-segment shape in `canonicalIdentifier`, which is the tell: when two areas need a
+  form the grammar module does not read, fix the grammar. Widening `kindOf` (not `parseKinpId`)
+  kept the blast radius to zero — `isKinpId` still gates manifests on the compact form.
+- **Wrapping the service's resolver needs one owner for the LinkStore.** `createResolverServer`
+  now composes grounding over the configured resolver. Passing `links`/`policy` to *both* would
+  rehydrate the same list twice and double-count every write, so the store goes to whichever
+  actually decides links (an authority delegate if there is one, else the wrapper), and the
+  wrapper's `reviewQueue`/`applied` getters CONCATENATE the delegate's — otherwise a caller
+  reading `service.resolver.reviewQueue` silently loses half the queue to the delegate.
+- **§2.1's `pack_id` is deliberately NOT verified on ingest.** The clause is
+  `sha256(canonical(manifest ⊕ sorted(entities) ⊕ …))` and `⊕` is not byte-fixed; agora's
+  `packId()` is one reading of it, so rejecting a foreign pack against it would make a generic
+  bridge producer-specific. The claim id (§3, fully byte-fixed) is what gets re-derived instead —
+  and §4.1 requires exactly that of a consumer. Only the `pack_id` *format* is checked.
+- **The version pin cuts both ways.** `SPEC_VERSIONS.kgp` is `0.4.0` while koine's KGP is `0.5.0`
+  (Candidate). Ingest compares **majors only** and documents why: 0.5.0 was additive (§3.4/§4.1
+  are about a projection this module never reads), so `isCompatibleKcbVersion`'s 0.x rule
+  (same-minor) would have rejected a conformant producer that moved first. Still open from US-1:
+  whether to bump the pin at all before KGP re-ratifies.
+- **`inspectPackEgress` reports a violating entity record without an id**, because
+  `EgressBearing` reads `record.id` and a KGP §2 entity record is keyed by `csid`. Section +
+  index still locates it exactly, so this was left alone rather than widened in `schemas/`, but
+  a future story that wants ids in the §7.2 report knows where to look.
+- **The console imports `@agora/resolver` at its root**, so anything added to that index enters
+  the browser bundle's module graph. `node:http`/`node:fs` are already there (server.ts,
+  persistence.ts) and `make check` does not run `vite build` — the Makefile records the console
+  bundle as independently red — so `@agora/knowledge`'s `node:crypto` changes nothing measurable.
+  A story that fixes the console bundle will need to move all of that behind a Node-only
+  specifier, the way `@agora/schemas/validator` already is.
+---
+## US-4 — The client surfaces a producer OUTSIDE this repo needs (G2/G4), clients/sdk/
+
+Confirmed first: nothing in G2/G4 needed rebuilding. The registry serves `/register`,
+`/crawl`, `/find`, `/address`, `/remove`, `/finetune/select`, `/path`; the router publishes
+`endpoints.openai` + an `auth.budget_units` block; the resolver has its own HTTP surface from
+US-3. What did NOT work was reaching any of it from outside the workspace: both onboarding docs
+(`docs/quickstart.md`, `examples/participant-starter/README.md`) told an installed consumer to
+`import { createRegistry } from '@agora/registry'` — a **private** workspace package no
+`npm install` can resolve. So the push-registration path and the gateway base-url path existed
+in-tree only. Two thin client modules on the published SDK close exactly that, and no runtime
+was added.
+
+- `clients/sdk/src/discovery.ts` — `createDiscoveryClient(registryUrl, {fetch?})`:
+  `describe` / `publish` / `find` / `address` / `withdraw`, i.e. the verbs `describeRegistry()`
+  has always advertised, over HTTP. `DISCOVERY_ROUTES` is the complete, exported list of routes
+  it will ever dial (a test asserts none is relay-shaped). `publish` runs `parseManifestBody`
+  LOCALLY first, so a malformed manifest fails in the producer's process instead of arriving as
+  a 400 from a stranger, and it refuses a registry that echoes a different identity than the one
+  published. `address` maps 404 → `undefined` (not knowing is an answer, not a failure).
+- `clients/sdk/src/openai.ts` — `openAiConfigFor(manifest, {capability?, budgetUnits?})` →
+  `{baseUrl, headers, model?, honorsBudgetUnits, budgetUnitsKey?}`. The config an OpenAI client
+  is CONSTRUCTED with; it never dials. `undefined` (never a guess) when the provider publishes no
+  `openai` endpoint, when it does not publish the named capability, or when that capability's own
+  endpoint is not hosted under the OpenAI base — the last check delegates to `transportOf`, so
+  there is one implementation of that precedence.
+- `examples/participant-starter/src/onboarding.test.ts` — the whole path end to end against the
+  REAL `createRegistryServer` and the REAL `registerProviderRouter` crawl: publish → find →
+  dial the peer DIRECTLY → discover the gateway → project a config → make the call. The gateway
+  is `console/src/fixtures/provider-router.session.json` (a capture of the real zero-spend
+  router, pinned current by `provider-router/tests/`) replayed strictly, so a request the
+  projected config built wrong is refused with a 409 rather than answered.
+
+Docs: quickstart's "Make it yours" now shows the SDK push path plus a new "Calling a model
+through the gateway" section; the walkthrough gained a "From outside this repo" subsection;
+`clients/sdk/README.md` documents `SDK_API.discover`'s new members and the new `SDK_API.gateway`
+group. `make check` exit 0 (`make build-sdk` too — the new modules ship in the publish build).
+
+Files: `clients/sdk/src/{discovery,openai}.ts` + their tests (new, 27 tests),
+`clients/sdk/src/index.ts` (+ `SDK_API.gateway`, `type Plane`), `clients/sdk/README.md`,
+`examples/participant-starter/src/onboarding.test.ts` (new, 9 tests) + `quickstart.test.ts` +
+`README.md`, `docs/{quickstart,walkthrough-wiring-a-project}.md`.
+
+### Learnings for future iterations
+
+- **"It exists in the tree" is not "a consumer can reach it".** Every surface US-4 needed was
+  already implemented; the gap was entirely one of *packaging* — `@agora/registry` is
+  `"private": true`, so an out-of-tree producer had no path to the index at all. When a story
+  says "confirm the client-facing surface", the check that finds the gap is: would this snippet
+  run against the packed tarballs? Two docs shipped a snippet that could not.
+- **The "no relay" invariant is about payloads, not about I/O.** Adding a client that dials the
+  *registry* is compatible with `relaysPayloads: false` — what crosses it is a manifest, a query
+  and an identity. The way to keep that honest is to make the route list an exported constant
+  and assert on it, the same discipline `describeRegistry().verbs` uses.
+- **Project the address from the manifest, not from the index's copy of it.** KCB §3 makes the
+  provider's document authoritative and the registry a cache; `providerFrom` therefore runs
+  `addressOf(parseManifestBody(match.registration.manifest))` and ignores `match.address`. A
+  test drives a registry answering with a contradicting address to pin it. (The consequence: a
+  `find` result depends on the wire carrying `registration.manifest`, which is registry API.)
+- **A discovered ceiling must not be invented.** `auth.budget_units` is the provider *declaring*
+  it honours a KCB §5 ceiling and naming the header/body key. Sending `X-Agora-Budget-Units` to
+  a provider that declared nothing would look like a cap and be none, so the config reports
+  `honorsBudgetUnits: false` and sends no header — the caller learns before it spends.
+- **A captured session is a better test double than a written one.** The console already had
+  `provider-router.session.json` + `replaySession`; reusing that capture (manifest + one exact
+  exchange, 409 on any deviation) proved the SDK's projection against the real router without
+  the TS gate booting Python. Re-pointing the captured base URL at an ephemeral port is exactly
+  what `AGORA_PUBLIC_BASE_URL` does in production, so the substitution costs no fidelity.
+- **The registry's default port is 8787** (`DEFAULT_REGISTRY_PORT`), not 8080 — worth reading
+  `main.ts` before writing a port into a doc; the doc tests check imports and links, not ports.

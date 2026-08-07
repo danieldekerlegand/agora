@@ -14,11 +14,13 @@ from agora_trainer.config import BASE_URL_ENV
 from agora_trainer.manifest import (
     AGENT_CARD_PATH,
     CAPABILITY_NAME,
+    INVOKE_PATH,
     MANIFEST_PATH,
     WEIGHTS_MEDIA_TYPES,
     capability_manifest,
 )
 from agora_trainer.modality import MODALITIES
+from agora_trainer.records import RECORDS_MEDIA_TYPE, RECORDS_SHAPE
 from conftest import config_for
 
 
@@ -51,7 +53,19 @@ class TestShape:
 
     def test_it_advertises_no_endpoint_it_does_not_serve(self) -> None:
         """A manifest address is a promise a peer will dial directly (ADR-0001 decision 3)."""
-        assert set(manifest_for()["endpoints"]) == {"a2a", "health", "manifest"}
+        assert set(manifest_for()["endpoints"]) == {"a2a", "invoke", "health", "manifest"}
+
+    def test_every_capability_carries_the_invoke_endpoint_a_caller_dials(self) -> None:
+        """`endpointFor` prefers a capability's own endpoint — so it must be the invoke URL.
+
+        A bridge that discovered this trainer by capability (KFT §8) posts a job manifest to
+        whatever came back. Without this it would get the agent card and POST a job at it.
+        """
+        manifest = manifest_for(**{BASE_URL_ENV: "https://trainer.example"})
+        assert {c["endpoint"] for c in manifest["capabilities"]} == {
+            f"https://trainer.example{INVOKE_PATH}"
+        }
+        assert manifest["endpoints"]["invoke"] == f"https://trainer.example{INVOKE_PATH}"
 
     def test_auth_declares_the_finetune_grant_and_spend_ceiling(self) -> None:
         auth = manifest_for()["auth"]
@@ -77,10 +91,29 @@ class TestPorts:
         weights = next(p for p in text["outputs"] if p["plane"] == "media")
         assert weights["media_types"] == list(WEIGHTS_MEDIA_TYPES)
 
-    def test_text_generation_consumes_knowledge_only(self) -> None:
+    def test_text_generation_consumes_knowledge_plus_the_record_files(self) -> None:
+        """Its corpus is knowledge — but a producer's exhaust arrives on the records port (FT-M)."""
         text = caps_for_modality(manifest_for(), "text-generation")
-        planes = {p["plane"] for p in text["inputs"]}
-        assert planes == {"entity", "knowledge"}
+        assert {p["plane"] for p in text["inputs"]} == {"entity", "knowledge", "media"}
+        media = [p for p in text["inputs"] if p["plane"] == "media"]
+        assert media == [
+            {
+                "plane": "media",
+                "media_types": [RECORDS_MEDIA_TYPE],
+                "world_pattern": "*",
+                "shape": RECORDS_SHAPE,
+            }
+        ]
+
+    def test_every_modality_accepts_the_training_records_port(self) -> None:
+        """KFT §2/§4.1: a training-record JSONL is path-searchable on every modality (FT-M)."""
+        manifest = manifest_for()
+        for m in MODALITIES:
+            inputs = caps_for_modality(manifest, m.name)["inputs"]
+            assert any(
+                p.get("shape") == RECORDS_SHAPE and p["media_types"] == [RECORDS_MEDIA_TYPE]
+                for p in inputs
+            ), m.name
 
     def test_multimodal_modalities_consume_media(self) -> None:
         """text-to-image / -video ride the media plane; VLM rides both (KFT §3.1/§4.1)."""

@@ -4,7 +4,7 @@
  *
  * The invariant this file exists to preserve is the one the whole registry is built on
  * (ADR-0001 decision 3, capability-bus.md §3): **route-by-lookup, never proxy.** Every route
- * here is one of the seven discovery verbs {@link describeRegistry} already names — it hands
+ * here is one of the discovery verbs {@link describeRegistry} already names — it hands
  * back a {@link ProviderAddress} / {@link Match} and the caller dials the provider *directly*.
  * There is deliberately no `invoke`, no `proxy`, no route that relays or transforms a peer's
  * payload; an unknown path is a 404, so the traffic-hub shape the ADR rejects cannot be added
@@ -27,6 +27,7 @@ import {
   type CapabilityRegistry,
   type FindQuery,
 } from './registry.ts';
+import type { FinetuneJobSpec } from './select.ts';
 import {
   createReplicator,
   isNewOrChanged,
@@ -232,6 +233,16 @@ async function route(
     return sendJson(res, 200, registry.find((body ?? {}) as FindQuery));
   }
 
+  // selectFinetune: the KFT §8/FT-K disambiguation, over the wire. `describeRegistry` has
+  // always named this verb; without a route a caller could only get it by importing the
+  // package, which a Python trainer or any non-TypeScript producer cannot do. Still pure
+  // discovery — the winner is a Match carrying an address the caller dials directly, and a
+  // tie is handed back unresolved rather than settled here.
+  if (method === 'POST' && path === '/finetune/select') {
+    const body = requireObject((await readJson(req)) ?? {});
+    return sendJson(res, 200, registry.selectFinetune(finetuneSpec(body)));
+  }
+
   // path: a capability plan across providers — addresses to dial in order, never a route here.
   if (method === 'POST' && path === '/path') {
     const body = await readJson(req);
@@ -243,6 +254,15 @@ async function route(
 
   // Anything else — including /invoke, /proxy, /forward — is not a verb this service has.
   sendJson(res, 404, { error: 'NotFound', message: `no route for ${method} ${path}` });
+}
+
+/** The job facets `/finetune/select` ranks on, read defensively off an arbitrary body. */
+function finetuneSpec(body: Record<string, unknown>): FinetuneJobSpec {
+  const spec: FinetuneJobSpec = {};
+  if (typeof body.modality === 'string') spec.modality = body.modality;
+  if (typeof body.method === 'string') spec.method = body.method;
+  if (typeof body.provider === 'string') spec.provider = body.provider;
+  return spec;
 }
 
 function findQueryFromParams(url: URL): FindQuery {

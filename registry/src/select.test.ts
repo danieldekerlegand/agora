@@ -2,9 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { createRegistry, selectFinetuneProvider, TRAINER_IDENTITY } from './index.ts';
 import { SPECIALIZED_FINETUNE } from './fixtures/providers.ts';
+import { captureSelections, type SelectionCase } from './fixtures/generate-finetune-selection.ts';
+import CAPTURED_RAW from './fixtures/finetune-selection.json';
 import TRAINER_MANIFEST from './fixtures/trainer.manifest.json';
 
 const PINAKES_IDENTITY = 'pinakes:agent:finetune';
+
+/** The pinned answers, regenerated with `AGORA_CAPTURE=1 npx vite-node registry/src/fixtures/generate-finetune-selection.ts`. */
+const CAPTURED = CAPTURED_RAW as unknown as SelectionCase[];
 
 /**
  * FT-K: more than one `finetune` provider can match a job — agora's general trainer and
@@ -155,5 +160,27 @@ describe('finetune provider selection (FT-K)', () => {
     expect(selection.outcome).toBe('selected');
     if (selection.outcome !== 'selected') return;
     expect(selection.provider.identity).toBe(PINAKES_IDENTITY);
+  });
+});
+
+/**
+ * The FT-K verdict crosses a language boundary: the **Python** dataset bridge
+ * (`trainer/src/agora_trainer/bridge.py`) reads this JSON and projects it onto a provider it
+ * dials. `finetune-selection.json` pins the shape for both sides — this asserts the registry
+ * still produces it, `trainer/tests/test_registry_selection.py` asserts the bridge still reads
+ * it. Moving or hand-editing the fixture is a two-language edit.
+ */
+describe('the captured selection fixture (cross-language pin)', () => {
+  it('still matches what selectFinetune answers', () => {
+    expect(captureSelections()).toEqual(CAPTURED);
+  });
+
+  it('pins the facts the bridge acts on: an address to dial and a trust boundary', () => {
+    const specialized = CAPTURED.find((c) => c.name === 'specialized')?.selection;
+    expect(specialized?.outcome).toBe('selected');
+    if (specialized?.outcome !== 'selected') return;
+    // The bridge reads `tier` to decide whether a local-only corpus may go there (KFT §4.2).
+    expect(specialized.provider.capabilities[0]?.tier).toBe('local');
+    expect(specialized.provider.capabilities[0]?.endpoint).toBeTruthy();
   });
 });

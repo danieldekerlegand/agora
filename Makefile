@@ -131,6 +131,8 @@ check-path-index:  ## Gate: the Rust path-index crate (cargo test + clippy)
 	fi
 check-resolver:  ## Gate: the resolver only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/resolver
+check-knowledge:  ## Gate: the KGP knowledge-sync bridge only
+	@$(MAKE) --no-print-directory ts-area PKG=@agora/knowledge
 check-console:  ## Gate: the console only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/console
 

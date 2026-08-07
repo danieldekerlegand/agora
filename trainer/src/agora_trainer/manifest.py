@@ -5,7 +5,10 @@ are **plane-typed ports** (KCB §2.1), so it spans the entity, knowledge, and me
 once — which is exactly what fine-tuning needs (data in one plane, a model out in another):
 
 * inputs  — a `model`/`entity` **base-model** port, plus a `knowledge` and/or `media`
-  **training-set** port (which planes depends on the modality, KFT §3.1/§4.1);
+  **training-set** port (which planes depends on the modality, KFT §3.1/§4.1), plus the
+  **training-records** port: a `media` port carrying the registered
+  ``application/vnd.koine.dataset+jsonl`` type, which is how a *producer's* training exhaust is
+  path-searchable at all (KFT §2/§4.1, FT-M) rather than mis-routed at the image/video port;
 * outputs — a `model`/`entity` **finetuned-model** port, plus a `media` **weights** port whose
   media types are the registered model formats (KFT §5.3);
 * cost    — metered in ``gpu-seconds`` (fine-tuning's natural unit, KFT §2/§7), so a caller can
@@ -21,7 +24,10 @@ Two choices mirror the provider-router's manifest discipline:
   modality* — ``find({produces:{entityType:"text-generation"}})`` — as well as by capability name.
 * **No endpoint is advertised that is not served.** A manifest address is a promise a peer will
   dial directly (ADR-0001 decision 3); a dead one is worse than an absent one. This build serves
-  ``/health``, the A2A agent card, and this manifest, and publishes exactly those.
+  ``/health``, the A2A agent card, this manifest, and the `finetune` ``/invoke`` task surface,
+  and publishes exactly those. ``invoke`` also rides each capability's own ``endpoint``, which is
+  what ``endpointFor`` hands a caller — so a bridge that discovered this trainer through the
+  registry gets the URL it actually posts a job to, not the agent card.
 """
 
 from __future__ import annotations
@@ -32,6 +38,7 @@ from typing import Any
 from . import KCB_VERSION, __version__
 from .config import TrainerConfig
 from .modality import MODALITIES, Modality
+from .records import RECORDS_MEDIA_TYPE, RECORDS_SHAPE
 
 #: Where the manifest is served, and how a crawler finds it (KCB §3, pull population).
 MANIFEST_PATH = "/.well-known/kcb-manifest.json"
@@ -42,6 +49,10 @@ AGENT_CARD_PATH = "/.well-known/agent-card.json"
 
 #: The invocable capability name every modality shares (KFT §2). Modality distinguishes them.
 CAPABILITY_NAME = "finetune"
+
+#: The `finetune` invoke / subscribe task surface (KCB §4) — where a caller POSTs a job manifest
+#: and reads back the §6 training-telemetry stream.
+INVOKE_PATH = "/invoke"
 
 #: The KMI weight/export media types the trainer produces (KFT §5.3, koine registry media-types).
 WEIGHTS_MEDIA_TYPES: tuple[str, ...] = (
@@ -97,6 +108,21 @@ def weights_port() -> dict[str, Any]:
     }
 
 
+def training_records_port() -> dict[str, Any]:
+    """The ``dataset.records[]`` input — a producer's training exhaust (KFT §2/§4.1, FT-M).
+
+    Its own port, on every modality: a training-record JSONL is neither a KGP pack nor
+    image/video/audio bytes, so without this the exhaust has no path-searchable arrival point
+    and the FT-I per-sample join surface would be unroutable.
+    """
+    return {
+        "plane": "media",
+        "media_types": [RECORDS_MEDIA_TYPE],
+        "world_pattern": "*",
+        "shape": RECORDS_SHAPE,
+    }
+
+
 def training_set_ports(modality: Modality) -> list[dict[str, Any]]:
     """The training-set inputs — knowledge and/or media, by modality (KFT §3.1/§4.1)."""
     ports: list[dict[str, Any]] = []
@@ -106,13 +132,17 @@ def training_set_ports(modality: Modality) -> list[dict[str, Any]]:
         ports.append(
             {"plane": "media", "media_types": list(modality.media_types), "shape": "training-set"}
         )
+    ports.append(training_records_port())
     return ports
 
 
-def capability(modality: Modality) -> dict[str, Any]:
+def capability(modality: Modality, base_url: str) -> dict[str, Any]:
     """The `finetune` capability for one modality (KFT §2)."""
     return {
         "name": CAPABILITY_NAME,
+        # The capability's own dialable endpoint (KCB §2) — `endpointFor` prefers it, so a
+        # caller that found this trainer by capability gets the invoke URL, not the agent card.
+        "endpoint": f"{base_url}{INVOKE_PATH}",
         # Not part of KCB's capability shape, but read straight through the manifest narrower —
         # they let the registry (US-5) distinguish this general provider's broad surface from a
         # specialized provider's narrower one (KFT §3.1/§8, FT-K).
@@ -139,6 +169,7 @@ def capability_manifest(config: TrainerConfig) -> dict[str, Any]:
         "version": __version__,
         "endpoints": {
             "a2a": f"{base}{AGENT_CARD_PATH}",
+            "invoke": f"{base}{INVOKE_PATH}",
             "health": f"{base}/health",
             "manifest": f"{base}{MANIFEST_PATH}",
         },
@@ -149,7 +180,7 @@ def capability_manifest(config: TrainerConfig) -> dict[str, Any]:
             _each(MODALITIES, base_model_port)
             + [port for m in MODALITIES for port in training_set_ports(m)],
         ),
-        "capabilities": [capability(m) for m in MODALITIES],
+        "capabilities": [capability(m, base) for m in MODALITIES],
         "auth": {
             "scheme": "capability-token",
             # KFT §7: `invoke:finetune` per-world, per-capability, carrying a `budget_units`

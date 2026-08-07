@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "endpoints": {
     "a2a": "http://127.0.0.1:8001/.well-known/agent-card.json",
+    "invoke": "http://127.0.0.1:8001/invoke",
     "health": "http://127.0.0.1:8001/health",
     "manifest": "http://127.0.0.1:8001/.well-known/kcb-manifest.json"
   },
@@ -107,6 +108,14 @@
     {
       "plane": "media",
       "media_types": [
+        "application/vnd.koine.dataset+jsonl"
+      ],
+      "world_pattern": "*",
+      "shape": "training-records"
+    },
+    {
+      "plane": "media",
+      "media_types": [
         "image/*"
       ],
       "shape": "training-set"
@@ -122,6 +131,7 @@
   "capabilities": [
     {
       "name": "finetune",
+      "endpoint": "http://127.0.0.1:8001/invoke",
       "modality": "text-generation",
       "methods": [
         "sft",
@@ -143,6 +153,14 @@
           "plane": "knowledge",
           "dialect": "grounding-only",
           "shape": "training-set"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.dataset+jsonl"
+          ],
+          "world_pattern": "*",
+          "shape": "training-records"
         }
       ],
       "outputs": [
@@ -174,6 +192,7 @@
     },
     {
       "name": "finetune",
+      "endpoint": "http://127.0.0.1:8001/invoke",
       "modality": "image-text-to-text",
       "methods": [
         "lora",
@@ -199,6 +218,14 @@
             "image/*"
           ],
           "shape": "training-set"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.dataset+jsonl"
+          ],
+          "world_pattern": "*",
+          "shape": "training-records"
         }
       ],
       "outputs": [
@@ -230,6 +257,7 @@
     },
     {
       "name": "finetune",
+      "endpoint": "http://127.0.0.1:8001/invoke",
       "modality": "video-text-to-text",
       "methods": [
         "lora",
@@ -255,6 +283,14 @@
             "video/*"
           ],
           "shape": "training-set"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.dataset+jsonl"
+          ],
+          "world_pattern": "*",
+          "shape": "training-records"
         }
       ],
       "outputs": [
@@ -286,6 +322,7 @@
     },
     {
       "name": "finetune",
+      "endpoint": "http://127.0.0.1:8001/invoke",
       "modality": "text-to-image",
       "methods": [
         "lora",
@@ -306,6 +343,14 @@
             "image/*"
           ],
           "shape": "training-set"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.dataset+jsonl"
+          ],
+          "world_pattern": "*",
+          "shape": "training-records"
         }
       ],
       "outputs": [
@@ -337,6 +382,7 @@
     },
     {
       "name": "finetune",
+      "endpoint": "http://127.0.0.1:8001/invoke",
       "modality": "text-to-video",
       "methods": [
         "lora"
@@ -356,6 +402,14 @@
             "video/*"
           ],
           "shape": "training-set"
+        },
+        {
+          "plane": "media",
+          "media_types": [
+            "application/vnd.koine.dataset+jsonl"
+          ],
+          "world_pattern": "*",
+          "shape": "training-records"
         }
       ],
       "outputs": [

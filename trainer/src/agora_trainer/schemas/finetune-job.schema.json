@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://koine.ecosystem/schemas/finetune-job.schema.json",
   "title": "FinetuneJob",
-  "description": "The invoke payload for the KFT `finetune` capability (specs/fine-tuning.md §3, KFT 0.3.0). The machine-readable twin of the job manifest. Data is referenced by KINP/KGP/KMI id, never inlined. The cross-schema $refs below resolve against schemas/provenance.schema.json (shared $defs) and schemas/dataset-jsonl-header.schema.json (the training-record header) in this directory. A golden positive example lives at schemas/fixtures/finetune-job.json; the validators + conformance suite that exercise this schema live downstream in a runtime commons per ADR-0001 (koine = contracts), NOT in koine.",
+  "description": "The invoke payload for the KFT `finetune` capability (specs/fine-tuning.md §3, KFT 0.4.0). The machine-readable twin of the job manifest. Data is referenced by KINP/KGP/KMI id, never inlined. The cross-schema $refs below resolve against schemas/provenance.schema.json (shared $defs) and schemas/dataset-jsonl-header.schema.json (the training-record header) in this directory. A golden positive example lives at schemas/fixtures/finetune-job.json; the validators + conformance suite that exercise this schema live downstream in a runtime commons per ADR-0001 (koine = contracts), NOT in koine.",
   "type": "object",
   "$defs": {
     "kinpId": {
@@ -46,16 +46,25 @@
         "media": {
           "type": "array",
           "items": { "$ref": "#/$defs/kinpId" },
-          "description": "KMI asset ids (multimodal data), fetched lazily via KCB fetch:asset."
+          "description": "KMI asset ids (multimodal image/video/audio data), fetched lazily via KCB fetch:asset."
+        },
+        "records": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kinpId" },
+          "description": "KMI asset ids of the training-record JSONL file(s) — a producing application's training exhaust, and the FT-I per-sample join surface. Each carries media type application/vnd.koine.dataset+jsonl (registry/media-types.tsv) and opens with a dataset-jsonl-header (KFT §4.1, FT-M)."
         },
         "header": {
-          "$ref": "dataset-jsonl-header.schema.json",
-          "description": "The dataset-jsonl-header — carries tier + license + provenance that travel with the data."
+          "description": "The dataset-jsonl-header(s) copied inline — carries tier + license + egress + recordCount + provenance so the §4.2 gate and §7 estimate run before any fetch. An array, positionally one per records[] entry (FT-O); a bare object is the degenerate one-file form. Verified against the file's actual first record on fetch; a disagreement rejects the job (KFT §4.1).",
+          "oneOf": [
+            { "$ref": "dataset-jsonl-header.schema.json" },
+            { "type": "array", "items": { "$ref": "dataset-jsonl-header.schema.json" } }
+          ]
         }
       },
       "anyOf": [
         { "required": ["knowledge"] },
-        { "required": ["media"] }
+        { "required": ["media"] },
+        { "required": ["records"] }
       ],
       "additionalProperties": false
     },

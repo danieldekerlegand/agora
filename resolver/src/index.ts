@@ -84,6 +84,28 @@ export {
   type StartedResolver,
 } from './main.ts';
 export {
+  createGroundingResolver,
+  DEFAULT_FUZZY_THRESHOLD,
+  EQUIVALENCE_RELATIONS,
+  EXACT_ID_CONFIDENCE,
+  EXACT_NAME_CONFIDENCE,
+  FUZZY_SCALE,
+  GroundingPackError,
+  INGEST_REJECTION_CODES,
+  normalizeName,
+  PACK_REFUSAL_CODES,
+  similarity,
+  type EquivalenceLink,
+  type EquivalenceRelation,
+  type GroundingEntity,
+  type GroundingOptions,
+  type GroundingResolver,
+  type IngestRejection,
+  type IngestRejectionCode,
+  type IngestReport,
+  type PackRefusalCode,
+} from './grounding.ts';
+export {
   closureOver,
   createAuthorityResolver,
   readCandidates,
@@ -140,17 +162,27 @@ export function createLocalResolver(): Resolver {
 export interface ResolverDescription {
   identity: string;
   kinpVersion: string;
+  /** The grounding-pack contract the ingest surface reads (KGP §2). */
+  kgpVersion: string;
   /** True once a resolver that dials the authority exists — it does (US-CS4). */
   implemented: boolean;
   verbs: readonly string[];
+  /**
+   * The bundles this resolver *accepts*, kept off {@link ResolverDescription.verbs} on purpose:
+   * `verbs` is identity.md §8's list, and grounding-pack ingest is KGP's contract, not a fourth
+   * identity verb. Conflating them would read as the resolver having grown a data-plane API.
+   */
+  ingests: readonly string[];
 }
 
 export function describeResolver(): ResolverDescription {
   return {
     identity: RESOLVER_IDENTITY,
     kinpVersion: SPEC_VERSIONS.kinp,
+    kgpVersion: SPEC_VERSIONS.kgp,
     implemented: true,
     verbs: ['resolve', 'reconcile'],
+    ingests: ['grounding-pack'],
   };
 }
 

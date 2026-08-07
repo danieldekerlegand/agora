@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
-  "description": "Runtime commons for koine-conformant systems — TypeScript areas (schemas, clients, registry, resolver, console).",
+  "description": "Runtime commons for koine-conformant systems — TypeScript areas (schemas, clients, registry, resolver, knowledge, console).",
   "workspaces": [
     "schemas",
     "clients/*",
     "registry",
     "resolver",
+    "knowledge",
     "console",
     "examples/*"
   ],

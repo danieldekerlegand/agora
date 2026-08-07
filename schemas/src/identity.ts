@@ -66,16 +66,43 @@ export function worldOf(value: unknown): string | undefined {
 }
 
 /**
- * The kind an id declares, in **either** form — compact (§3.2) or world-scoped (§5).
+ * The kind an id declares, in **any** of its forms — compact (§3.2), world-scoped (§5), or a
+ * provisional local (§3.4, §6).
  *
  * {@link parseKinpId} only reads the three-segment compact form, so it answers `undefined`
  * for `worldsim:world:alderforest:ent:npc-renaud` — which is a perfectly well-formed entity
  * id. Anything that needs "what kind of thing is this" (the resolver deciding whether an
- * id round-trips to the authority at all, §6) needs both, from one grammar.
+ * id round-trips to the authority at all, §6) needs all three, from one grammar.
  */
 export function kindOf(value: unknown): KinpKind | undefined {
   if (typeof value !== 'string') return undefined;
-  return parseKinpId(value)?.kind ?? parseWorldScoped(value)?.kind;
+  return (
+    parseKinpId(value)?.kind ?? parseWorldScoped(value)?.kind ?? parseProvisionalLocal(value)?.kind
+  );
+}
+
+/**
+ * `<namespace>:local:<kind>:<local-id>` — a **provisional local** (§3.4's normative
+ * `<ns>:local` row, minted offline per §6).
+ *
+ * A participant mints one the instant it needs an id, before anything has reconciled it, so
+ * this is the form the *left* side of a grounding `same_as` usually takes: "my record e-8842
+ * denotes your `refkb:ent:napoleon-i`". A grammar that could not read it would leave the
+ * resolver unable to dereference exactly the id an adapter emits.
+ */
+export function parseProvisionalLocal(value: unknown): KinpId | undefined {
+  if (typeof value !== 'string') return undefined;
+  const parts = value.split(':');
+  if (parts.length !== 4) return undefined;
+  const [namespace, local, kind, localId] = parts as [string, string, string, string];
+  if (local !== 'local' || !SEGMENT.test(namespace) || !SEGMENT.test(localId)) return undefined;
+  if (!(KINP_KINDS as readonly string[]).includes(kind)) return undefined;
+  return { namespace, kind: kind as KinpKind, localId };
+}
+
+/** True for a provisional local id — one the resolver has not reconciled yet (§6). */
+export function isProvisionalLocal(value: unknown): boolean {
+  return parseProvisionalLocal(value) !== undefined;
 }
 
 /** `<namespace>:world:<name>:<kind>:<local-id>` — an id named into a world (§5). */

@@ -1,0 +1,20 @@
+{
+  "name": "@agora/knowledge",
+  "license": "Apache-2.0",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Generic KGP knowledge-sync bridge — admits any producer's claims against the shared relation registry and delivers them to a configured KGP consumer.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@agora/schemas": "*",
+    "@agora/sdk": "*"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}

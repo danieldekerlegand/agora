@@ -103,6 +103,28 @@ Your *own* project joins the same way. Serve a KCB manifest describing what it o
 it with `registerFromWellKnown(registry, 'https://your-peer.example')`. Discovery returns its
 address; callers dial it directly. Details in [`../registry/README.md`](../registry/README.md).
 
+### From outside this repo
+
+`@agora/registry` is a workspace package — it is not published, so a project that installed only
+`@agora/sdk` reaches a *running* registry over HTTP instead. The same three moves, from the client
+side:
+
+```ts
+import { createDiscoveryClient, openAiConfigFor } from '@agora/sdk';
+
+const discovery = createDiscoveryClient('http://127.0.0.1:8787');   // npm start -w @agora/registry
+await discovery.publish(myManifest);                                 // push: for a peer nothing can crawl
+
+const [gateway] = await discovery.find({ capability: 'generate.text' });
+const config = openAiConfigFor(gateway.manifest, { capability: 'generate.text', budgetUnits: 0 });
+// → { baseUrl: 'http://127.0.0.1:8000/v1', headers: { 'X-Agora-Budget-Units': '0' }, … }
+```
+
+`config` is what you construct your OpenAI client with — the Python snippet from Step 1, with the
+base URL and the ceiling header *discovered* rather than hard-coded. The SDK builds the
+configuration and stops there; the call is yours, and it goes straight to the router.
+`examples/participant-starter/src/onboarding.test.ts` drives this whole path end to end.
+
 ## Step 3 — Prove it end to end with a conformance scenario
 
 The final move is proof. The **conformance console** runs a scenario against the *real*

@@ -14,12 +14,15 @@
  */
 import { readFileSync } from 'node:fs';
 
+import { parseManifestBody } from '@agora/schemas';
 import * as sdk from '@agora/sdk';
 import {
   addressOf,
+  BUDGET_UNITS_HEADER,
   endpointFor,
   isDialable,
   KCB_MANIFEST_EXTENSION_URI,
+  openAiConfigFor,
   SPEC_VERSIONS,
   transportOf,
 } from '@agora/sdk';
@@ -93,6 +96,21 @@ describe('docs/quickstart.md', () => {
       endpointFor(address, capability),
     ].join(' ');
     expect(quickstart).toContain(`# ${projected}`);
+  });
+
+  it('prints the gateway config the SDK really projects out of the router manifest', () => {
+    // The doc quotes a config block; it is read back out of the real router's captured manifest,
+    // so a router that changed its endpoints or its ceiling header turns this red.
+    const router = parseManifestBody(
+      JSON.parse(readFromRoot('registry/src/fixtures/provider-router.manifest.json')),
+    );
+    const config = openAiConfigFor(router, { capability: 'generate.text', budgetUnits: 0 });
+
+    expect(quickstart).toContain(`baseUrl: '${config?.baseUrl ?? ''}'`);
+    expect(quickstart).toContain(`'${BUDGET_UNITS_HEADER}': '0'`);
+    expect(quickstart).toContain(`model: '${config?.model ?? ''}'`);
+    expect(quickstart).toContain(`budgetUnitsKey: '${config?.budgetUnitsKey ?? ''}'`);
+    expect(config?.headers).toEqual({ [BUDGET_UNITS_HEADER]: '0' });
   });
 
   it('installs the versions this repo would actually publish', () => {

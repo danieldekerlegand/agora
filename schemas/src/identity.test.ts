@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { isKinpId, isWorldId, kindOf, parseKinpId, worldOf } from './index.ts';
+import {
+  isKinpId,
+  isProvisionalLocal,
+  isWorldId,
+  kindOf,
+  parseKinpId,
+  parseProvisionalLocal,
+  worldOf,
+} from './index.ts';
 
 describe('KINP compact identifiers', () => {
   it('splits the namespace / kind / local-id triple', () => {
@@ -60,5 +68,23 @@ describe('world scoping (§5)', () => {
     expect(kindOf('insimul:world:alderforest#save-7f:claim:sha256-9f3c1a')).toBe('claim');
     expect(kindOf('insimul:place:alderforest:ent:x')).toBeUndefined();
     expect(kindOf(42)).toBeUndefined();
+  });
+
+  it('reads a provisional local — the id a producer grounds *from* (§3.4, §6)', () => {
+    // `<ns>:local:<kind>:<local>` is §3.4's normative row, and it is the left-hand side of a
+    // grounding `same_as`: a resolver blind to it cannot dereference the id an adapter emits.
+    expect(kindOf('herbarium:local:ent:e-8842')).toBe('ent');
+    expect(isProvisionalLocal('herbarium:local:ent:e-8842')).toBe(true);
+    expect(parseProvisionalLocal('herbarium:local:ent:e-8842')).toEqual({
+      namespace: 'herbarium',
+      kind: 'ent',
+      localId: 'e-8842',
+    });
+    // A local is pre-reconciliation, so it is named into no world — its assertion's own world
+    // scopes it (§5), and guessing one here would decide a firewall question from a string.
+    expect(worldOf('herbarium:local:ent:e-8842')).toBeUndefined();
+    expect(isProvisionalLocal('herbarium:ent:e-8842')).toBe(false);
+    expect(isProvisionalLocal('herbarium:local:widget:e-8842')).toBe(false);
+    expect(isProvisionalLocal(42)).toBe(false);
   });
 });

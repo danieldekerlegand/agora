@@ -51,6 +51,21 @@ await registerFromWellKnown(registry, 'http://127.0.0.1:8790');
 const [match] = registry.find({ capability: 'summarize.text' });   // match.address is yours
 ```
 
+That is the *pull* path, and it needs the registry to be able to reach you. From your own project —
+which installs the published SDK, not this workspace — **push** instead, over HTTP:
+
+```ts
+import { createDiscoveryClient } from '@agora/sdk';
+
+const discovery = createDiscoveryClient('http://127.0.0.1:8787');
+await discovery.publish(participantManifest('http://127.0.0.1:8790'));
+const [found] = await discovery.find({ capability: 'summarize.text' });   // found.address is yours
+```
+
+[`src/onboarding.test.ts`](src/onboarding.test.ts) drives that whole path against a real registry:
+publish, be found, be dialed directly, and configure an OpenAI client against the model gateway the
+same lookup discovered.
+
 The identity (`example:agent:summarizer`) and the capability (`summarize.text`) here are sample
 data — a made-up peer. Describe what *you* actually do.
 

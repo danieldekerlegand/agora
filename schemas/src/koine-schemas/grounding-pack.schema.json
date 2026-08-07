@@ -2,12 +2,12 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://koine.ecosystem/schemas/grounding-pack.schema.json",
   "title": "GroundingPack",
-  "description": "The machine-readable form of the KGP grounding-pack.md §2 envelope: a content-addressed, self-describing bundle of knowledge scoped to one or more worlds (KINP §5). The envelope is exactly the KGP §2 shape (kgp_version / pack_id / producer / worlds / kind / basis / dialect + entities / assertions / links / provenance / manifest): no hard-coded producer discriminator and no free-string pack id — any KINP namespace may produce a pack, and the pack id is content-addressed (KGP §2.1). Exact on the envelope, ids, provenance, license; permissive on entity fields.",
+  "description": "The machine-readable form of the KGP grounding-pack.md §2 envelope: a content-addressed, self-describing bundle of knowledge scoped to one or more worlds (KINP §5). The envelope is exactly the KGP §2 shape (kgp_version / pack_id / producer / worlds / kind / basis / dialect + entities / assertions / links / provenance / manifest): no hard-coded producer discriminator and no free-string pack id — any KINP namespace may produce a pack, and the pack id is content-addressed (KGP §2.1). Exact on the envelope, ids, provenance, license; permissive on entity fields. This is the KGP §4 JSON encoding — the lossless twin of the canonical TSV, and deliberately NOT a JSON-LD document: per ADR-0006 the RDF-star / W3C PROV / JSON-LD form is a one-directional projection (§4.1) that is never authoritative on ingest, so nothing here depends on a resolvable @context and no koine schema models a projection. The pack — manifest included — is the unit of transfer; a bare projection is not.",
   "type": "object",
   "properties": {
     "kgp_version": {
       "$ref": "provenance.schema.json#/$defs/contractVersion",
-      "description": "The KGP spec version (semver) this pack was produced against — e.g. \"0.4.0\". A producer-local grounding-contract constant is NOT a substitute: every pack declares the koine spec version it conforms to."
+      "description": "The KGP spec version (semver) this pack was produced against — e.g. \"0.5.0\". A producer-local grounding-contract constant is NOT a substitute: every pack declares the koine spec version it conforms to."
     },
     "pack_id": {
       "type": "string",
@@ -39,7 +39,7 @@
     },
     "dialect": {
       "$ref": "provenance.schema.json#/$defs/dialect",
-      "description": "Pack-level logic dialect (KGP §2 envelope, §5) — the highest logic tier a consumer may evaluate over this pack's assertions. NOT an egress or trust field; local-only is excluded here because it is an egress class, not a dialect tier (KGP §5)."
+      "description": "Pack-level logic dialect (KGP §2 envelope, §5) — the highest logic tier a consumer may evaluate over this pack's assertions. NOT an egress or trust field; local-only is excluded here because it is an egress class, not a dialect tier (KGP §5). The grounding-only floor is deliberately cheap: a SHA-256 implementation, the relation registry and a TSV writer — no graph store, no JSON-LD processor, no context resolution (KGP §3.4, §5)."
     },
     "entities": {
       "type": "array",
@@ -60,7 +60,7 @@
     },
     "assertions": {
       "type": "array",
-      "description": "The KINP assertion envelopes (identity.md §7.1) this pack carries. Each `id` is the content-addressed claim id (KGP §3), so identical claims dedup/merge across producers. Untyped fact strings are NOT the envelope shape — Prolog is a §4 serialization only.",
+      "description": "The KINP assertion envelopes (identity.md §7.1) this pack carries. Each `id` is the content-addressed claim id (KGP §3), so identical claims dedup/merge across producers. Untyped fact strings are NOT the envelope shape — Prolog is a §4 serialization only, as are Datalog, ProbLog, Neo4j, and the RDF-star/PROV/JSON-LD projection (§4.1).",
       "items": {
         "type": "object",
         "properties": {
@@ -87,7 +87,7 @@
     },
     "provenance": {
       "type": "array",
-      "description": "W3C-PROV-shaped activities/agents referenced by the assertions (KGP §2, §7).",
+      "description": "PROV-*shaped* activities/agents referenced by the assertions (KGP §2, §7). Shaped after W3C PROV but not named in its vocabulary here: the bundle carries no RDF dependency, and PROV terms appear only in the §4.1 projection (ADR-0006).",
       "items": { "type": "object" }
     },
     "manifest": {

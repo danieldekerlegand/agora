@@ -126,6 +126,7 @@ Each component is an independent service you can run on its own.
 | **provider-router** | [`provider-router-erl/`](provider-router-erl/README.md) | The OpenAI-compatible model gateway. Owns the always-completes fallback chain (paid → local model server → local model → deterministic placeholder), per modality, with cost estimation and budget-ceiling enforcement. |
 | **discovery registry** | [`registry/`](registry/README.md) | The service phone book: `find` a capability, get back an **address**. It ranks routes cheapest-first, can chain capabilities across providers, and **never relays traffic**. |
 | **identity resolver** | [`resolver/`](resolver/README.md) | Resolves and reconciles entity identifiers against a deployment's configured authority — the canonical store for who's who. |
+| **knowledge sync** | [`knowledge/`](knowledge/README.md) | The KGP data-plane bridge: any producer's claims, checked against the shared relation vocabulary and the license/egress/dialect gates, delivered to a KGP consumer as a content-addressed grounding pack. A conduit with a gate — it stores nothing. |
 | **translation engine** | [`translation/`](translation/README.md) | Translates knowledge and media between a canonical graph shape and the formats on either side of a bridge. One core, several front-ends (WebAssembly, native Python binding, HTTP service). |
 | **conformance console** | [`console/`](console/README.md) | A scenario runner + UI that drives real connections between services and asserts the guarantees held. An observer, not a hub. |
 | **trainer** | [`trainer/`](trainer/README.md) | The general-purpose model fine-tuning capability (GPU fine-tuning jobs). Specialized, corpus-specific finetuners run as their own services. |
@@ -145,6 +146,7 @@ since everything is reached over the wire, never imported across a language boun
 | `trainer/` | Python (uv) | `make check-trainer` — ruff + mypy + pytest |
 | `registry/` | TypeScript | `make check-registry` |
 | `resolver/` | TypeScript | `make check-resolver` |
+| `knowledge/` | TypeScript | `make check-knowledge` — the KGP knowledge-sync bridge |
 | `console/` | TypeScript + React | `make check-console` |
 | `schemas/` | TypeScript | `make check-schemas` |
 | `clients/sdk/` | TypeScript | `make check-clients` — the published client SDK (`make build` emits its `dist/`) |

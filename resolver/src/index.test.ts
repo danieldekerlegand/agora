@@ -12,9 +12,18 @@ describe('@agora/resolver', () => {
     expect(describeResolver()).toEqual({
       identity: RESOLVER_IDENTITY,
       kinpVersion: '0.2.0',
+      kgpVersion: '0.4.0',
       implemented: true,
       verbs: ['resolve', 'reconcile'],
+      ingests: ['grounding-pack'],
     });
+  });
+
+  it('keeps grounding-pack ingest off the §8 verb list — it is KGP’s contract, not a verb', () => {
+    // The pack surface is what the resolver *accepts*, not a fourth identity verb: identity.md
+    // §8 names resolve/reconcile/mint/link/query, and a data-plane bundle is none of them.
+    expect(describeResolver().verbs).toEqual(['resolve', 'reconcile']);
+    expect(describeResolver().ingests).toContain('grounding-pack');
   });
 });
 
