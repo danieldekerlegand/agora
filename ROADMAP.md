@@ -69,7 +69,7 @@ into `make check` (what CI runs):
 - **schemas** (`schemas/`, TS) — `@agora/schemas`, shared manifest schemas / protocol types; the
   koine spec versions are pinned once here and asserted across every language gate.
 
-**Chief program:** 4/4 tasklists merged (`10`, `20`, `30`, `40`); **0 pending**.
+**Chief program:** 4/4 built-program tasklists merged (`10`, `20`, `30`, `40`); 17 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 1 parked.
 
 ---
 
@@ -244,7 +244,7 @@ Smaller open threads noted across the docs, each with a known site, none big eno
 
 ## Chief Tasklist Status
 
-- **4/4 tasklists merged**; **0 pending, 0 parked.** Records live in
+- **4/4 built-program tasklists merged**; 17 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 1 parked. Records live in
   [`tasks/chief/completed/`](tasks/chief/completed/): `10-litellm-leaf-gateway`,
   `20-client-sdk-and-starter`, `30-translation-otio`, `40-fabric-data-plane-bridges` — each with a
   `mergedToMain` commit and all user stories `passes: true`.
