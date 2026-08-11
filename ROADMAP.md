@@ -252,7 +252,7 @@ Smaller open threads noted across the docs, each with a known site, none big eno
   `koine:40-fabric-producer-contracts`); both dependencies were satisfied before the agora work
   merged.
 - **17 proposed tasklists** (`chief/41`, `chief/50`–`58`, `chief/60`–`66`) back the planned Phases
-  A–G above — **none authored yet** (no `tasks/chief/*.json`); they are roadmap stubs, numbered to
+  A–G above — **now authored** (`tasks/chief/*.json`, `passes: false`, unrun); they are numbered to
   not collide with the merged bands or the cross-repo `agora:80`/`agora:90` references.
 - No open *autonomous* work remains in this repo. The second-act phases are cutover/follow-up and
   breadth work; several rows are cross-repo (`koine`, the orchestrator, `pinakes`) or gated on
