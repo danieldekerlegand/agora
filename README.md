@@ -202,5 +202,5 @@ the registry and resolver surfaces.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE). Every buildable unit declares the same license; sharing one
+Apache-2.0 — see [`LICENSE`](LICENSE). Every buildable unit declares the same license; sharing one
 license across the tree is what makes any capability here safe to vendor, self-host, or fork.
