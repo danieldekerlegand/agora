@@ -155,8 +155,24 @@ since everything is reached over the wire, never imported across a language boun
 
 There are two provider-router areas: the **Erlang app is the canonical one you deploy**, and the
 **Python app stays in the tree as the executable specification** the Erlang app is tested against,
-byte for byte. A change to the router's external behavior must land in both or in neither. The
-reasoning is in [`DESIGN.md`](DESIGN.md).
+byte for byte. A change to the router's external behavior must land in both or in neither. That
+outcome — Erlang as the canonical router — is the decision of ADR-0004 (a private deployment ADR:
+the deployment-history records ADR-0002–0004 live in the operator's private integration repo, so
+there is no public file to link). The engineering reasoning is in [`DESIGN.md`](DESIGN.md).
+
+## Status
+
+Every component above is implemented and gated — `make check` runs each area's quality gate and is
+what CI runs — but a few edges are honestly still in progress: the conformance console's
+control-plane telemetry reader is provisional, so a conformance predicate that needs emitted
+telemetry currently reports `pending` rather than passing; the trainer's general provider is
+implemented and gated, but its live endpoints for training telemetry (KFT §6), model export
+(§5.3), and the model registry (§8) are not yet served; and the Erlang-router cutover keeps the
+Python router in the tree as the executable specification until its preconditions land. The full
+picture — what is done, what is in flight, and the phased plan — is [`ROADMAP.md`](ROADMAP.md).
+Also on that roadmap (Phase G) is **Agora Studio**, the planned topology/observability UI: a live
+graph of participants and their MCP/A2A connections, with on-the-wire message viewing, built over
+the registry and resolver surfaces.
 
 ## Going deeper
 
