@@ -5,6 +5,34 @@ for this story was *GO, NARROWED*. **Code:**
 `provider-router/src/agora_provider_router/litellm_dispatch.py`.
 **Tests:** `provider-router/tests/test_litellm_dispatch.py`.
 
+> ## ⚠️ Scope correction — 2026-08-11
+>
+> **This adapter is scoped to the superseded Python router only. The canonical router contains
+> no LiteLLM at all.** `grep -ril litellm provider-router-erl/` returns nothing.
+>
+> The canonical Erlang router (ADR-0004) dials **all seven** native-wire vendors — anthropic,
+> gemini, replicate, elevenlabs, runway, luma, minimax — through the **Rust port program**
+> `translation/crates/wire`, built by `provider-router-erl/build-translator.sh` and driven by
+> `apr_translate.erl` as a supervised external OS process. A **port, not a NIF**, deliberately:
+> a panic or segfault in third-party wire-format code costs one pipe and one restart instead of
+> the node, so *always-completes* stays a structural property of the design rather than a claim
+> about someone else's code.
+>
+> That makes the coverage picture the **opposite** of what the rest of this document implies:
+> the Rust codec covers **8 `(vendor,modality)` pairs across all seven vendors**, where this
+> adapter makes **2 of 7** dialable. The canonical path is ahead of the borrowed one, not behind
+> it, and the vendor-breadth path of record is `chief/52-wire-codec-vendor-breadth`.
+>
+> **The code is right; the record was wrong.** Two independent reasons to keep it that way:
+> LiteLLM cannot embed in the BEAM without a Python sidecar on the hot path or a NIF, and either
+> choice costs one of the two differentiators the router exists for; and **LiteLLM 1.82.7 and
+> 1.82.8 were backdoored on PyPI in March 2026** — disqualifying for an unpinned dependency on a
+> request path, and the standing reason this extra is optional, pinned, and off by default.
+>
+> Everything below remains accurate **for the Python router**. `chief/69` carries the full
+> correction across the docs, including `agentjido/req_llm` as the untried option for
+> canonical-side breadth.
+
 The spike asked whether an off-the-shelf OpenAI-compatible gateway could replace the
 provider-router. The answer was no, and the reason was specific: of the three differentiators
 the tasklist named as must-survive — the always-completes zero-spend placeholder rung,

@@ -7,7 +7,7 @@
 > *koine specifies, agora implements* — a thin shared commons where peers discover by capability
 > and dial each other directly.
 
-**Status:** Core surfaces implemented & gated (Chief bands `10`–`40` merged, 4/4); Erlang-router cutover and telemetry follow-ups in progress, with a mined "second act" (Phases A–H below) proposed · **Last updated:** 2026-08-11
+**Status:** Core surfaces implemented & gated (Chief bands `10`–`40` merged, 4/4); Erlang-router cutover and telemetry follow-ups in progress, with a mined "second act" (Phases A–H below) proposed and a **verified-defect closure pass (Phase B2)** authored · **Last updated:** 2026-08-11
 
 This is the single canonical roadmap for agora. It is the first consolidated roadmap for the
 repo, synthesized from the README, `DESIGN.md`, `CLAUDE.md`, the `docs/` decision records, and the
@@ -87,9 +87,10 @@ is the Chief tasklist that delivered a row (✅ merged), the pre-Chief bootstrap
 > The completed Chief bands are `10`–`40` (4/4 merged); the router/registry/resolver surfaces
 > predate that program and were built by the **US-AG1–4 bootstrap** (see `progress.txt`), which
 > has no completed `NN-*.json` record of its own. Proposed second-act tasklists are numbered
-> `chief/41`, `chief/50`–`58` (Phases A–F), `chief/60`–`66` (Phase G — Agora Studio), and
-> `chief/67`–`68` (Phase H — trust & hardening), chosen to not collide with the merged bands or
-> the cross-repo `agora:80`/`agora:90` references in `CLAUDE.md` / `trainer/README.md`.
+> `chief/41`, `chief/50`–`58` (Phases A–F), `chief/60`–`66` (Phase G — Agora Studio),
+> `chief/67`–`68` (Phase H — trust & hardening), and `chief/69`–`72` (Phase B correction + Phase B2
+> verified-defect closure), chosen to not collide with the merged bands or the cross-repo
+> `agora:80`/`agora:90` references in `CLAUDE.md` / `trainer/README.md`.
 
 ### Chief build program (bands 10–40) — ✅ complete (4/4 merged)
 
@@ -133,18 +134,46 @@ cannot close until an orchestrator-side KCB *client* replaces the `Runner::Stub`
 
 ### Phase B — Provider-router adapter breadth — ⬜ planned (scale: M)
 
-Widen the one thing the router punts on — vendor wire dispatch — on both implementations, and adopt
-LiteLLM's maintained price map as a *source of rates* underneath `AGORA_PRICE_TABLE`. All of this
-sits **below** the transport boundary; every differentiator (always-completes terminal tier,
-per-request pre-dial ceiling, `unpriced`≠free, KCB manifest) stays hand-built.
+Widen the one thing the router punts on — vendor wire dispatch — and adopt LiteLLM's maintained
+price map as a *source of rates* underneath `AGORA_PRICE_TABLE`. All of this sits **below** the
+transport boundary; every differentiator stays hand-built.
+
+> ⚠️ **Correction (2026-08-11) — the canonical dispatch path is Rust, not LiteLLM.**
+> `grep -ril litellm provider-router-erl/` returns **nothing**. The canonical Erlang router
+> (ADR-0004) reaches **all seven** native-wire vendors — anthropic, gemini, replicate, elevenlabs,
+> runway, luma, minimax — through the **Rust port program** `translation/crates/wire` (built by
+> `build-translator.sh`, driven by `apr_translate.erl` as a supervised OS process: a *port, not a
+> NIF*, so no third-party wire code can take down the node). LiteLLM lives only in the
+> **superseded Python router**, behind `AGORA_LITELLM=1`, where it makes **2 of 7** vendors
+> dialable. So the canonical path is **ahead** of the borrowed one — 8 `(vendor,modality)` pairs
+> to 2 — and `chief/52`, not `chief/51`, is the vendor-breadth path of record. **The code is
+> right**: LiteLLM cannot embed in the BEAM without a Python sidecar or a NIF, and either costs a
+> differentiator — and **LiteLLM 1.82.7/1.82.8 were backdoored on PyPI in March 2026**, which is
+> why the optional extra stays optional, pinned, and off. `chief/69` lands this correction across
+> the docs.
 
 | Status | Milestone | Tasklist |
 |---|---|---|
-| ⬜ | Python/LiteLLM adapter widens past the 2-of-7 native-wire vendors it dials today (anthropic/gemini text) — write the pending-adapter rungs for replicate/elevenlabs/minimax/runway/luma in the modalities agora routes them for · M | `chief/51-litellm-adapter-vendor-breadth` *(proposed)* |
-| ⬜ | Erlang/Rust `wire` codec widens past its 8 `(vendor,modality)` pairs (`translation/crates/wire/src/lib.rs`) to keep the canonical router at dispatch parity · M | `chief/52-wire-codec-vendor-breadth` *(proposed)* |
+| ⬜ | **Correct the dispatch record** — the docs still read as if LiteLLM were the router's dispatch path; state that the canonical router has zero LiteLLM and dials via the Rust port program, record why the code is right (BEAM-embedding cost + the March 2026 PyPI backdoor), and record **`agentjido/req_llm`** as the untried better option for canonical-side breadth (554★, Apache-2.0, v1.0.0, **21 providers / 1,205 models**, native BEAM, normalized token accounting + USD cost) · S | `chief/69-router-dispatch-record-correction` *(proposed)* |
+| ⬜ | Erlang/Rust `wire` codec widens past its 8 `(vendor,modality)` pairs (`translation/crates/wire/src/lib.rs`) — **the vendor-breadth path of record** · M | `chief/52-wire-codec-vendor-breadth` *(proposed)* |
+| ⬜ | Python/LiteLLM adapter widens past the 2-of-7 native-wire vendors it dials today (anthropic/gemini text) — **superseded-router scope only**, and it is chasing parity the canonical path already has; do it only to keep the byte-for-byte corpus meaningful, or not at all · M | `chief/51-litellm-adapter-vendor-breadth` *(proposed, re-scoped)* |
 | ⬜ | Adopt LiteLLM's maintained price map as an `AGORA_PRICE_TABLE` source, layered *under* the `unpriced`/`budget_units`/non-text `measure()` rules, never replacing them · S | `chief/53-litellm-price-map-source` *(proposed)* |
 
-*Depends on:* none. Sources: `docs/litellm-dispatch-adapter.md`, `docs/spike-litellm-leaf.md` §5, `translation/crates/wire/src/lib.rs`.
+*Depends on:* none; `69` should land before `51`/`52` so breadth work is scoped against the corrected record. Sources: `provider-router-erl/src/apr_translate.erl`, `translation/crates/wire/src/lib.rs`, `docs/litellm-dispatch-adapter.md`, `docs/spike-litellm-leaf.md` §5.
+
+### Phase B2 — Verified-defect closure (prior-art sweep, 2026-08) — ⬜ planned (scale: S–M)
+
+Three defects found by direct inspection of this tree, independent of any strategic call. Each is
+small, concrete, and fixable now; two of them are the kind that go green while asserting the wrong
+thing.
+
+| Status | Milestone | Tasklist |
+|---|---|---|
+| ⬜ | **`schemas/src/versions.ts` lags koine on 4 of 6 specs** — kcb `0.2.0` vs **0.3.0**, kinp `0.2.0` vs **0.2.1**, kgp `0.4.0` vs **0.5.0**, kft `0.3.0` vs **0.4.0** — and **`kmi` is absent entirely** though `translation/` ships a KMI runtime. The three language constants are asserted only against **each other**, never against koine. Repin all six in lockstep, record the candidate-version policy, and add the **drift gate** that reads koine's spec headers · M · **subsumes `chief/58`** | `chief/70-spec-pin-repin-and-drift-gate` *(proposed)* |
+| ⬜ | **Hard budget ceilings are no longer a differentiator** — LiteLLM now ships dollar-denominated pre-call budgets with `fail_closed_budget_enforcement`, so the N4 finding is superseded. Re-date it rather than delete it, and restate the four claims that **do** survive: the **`unpriced`-never-passes-a-ceiling rule** (LiteLLM's `cost_per_token` returns `(0,0)` for an unmapped model — *free* where it means *unknown*, i.e. fail-**open**), **`budget_units` denomination**, **non-text `measure()`**, and the **always-completes terminal rung** (no surveyed gateway has one) · S | `chief/71-budget-differentiator-honesty` *(proposed)* |
+| ⬜ | **KCB extension URI migration** — `https://koine.dev` is **unregistered** (verified 2026-08-11) and is the manifest extension URI; koine moves it to `w3id.org/koine/…` with a dual-accept window. agora pins the old string in **six** places, including the **byte-for-byte conformance corpus** that must be regenerated, not hand-edited · M, cross-repo | `chief/72-kcb-extension-uri-migration` *(proposed, parked on `koine:75`)* |
+
+*Depends on:* `72` is parked on `koine:75-w3id-namespace-migration` (migrating to a guessed URI would be a second defect). `70` subsumes and retires `chief/58`. `70` and `72` both move pinned constants across all three languages, so they share a conflict domain and must not co-schedule. Source: the 2026-08 prior-art sweep's *Verified defects* table.
 
 ### Phase C — KCB endpoint surface (MCP / A2A) — ⬜ planned (scale: M)
 
@@ -156,6 +185,14 @@ story must add the server and the advertisement together.
 | Status | Milestone | Tasklist |
 |---|---|---|
 | ⬜ | Serve MCP/A2A endpoints on the provider-router and add them to the KCB manifest in the same change, re-pinning the manifest key set · M | `chief/54-mcp-a2a-endpoint-surface` *(proposed)* |
+
+> ⚠️ **Name the target revisions before building this.** **MCP's 2026-07-28 revision is a breaking
+> change** — stateless core (no `initialize`, no session id, per-request `_meta`) plus a mandatory
+> **`server/discover`** — and MCP's own suite treats the two wires as non-interchangeable. Likewise
+> **A2A v1.0** replaced the v0.x top-level `"url"` with **`supported_interfaces[]`**
+> (`AgentInterface{url, protocol_binding}`). Both belong in `chief/54`'s acceptance criteria as an
+> explicit target revision, not an implicit one; koine's contract-side pin table is
+> `koine:76-upstream-standards-pins`.
 
 *Depends on:* none in-repo. Source: `progress.txt` US-AG3.
 
@@ -186,18 +223,19 @@ and both routers stay green.
 
 *Depends on:* four external preconditions (none in agora's gift). Source: `docs/router-hand-built-behaviours.md` §5.
 
-### Phase F — Contract-version pin advances — ⬜ planned (scale: S)
+### Phase F — Contract-version pin advances — ⬜ **folded into Phase B2** (scale: S)
 
-`SPEC_VERSIONS.kgp` is pinned `0.4.0` while koine's KGP is `0.5.0` (Candidate); ingest compares
-majors only, so a conformant producer that moved first is not rejected. Decide whether to bump the
-pin before KGP re-ratifies — and keep every language gate (Python, Erlang, TS) asserting in lockstep
-when any spec version moves.
+This phase was scoped to one lagging pin (`SPEC_VERSIONS.kgp` at `0.4.0` vs koine's `0.5.0`). The
+2026-08 sweep found **four** lagging pins plus a missing sixth spec, and — the real hole — that no
+gate anywhere compares agora's pins to **koine**; the three language constants are asserted only
+against each other, so they can agree perfectly on a version koine left behind.
 
 | Status | Milestone | Tasklist |
 |---|---|---|
-| ⬜ | Decide + apply the KGP pin advance (0.4.0 → 0.5.0) across `schemas/src/versions.ts` and the Python/Erlang/TS gates in lockstep, or record the deferral until KGP re-ratifies · S | `chief/58-kgp-version-pin-advance` *(proposed)* |
+| ⬜ | Repin all six specs in lockstep + record the candidate-version policy + add the koine-reading drift gate — the superset of this phase | `chief/70-spec-pin-repin-and-drift-gate` *(proposed, Phase B2)* |
+| ⏸ | ~~Decide + apply the KGP pin advance (0.4.0 → 0.5.0)~~ — **subsumed by `chief/70`; parked**, retire when `70` merges | `chief/58-kgp-version-pin-advance` *(parked)* |
 
-*Depends on:* koine KGP re-ratification. Source: `progress.txt` US-1.
+*Depends on:* koine KGP re-ratification for the KGP row specifically; the rest of the repin does not wait on it. Sources: `progress.txt` US-1, the 2026-08 prior-art sweep's *Verified defects* table.
 
 ### Phase G — Agora Studio (the default topology/observability UI) — ⬜ planned (scale: L)
 
@@ -246,7 +284,8 @@ the always-completes ladder's correctness, so it re-proves the §2.3 guards on e
 | Status | Milestone | Tasklist |
 |---|---|---|
 | 🚧 | **Cutover readiness watch** — both routers stay byte-identical green (a change to the router's external contract lands in both or neither) and the conformance corpus stays *live*, until Phase E's four preconditions trigger | — |
-| 🚧 | **Vendor/adapter breadth** — keep widening the dispatch coverage the router borrows while the differentiators stay hand-built (feeds Phase B) | — |
+| 🚧 | **Vendor/adapter breadth** — keep widening the canonical Rust `wire` codec (and, if it ever earns adoption, `req_llm`) while the differentiators stay hand-built (feeds Phase B) | — |
+| 🚧 | **Re-verify the competitive claims** — every dated comparison in `docs/prior-art.md`, `docs/spike-litellm-leaf.md`, and `docs/router-hand-built-behaviours.md` is re-checked on a cadence and re-dated or retired; the LiteLLM budget claim already went stale once (Phase B2 `chief/71`) | — |
 | 🚧 | **Contract-version tracking** — as koine specs revise, bump `schemas/src/versions.ts` and keep every language gate asserting against it in lockstep (feeds Phase F) | — |
 
 ### Loose wishlist — ⬜ not yet phased
@@ -261,19 +300,26 @@ Smaller open threads noted across the docs, each with a known site, none big eno
 
 ## Chief Tasklist Status
 
-- **4/4 built-program tasklists merged**; 19 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 1 parked. Records live in
+- **4/4 built-program tasklists merged**; 23 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 3 parked (`57-python-router-retirement`, `58-kgp-version-pin-advance` — subsumed by `70` — and `72-kcb-extension-uri-migration`, which waits on `koine:75`). Records live in
   [`tasks/chief/completed/`](tasks/chief/completed/): `10-litellm-leaf-gateway`,
   `20-client-sdk-and-starter`, `30-translation-otio`, `40-fabric-data-plane-bridges` — each with a
   `mergedToMain` commit and all user stories `passes: true`.
 - Two tasklists carried cross-repo `dependsOn` into koine (`koine:10-kmi-adopt-otio`,
   `koine:40-fabric-producer-contracts`); both dependencies were satisfied before the agora work
   merged.
-- **19 proposed tasklists** (`chief/41`, `chief/50`–`58`, `chief/60`–`66`, `chief/67`–`68`) back
-  the planned Phases A–H above — **now authored** (`tasks/chief/*.json`, `passes: false`, unrun);
-  they are numbered to not collide with the merged bands or the cross-repo `agora:80`/`agora:90`
-  references. `chief/50` additionally encodes its now-merged cross-repo closure deps
+- **23 proposed tasklists** (`chief/41`, `chief/50`–`58`, `chief/60`–`66`, `chief/67`–`68`,
+  `chief/69`–`72`) back the planned Phases A–H above — **now authored** (`tasks/chief/*.json`,
+  `passes: false`, unrun); they are numbered to not collide with the merged bands or the cross-repo
+  `agora:80`/`agora:90` references. `chief/50` additionally encodes its now-merged cross-repo closure deps
   (`cuneiform:90-finetune-client`, `lugh:30-kft-provider-manifest`), and `chief/63`/`64` depend on
   `chief/55` so Studio is never built on the provisional telemetry shape.
+- **`chief/69`–`72` are the 2026-08 prior-art sweep's verified-defect closure**, not speculative
+  breadth work: the LiteLLM-vs-Rust dispatch record correction (`69`), the six-spec repin + koine
+  drift gate (`70`, subsuming `58`), the budget-differentiator restatement (`71`), and the
+  cross-repo KCB extension-URI migration (`72`, parked on `koine:75`). Each was found by direct
+  inspection of this tree — `grep -ril litellm provider-router-erl/` returning nothing, four stale
+  pins in `schemas/src/versions.ts`, and an unresolvable `koine.dev` — and each has a checkable
+  fix rather than a judgement call.
 - No open *autonomous* work remains in this repo. The second-act phases are cutover/follow-up and
   breadth work; several rows are cross-repo (`koine`, the orchestrator, `pinakes`) or gated on
   external preconditions (Phase E), so they are proposals, not queued tasklists.
