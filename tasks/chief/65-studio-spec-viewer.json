@@ -1,0 +1,43 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/65-studio-spec-viewer",
+  "description": "Add the spec-definition viewer to Agora Studio: for any participant in the topology, render the koine contracts it advertises (KINP · KGP · KCB · KMI · KCS · KFT) together with its AgentCard / KCB manifest, each validated by `@agora/schemas` (the shared manifest schemas / protocol types — `schemas/src/agent-card.ts`, `manifest.ts`, `versions.ts`, `validate.ts`). The viewer renders what a participant is TOLD it advertises and validates it against the pinned koine spec versions — it never re-specifies a contract (contracts live in koine) and never fabricates conformance. Scope: the `studio/` workspace only, consuming `@agora/schemas` by reference. agora gates on `make check`.",
+  "parked": false,
+  "dependsOn": ["60-studio-ui-backbone"],
+  "touches": ["studio"],
+  "iters": 7,
+  "warmup": [
+    "ls studio/src schemas/src",
+    "sed -n '1,40p' schemas/src/agent-card.ts; sed -n '1,40p' schemas/src/manifest.ts",
+    "sed -n '1,40p' schemas/src/versions.ts; sed -n '1,30p' schemas/src/validate.ts",
+    "sed -n '202,225p' ROADMAP.md"
+  ],
+  "verify": ["make check"],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Render a participant's advertised koine contracts + manifest",
+      "description": "For a selected participant, render the koine contracts it advertises (KINP/KGP/KCB/KMI/KCS/KFT) and its AgentCard/KCB manifest, sourced from what the participant advertises at runtime.",
+      "acceptanceCriteria": [
+        "Selecting a participant renders the koine contracts it advertises (any of KINP/KGP/KCB/KMI/KCS/KFT) plus its AgentCard / KCB manifest, sourced from the participant's advertised data (discovered/resolved), never a hard-wired roster or contract copy",
+        "A test asserts a participant advertising a subset of contracts renders exactly that subset (and a participant advertising none renders an empty spec view, consistent with the 60 empty backbone)",
+        "`make check` green (`npm run lint` + `npm run typecheck` + `vitest` for `studio/`)"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-2",
+      "title": "Validate advertised specs against @agora/schemas",
+      "description": "Validate each rendered AgentCard/manifest/contract against `@agora/schemas` and the pinned koine spec versions, showing pass/fail rather than assuming conformance.",
+      "acceptanceCriteria": [
+        "Each advertised AgentCard/manifest/contract is validated with `@agora/schemas` (`agent-card.ts`/`manifest.ts`/`validate.ts`) against the koine spec versions pinned in `schemas/src/versions.ts`, and the viewer shows a per-artifact valid/invalid result — reusing the schemas package, never re-specifying a koine contract here",
+        "A test asserts a conformant manifest validates and a malformed / wrong-version one is flagged invalid with the schema/version reason surfaced (no fabricated pass)",
+        "`make check` green; Studio stays source-first and observer-only"
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/61-studio-topology-graph",
+  "description": "Render Agora Studio's live topology graph on the backbone (60): nodes are the AI apps/services in the user's setup (internal — an Insimul/Cuneiform/Lugh/Formant setup wired via rosetta — and external — any outside MCP/A2A connection), edges are the MCP/A2A connections between them. The cast is DISCOVERED, never hard-wired: nodes come from the KCB discovery `registry/` (which returns addresses, cost-ranked, with cross-plane path-finding — `registry/src/main.ts` find, `select.ts`, `path.ts`), and identities are resolved through the KINP `resolver/` (`resolver/src/main.ts` resolve). Studio is an observer that reads these existing surfaces — it never invents a new control plane and never relays traffic (ADR-0001: the registry is a phone book, peers dial each other directly). Scope: the `studio/` workspace only, consuming `@agora/registry`/`@agora/resolver`/`@agora/sdk` by reference. agora gates on `make check`.",
+  "parked": false,
+  "dependsOn": ["60-studio-ui-backbone"],
+  "touches": ["studio"],
+  "iters": 8,
+  "warmup": [
+    "ls studio/src registry/src resolver/src",
+    "sed -n '1,40p' registry/src/main.ts; sed -n '1,30p' registry/src/path.ts",
+    "sed -n '1,40p' resolver/src/main.ts",
+    "sed -n '1,30p' clients/sdk/src/kcb.ts",
+    "sed -n '202,225p' ROADMAP.md"
+  ],
+  "verify": ["make check"],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Build the graph's nodes from KCB discovery, not a roster",
+      "description": "Derive graph nodes from the `registry/` find results (addresses, cost-ranked, cross-plane paths) so the topology is learned at runtime, with no participant literal in `studio/`.",
+      "acceptanceCriteria": [
+        "Studio builds its node set from the KCB discovery `registry/` (the address-returning find surface — `registry/src/main.ts`/`select.ts`, reused via `@agora/registry`/`@agora/sdk`, not re-implemented), so each node is a discovered participant address, never a hard-wired name",
+        "A test drives graph construction from a synthetic registry find result (multiple participants) and asserts one node per discovered address, and zero nodes when discovery returns nothing (churn-safe, per the empty backbone from 60)",
+        "`make check` green (`npm run lint` + `npm run typecheck` + `vitest` for `studio/`)"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-2",
+      "title": "Edges are MCP/A2A connections with KINP-resolved identities",
+      "description": "Draw edges for the MCP/A2A connections (internal + external) between discovered participants, and resolve node identities through the KINP `resolver/` so two addresses for one entity render as one node.",
+      "acceptanceCriteria": [
+        "Edges represent MCP/A2A connections between participants, distinguishing internal (rosetta-wired, discovered) from external (outside) connections, and cross-plane paths are drawn from the registry's path-finding (`registry/src/path.ts`) rather than assumed",
+        "Node identity is resolved through the KINP `resolver/` (`resolver/src/main.ts` resolve, via `@agora/resolver`), so addresses that resolve to the same entity collapse to one node; a test asserts this merge and the internal/external edge distinction",
+        "`make check` green; no traffic is relayed through Studio to build the graph (addresses/telemetry only, ADR-0001)"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-3",
+      "title": "Render the graph and reflect churn",
+      "description": "Render nodes+edges in the React shell and update as discovery changes, so the graph stays a live view of what is actually reachable.",
+      "acceptanceCriteria": [
+        "The topology graph renders on the 60 backbone (nodes + typed edges) and updates when the discovered cast changes — a participant appearing or disappearing in discovery adds/removes its node/edges without a page reload",
+        "A rendering test (`*.test.tsx`) asserts the graph reflects a discovery snapshot and re-reflects an updated snapshot (graceful under churn, LibreMesh-style — no stale hard-wired nodes)",
+        "`make check` green; Studio stays source-first and observer-only"
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

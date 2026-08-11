@@ -1,0 +1,55 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/63-studio-message-viewer-animated",
+  "description": "Add the animated on-the-wire message viewer to Agora Studio: messages flowing between services animated along the topology-graph edges (61) in real time, with payload inspection. It reads from the console's existing KCS telemetry reader (`console/src/kcs/spans.ts`) — the same span/telemetry surface the conformance console consumes — rather than inventing a new observability plane; Studio remains an observer that never sees relayed traffic (it reads emitted telemetry/spans, ADR-0001). Scope: the `studio/` workspace only, reading `console/`'s span reader by reference. agora gates on `make check`.",
+  "parked": false,
+  "dependsOn": ["60-studio-ui-backbone"],
+  "touches": ["studio"],
+  "iters": 8,
+  "warmup": [
+    "ls studio/src console/src/kcs",
+    "sed -n '1,60p' console/src/kcs/spans.ts",
+    "sed -n '1,25p' console/src/kcs/facts.ts; sed -n '1,20p' console/src/kcs/outcome.ts",
+    "sed -n '202,225p' ROADMAP.md"
+  ],
+  "verify": ["make check"],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Map telemetry spans onto graph edges",
+      "description": "Read messages from the console's KCS telemetry reader (`spans.ts`) and map each to the topology-graph edge it traversed, so the viewer is driven by real emitted telemetry.",
+      "acceptanceCriteria": [
+        "The viewer sources messages from the console's KCS telemetry reader (`console/src/kcs/spans.ts`), reused by reference — Studio adds no second telemetry plane — and maps each span/message to the source→target edge of the 61 graph",
+        "A test feeds a synthetic span set and asserts each message resolves to the correct edge, and that a span between two undiscovered/unmapped participants is dropped or flagged rather than drawn on a nonexistent edge",
+        "`make check` green (`npm run lint` + `npm run typecheck` + `vitest` for `studio/`)"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-2",
+      "title": "Animate messages along edges in real time",
+      "description": "Animate each message travelling along its edge as it arrives, so the graph shows live on-the-wire flow.",
+      "acceptanceCriteria": [
+        "Messages animate along their mapped edges in real time as telemetry arrives (a message appears, travels source→target, and clears), keeping up with an incremental span stream rather than only a static batch",
+        "A test asserts the animation state is driven by the span stream (a new span produces an in-flight message on the right edge; edges with no traffic stay idle) using a deterministic clock/test double — no real network",
+        "`make check` green; the viewer remains observer-only (reads telemetry, relays nothing)"
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-3",
+      "title": "Payload inspection for a selected message",
+      "description": "Let a user select an animated (or recent) message and inspect its payload, so the flow view is also a debugging surface.",
+      "acceptanceCriteria": [
+        "Selecting a message opens a payload inspector showing its contents/metadata as read from the span (direction, transport MCP/A2A, timing, payload), with no payload fabricated beyond what telemetry carries",
+        "A rendering test (`*.test.tsx`) asserts selecting a message shows its payload and that the inspector is empty when nothing is selected / no telemetry is present (consistent with the 60 empty backbone)",
+        "`make check` green; Studio stays source-first"
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
