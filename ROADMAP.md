@@ -87,8 +87,9 @@ is the Chief tasklist that delivered a row (✅ merged), the pre-Chief bootstrap
 > The completed Chief bands are `10`–`40` (4/4 merged); the router/registry/resolver surfaces
 > predate that program and were built by the **US-AG1–4 bootstrap** (see `progress.txt`), which
 > has no completed `NN-*.json` record of its own. Proposed second-act tasklists are numbered
-> `chief/41` and `chief/50`–`58`, chosen to not collide with the merged bands or the cross-repo
-> `agora:80`/`agora:90` references in `CLAUDE.md` / `trainer/README.md`.
+> `chief/41`, `chief/50`–`58` (Phases A–F) and `chief/60`–`66` (Phase G — Agora Studio), chosen to
+> not collide with the merged bands or the cross-repo `agora:80`/`agora:90` references in
+> `CLAUDE.md` / `trainer/README.md`.
 
 ### Chief build program (bands 10–40) — ✅ complete (4/4 merged)
 
@@ -198,6 +199,31 @@ when any spec version moves.
 
 *Depends on:* koine KGP re-ratification. Source: `progress.txt` US-1.
 
+### Phase G — Agora Studio (the default topology/observability UI) — ⬜ planned (scale: L)
+
+Agora ships a default UI **backbone** that visualizes the networked AI apps/services in a user's
+setup — both **internal** (an Insimul/Cuneiform/Lugh/Formant setup wired via rosetta) and
+**external** (any outside MCP/A2A connection). The backbone ships with **NO preconfigured
+participants**: the cast is learned at runtime (capability, never caller — the ADR-0001 rule the
+whole tree obeys), discovered through the KCB `registry/` and resolved through `resolver/`, and it
+renders koine contracts and AgentCards it is *told about*, never a hard-wired roster. It is a new
+source-first TS + React surface alongside the conformance `console/` (observer, never a hub — traffic
+never flows through it). Every row below reads from an existing agora surface — `registry/` find,
+`resolver/` resolve, `console/src/kcs/spans.ts` telemetry, `schemas/` manifests — rather than
+inventing a new control plane.
+
+| Status | Milestone | Tasklist |
+|---|---|---|
+| ⬜ | UI shell / backbone — the app scaffold with **no preconfigured apps/services/connections**; participants come only from the user's own config (rosetta is the internal dogfood, per rosetta's roadmap); source-first TS + React alongside `console/` · M | `chief/60-studio-ui-backbone` *(proposed)* |
+| ⬜ | Live topology graph — nodes = AI apps/services, edges = MCP/A2A connections (internal + external), discovered via the KCB `registry/` (addresses, cross-plane paths) and `resolver/` KINP identities · L | `chief/61-studio-topology-graph` *(proposed)* |
+| ⬜ | Connection monitoring — per-connection health/status, uptime, and error surfaces over the real MCP/A2A links (never relayed) · M | `chief/62-studio-connection-monitoring` *(proposed)* |
+| ⬜ | On-the-wire message viewer **with animation** — messages flowing between services animated along the graph edges in real time, with payload inspection, read from the `console/src/kcs/spans.ts` telemetry reader · L | `chief/63-studio-message-viewer-animated` *(proposed)* |
+| ⬜ | Analytics & reporting dashboards — traffic, latency, cost (router cost-estimation), and capability-usage across the network · M | `chief/64-studio-analytics-dashboards` *(proposed)* |
+| ⬜ | Spec-definition viewer — render the koine contracts each participant advertises (KINP/KGP/KCB/KMI/KCS/KFT) plus its AgentCard/manifest, validated by `@agora/schemas` · M | `chief/65-studio-spec-viewer` *(proposed)* |
+| ⬜ | Runnable example setups — several example topologies with *thin* AI app/service examples (barely more than local-inference wrappers) so a user sees Studio populated without wiring their own; consumes the published `@agora/sdk`, never imported by it · M | `chief/66-studio-example-setups` *(proposed)* |
+
+*Depends on:* rosetta (the internal/proprietary test setup that dogfoods this UI — see rosetta's roadmap) and koine specs (the KINP/KGP/KCB/KMI/KCS/KFT contracts the spec-definition viewer renders). Reads existing surfaces: `registry/`, `resolver/`, `console/src/kcs/spans.ts`, `schemas/`.
+
 ### Ongoing — steady-state, not a phase — 🚧 continuous
 
 | Status | Milestone | Tasklist |
@@ -225,9 +251,9 @@ Smaller open threads noted across the docs, each with a known site, none big eno
 - Two tasklists carried cross-repo `dependsOn` into koine (`koine:10-kmi-adopt-otio`,
   `koine:40-fabric-producer-contracts`); both dependencies were satisfied before the agora work
   merged.
-- **10 proposed tasklists** (`chief/41` and `chief/50`–`58`) back the planned Phases A–F above —
-  **none authored yet** (no `tasks/chief/*.json`); they are roadmap stubs, numbered to not collide
-  with the merged bands or the cross-repo `agora:80`/`agora:90` references.
+- **17 proposed tasklists** (`chief/41`, `chief/50`–`58`, `chief/60`–`66`) back the planned Phases
+  A–G above — **none authored yet** (no `tasks/chief/*.json`); they are roadmap stubs, numbered to
+  not collide with the merged bands or the cross-repo `agora:80`/`agora:90` references.
 - No open *autonomous* work remains in this repo. The second-act phases are cutover/follow-up and
   breadth work; several rows are cross-repo (`koine`, the orchestrator, `pinakes`) or gated on
   external preconditions (Phase E), so they are proposals, not queued tasklists.
