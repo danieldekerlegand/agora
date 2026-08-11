@@ -6,8 +6,7 @@
   "parked": false,
   "dependsOn": [
     "41-finetune-job-validator",
-    "koine:20-kft-finetune-profile",
-    "pinakes:90-finetune-provider"
+    "lugh:30-kft-provider-manifest"
   ],
   "touches": [
     "trainer"

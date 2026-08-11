@@ -5,7 +5,7 @@
   "description": "Phase D (conformance / telemetry rewrite). Close the one known KCS gap DESIGN.md names: KMI delta-I gives every NLE projection an asset-id <-> path media map, and KCS §5 has NO predicate to read one. Add a `media_map_complete(projection)` predicate to the console's §5 media assertion vocabulary (`console/src/kcs/assertions.ts` `ASSERTION_PLANES.media`, alongside asset_attaches_to / source_world_is / analysis_attributed_to_constituent) that reads the KMI delta-I media map and asserts every projected asset id resolves to a path. Cross-repo: gated on koine's KMI delta-I media map. Evaluated over plane-typed observations, never generated text (§7 Q2). agora gates on `make check`; the console gates on `make check-console`.",
   "parked": false,
   "dependsOn": [
-    "koine:kmi-media-map"
+    "koine:67-kmi-open-questions"
   ],
   "touches": [
     "console"

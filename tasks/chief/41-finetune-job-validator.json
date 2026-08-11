@@ -4,9 +4,7 @@
   "branchName": "chief/41-finetune-job-validator",
   "description": "Phase A (KFT completion). Stand up the standalone conformance validator for the KFT §3 job manifest — an ajv (TS) + jsonschema (Python) validator plus conformance CI for `finetune-job.schema.json`, run through the SAME two-validator smoke every other artifact passes (`make check-conformance`, node `schemas/src/validate.ts` + `agora_provider_router.artifact_validator`). This is structural admission ONLY: the semantic gate (modality×method, egress, spend) stays in the providers (trainer/README.md §'Admission' + the specialized providers), NOT here. The three vendored copies of the schema (`schemas/src/koine-schemas/finetune-job.schema.json`, `trainer/src/agora_trainer/schemas/finetune-job.schema.json`, and the `schemas/src/conformance/fixtures/finetune-job.json` fixture) must stay byte-identical to koine and be drift-gated. agora gates on `make check`; the touched areas gate on `make check-schemas` / `make check-conformance` / `make check-trainer`.",
   "parked": false,
-  "dependsOn": [
-    "koine:20-kft-finetune-profile"
-  ],
+  "dependsOn": [],
   "touches": [
     "schemas",
     "provider-router",

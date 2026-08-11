@@ -5,7 +5,7 @@
   "description": "Phase D (conformance / telemetry rewrite). `console/src/kcs/spans.ts` is the one piece of the console that expects to be REWRITTEN against a spec rather than to define one: koine has no emitted-telemetry contract yet (KCB §4 fixes discover/describe/invoke/subscribe/fetch and nothing about observability), so today `spans.ts` reads a PROVISIONAL `ObservedSpan` shape and any future-KCS control-plane predicate reports `pending` and never passes (DESIGN.md console runtime-notes). When koine ratifies a KCS emitted-telemetry (observability) extension, rewrite `spans.ts` and the §5 control-plane assertion vocabulary against it so the control-plane view is complete and its predicates can pass. Cross-repo: gated on the ratified koine extension. agora gates on `make check`; the console gates on `make check-console`.",
   "parked": false,
   "dependsOn": [
-    "koine:kcs-observability-extension"
+    "koine:68-kcs-open-questions"
   ],
   "touches": [
     "console"

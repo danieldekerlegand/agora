@@ -5,7 +5,7 @@
   "description": "Phase F (contract-version pin advances). `SPEC_VERSIONS.kgp` is pinned `0.4.0` in `schemas/src/versions.ts` while koine's KGP is `0.5.0` (Candidate); ingest compares majors only, so a conformant producer that moved first is not rejected. Decide whether to bump the pin 0.4.0 -> 0.5.0 before KGP re-ratifies — and if so, move EVERY language gate in lockstep: `schemas/src/versions.ts` (TS), `agora_provider_router.KCB_VERSION`/the Python constants asserted by `provider-router/tests/` + `trainer/tests/`, and the Erlang constant asserted by `apr_conformance_SUITE`. Bump one without the others and those gates go red (CLAUDE.md 'bump all or those gates go red'). If deferring, record the deferral until KGP re-ratifies. Cross-repo: gated on koine KGP re-ratification. agora gates on `make check`.",
   "parked": false,
   "dependsOn": [
-    "koine:kgp-reratification"
+    "koine:64-kgp-projection-roundtrip-fixture"
   ],
   "touches": [
     "schemas",
