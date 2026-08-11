@@ -7,7 +7,7 @@
 > *koine specifies, agora implements* — a thin shared commons where peers discover by capability
 > and dial each other directly.
 
-**Status:** Core surfaces implemented & gated; Erlang-router cutover and telemetry follow-ups in progress · **Last updated:** 2026-08-10
+**Status:** Core surfaces implemented & gated (Chief bands `10`–`40` merged, 4/4); Erlang-router cutover and telemetry follow-ups in progress, with a mined "second act" (Phases A–F below) proposed · **Last updated:** 2026-08-10
 
 This is the single canonical roadmap for agora. It is the first consolidated roadmap for the
 repo, synthesized from the README, `DESIGN.md`, `CLAUDE.md`, the `docs/` decision records, and the
@@ -75,65 +75,144 @@ into `make check` (what CI runs):
 
 ## Milestones
 
-Two axes run through agora: a **contract-coverage** axis (a running surface for each koine spec)
-and a **build-vs-adopt / platform** axis (the Chief-driven work that stands those surfaces on
-established tools and makes them adoptable). Status icons: ✅ complete · 🚧 in progress · ⬜ planned.
+One list, everything: shipped, in-progress, and planned. Two axes run through agora — a
+**contract-coverage** axis (a running surface for each koine spec) and a **build-vs-adopt /
+platform** axis (the Chief-driven work that stands those surfaces on established tools) — so the
+shipped work is shown as those two tracks; the mined-but-unbuilt "second act" follows as Phases
+`A`–`F`, and the **Ongoing** and **Loose wishlist** blocks close it out. Status legend:
+**✅ complete/merged · 🚧 partial / in-progress / cutover-blocked · ⬜ planned**. The Tasklist column
+is the Chief tasklist that delivered a row (✅ merged), the pre-Chief bootstrap program that did
+(US-AG1–4), or the *(proposed)* tasklist that would.
 
-### Contract-coverage track — a runtime per koine spec
+> The completed Chief bands are `10`–`40` (4/4 merged); the router/registry/resolver surfaces
+> predate that program and were built by the **US-AG1–4 bootstrap** (see `progress.txt`), which
+> has no completed `NN-*.json` record of its own. Proposed second-act tasklists are numbered
+> `chief/41` and `chief/50`–`58`, chosen to not collide with the merged bands or the cross-repo
+> `agora:80`/`agora:90` references in `CLAUDE.md` / `trainer/README.md`.
 
-| koine spec | agora surface | Status |
+### Chief build program (bands 10–40) — ✅ complete (4/4 merged)
+
+| Status | Milestone | Tasklist |
 |---|---|---|
-| **KCB** capability-bus | `registry/` discovery (addresses, cost-ranked, cross-plane paths) + `@agora/sdk` projection | ✅ implemented & gated |
-| **KINP** identity | `resolver/` — `resolve` (identity firewall) + `reconcile` (W3C API + review policy) | ✅ implemented & gated |
-| **KGP** grounding-pack | `knowledge/` data-plane bridge (admit claims → deliver pack, egress-gated) | ✅ implemented & gated (`chief/40`) |
-| **KMI** media-interchange | `translation/` engine over OpenTimelineIO, additive koine layer preserved | ✅ implemented & gated (`chief/30`) |
-| **KCS** conformance | `console/` scenario runner + UI (data plane covered; control plane visible where telemetry is emitted) | ✅ implemented; telemetry extension pending |
-| **KFT** fine-tune | `trainer/` — the **general** provider; specialized providers route elsewhere | ✅ general provider implemented & gated |
-| model gateway (leaf capability) | `provider-router-erl/` canonical + `provider-router/` as spec-of-record | ✅ both implemented & gated; Python-retirement cutover pending |
+| ✅ | Leaf gateway on LiteLLM — spike + dispatch adapter behind `AGORA_LITELLM=1`; **NO-GO** on retiring the dual router (US-1/2/3) | `10-litellm-leaf-gateway` |
+| ✅ | Client SDK & adoption — `@agora/sdk` stable enumerated API + the ~20-line participant starter + quickstart (US-1/2/3) | `20-client-sdk-and-starter` |
+| ✅ | Translation on OpenTimelineIO — OTIO adapters, additive koine layer preserved (US-1/2), after `koine:10-kmi-adopt-otio` | `30-translation-otio` |
+| ✅ | Fabric data-plane bridges — KGP knowledge sync, KFT dataset bridge (by-reference → trainer/lugh), KINP resolution + grounding-pack ingest, KCB producer surfaces (US-1/2/3/4), after `koine:40-fabric-producer-contracts` | `40-fabric-data-plane-bridges` |
 
-### Build-vs-adopt & platform track — Chief tasklists
+### Contract-coverage surfaces — a runtime per koine spec — ✅ (telemetry + finetune + cutover tails 🚧)
 
-| Phase | What | Status |
+| Status | Milestone | Tasklist |
 |---|---|---|
-| Leaf gateway on LiteLLM | Spike LiteLLM as the leaf backend; front it behind agora's OpenAI surface, keeping the zero-spend tier + KCB exposure; **NO-GO** on retiring the dual router (behaviours it can't cover stay hand-built) | ✅ `chief/10-litellm-leaf-gateway` (US-1/2/3) |
-| Client SDK & adoption | Publish `@agora/sdk` with a stable enumerated API; ship the ~20-line participant starter; quickstart from install to first call | ✅ `chief/20-client-sdk-and-starter` (US-1/2/3) |
-| Translation on OTIO | Adopt OpenTimelineIO as the media-timeline model (after koine made OTIO canonical); read/write via OTIO adapters; preserve the additive koine layer | ✅ `chief/30-translation-otio` (US-1/2), after `koine:10-kmi-adopt-otio` |
-| Fabric data-plane bridges | Generic runtimes so *any* producer can participate: KGP knowledge sync, KFT dataset bridge (by-reference → trainer/lugh), KINP resolution + grounding-pack ingestion, and confirming the KCB-manifest + router client surfaces a producer needs | ✅ `chief/40-fabric-data-plane-bridges` (US-1/2/3/4), after `koine:40-fabric-producer-contracts` |
-| Erlang-router cutover | Once deployments have fully moved to the Erlang app, retire the Python router to its own repo and freeze its conformance corpus as the contract record | 🚧 in progress — **NO-GO to retire today**; corpus stays live (`docs/router-hand-built-behaviours.md`) |
-| KCS observability extension | An emitted-telemetry contract so the console's control-plane view is complete (a koine follow-up; `console/src/kcs/spans.ts` is the provisional reader) | ⬜ planned (koine follow-up) |
-| KMI `media_map_complete` predicate | A KCS §5 predicate to read KMI delta-I's asset-id ↔ path media map | ⬜ planned (koine follow-up) |
+| ✅ | **KCB** capability-bus — `registry/` discovery (addresses, cost-ranked, cross-plane paths) + `@agora/sdk` projection | US-AG1–4 (bootstrap) |
+| ✅ | **KINP** identity — `resolver/` `resolve` (identity firewall) + `reconcile` (W3C API + review policy) | US-AG1–4 (bootstrap) |
+| ✅ | **KGP** grounding-pack — `knowledge/` data-plane bridge (admit claims → deliver pack, egress-gated) | `40-fabric-data-plane-bridges` |
+| ✅ | **KMI** media-interchange — `translation/` engine over OpenTimelineIO, additive koine layer preserved | `30-translation-otio` |
+| ✅ | Model gateway (leaf) — `provider-router-erl/` **canonical** (ADR-0004) + `provider-router/` as byte-for-byte spec-of-record | US-AG1–4 + ADR-0004 |
+| 🚧 | **KCS** conformance — `console/` scenario runner + UI; data plane covered, control-plane telemetry reader (`spans.ts`) provisional and future-KCS predicates report `pending` | closed by Phase D |
+| 🚧 | **KFT** fine-tune — `trainer/` **general** provider implemented & gated; the schema validator + the live §6/§5.3/§8 endpoints are still pending | closed by Phase A |
 
 > **Reality reconciliation.** The ecosystem overview still describes the "Rust data-translation
 > engine + Erlang provider-router" as *in progress / planned*. That framing is **superseded**: both
 > are in the tree and gated — the Rust translation engine landed OTIO (`chief/30`) and the Erlang
 > router is the **canonical** implementation (ADR-0004). What actually remains is the *cutover tail*
-> — retiring the Python router once deployments have moved — not building either surface.
+> (Phase E) — retiring the Python router once deployments have moved — not building either surface.
 
----
+### Phase A — KFT finetune completion — ⬜ planned (scale: M)
 
-## Remaining / Next
+Finish the fine-tuning capability: a standalone conformance validator for the job schema, and turn
+the trainer's still-404 output endpoints into a live stream. The second row is cross-repo — it
+cannot close until an orchestrator-side KCB *client* replaces the `Runner::Stub`.
 
-agora's core is implemented and gated; what remains is a cutover, two koine-side follow-ups, and
-steady breadth work.
+| Status | Milestone | Tasklist |
+|---|---|---|
+| ⬜ | ajv/jsonschema validator + conformance CI for `finetune-job.schema.json` (KFT §3); semantic admission (modality×method, egress) stays in the providers — a named-but-unbuilt agora tasklist · S/M | `chief/41-finetune-job-validator` *(proposed)* |
+| ⬜ | Un-404 the trainer's real §6 telemetry stream / §5.3 export / §8 registry, driven by the orchestrator-side KCB finetune **client** that replaces `Runner::Stub` (discover → invoke → subscribe → issue `invoke:finetune` grants) · M, cross-repo | `chief/50-finetune-live-endpoints` *(proposed)* |
 
-**One-off:**
+*Depends on:* `koine:20-kft-finetune-profile`; the cross-repo `90-finetune-client` (orchestrator) and `pinakes:90-finetune-provider` land the runtime the trainer's stream dials. Source: `trainer/README.md` follow-up table.
 
-1. **Complete the Erlang-router cutover** 🚧 — retire `provider-router/` (Python) to its own repo
-   *only* once deployments have fully moved to the Erlang app; the captured conformance corpus then
-   becomes the frozen contract record. Until then, both stay green and a change to the router's
-   external contract lands in both or neither. (`DESIGN.md`, `docs/router-hand-built-behaviours.md`.)
-2. **KCS control-plane telemetry** ⬜ — depends on a koine observability extension; the console
-   already reads spans provisionally and labels visibility per source.
-3. **KMI `media_map_complete` predicate** ⬜ — a koine KCS follow-up so a scenario can assert an
-   NLE projection's media map is complete.
+### Phase B — Provider-router adapter breadth — ⬜ planned (scale: M)
 
-**Ongoing:**
+Widen the one thing the router punts on — vendor wire dispatch — on both implementations, and adopt
+LiteLLM's maintained price map as a *source of rates* underneath `AGORA_PRICE_TABLE`. All of this
+sits **below** the transport boundary; every differentiator (always-completes terminal tier,
+per-request pre-dial ceiling, `unpriced`≠free, KCB manifest) stays hand-built.
 
-4. **Vendor/adapter breadth** 🚧 — the LiteLLM dispatch adapter is opt-in behind a flag; widen the
-   vendor coverage it borrows while keeping agora's differentiators (always-completes terminal
-   tier, per-request budget ceiling that skips a tier without dialing, KCB manifest) hand-built.
-5. **Contract-version tracking** 🚧 — as koine specs revise, bump `schemas/src/versions.ts` and
-   keep every language gate (Python, Erlang, TS) asserting against it in lockstep.
+| Status | Milestone | Tasklist |
+|---|---|---|
+| ⬜ | Python/LiteLLM adapter widens past the 2-of-7 native-wire vendors it dials today (anthropic/gemini text) — write the pending-adapter rungs for replicate/elevenlabs/minimax/runway/luma in the modalities agora routes them for · M | `chief/51-litellm-adapter-vendor-breadth` *(proposed)* |
+| ⬜ | Erlang/Rust `wire` codec widens past its 8 `(vendor,modality)` pairs (`translation/crates/wire/src/lib.rs`) to keep the canonical router at dispatch parity · M | `chief/52-wire-codec-vendor-breadth` *(proposed)* |
+| ⬜ | Adopt LiteLLM's maintained price map as an `AGORA_PRICE_TABLE` source, layered *under* the `unpriced`/`budget_units`/non-text `measure()` rules, never replacing them · S | `chief/53-litellm-price-map-source` *(proposed)* |
+
+*Depends on:* none. Sources: `docs/litellm-dispatch-adapter.md`, `docs/spike-litellm-leaf.md` §5, `translation/crates/wire/src/lib.rs`.
+
+### Phase C — KCB endpoint surface (MCP / A2A) — ⬜ planned (scale: M)
+
+The router manifest advertises **no** `mcp`/`a2a` keys "until they exist" (an advertised address is
+a promise a peer will dial directly, ADR-0001 §3). Stand up the MCP/A2A server endpoints **and**
+advertise them **atomically** — `test_manifest.py` pins the endpoint key set precisely so a future
+story must add the server and the advertisement together.
+
+| Status | Milestone | Tasklist |
+|---|---|---|
+| ⬜ | Serve MCP/A2A endpoints on the provider-router and add them to the KCB manifest in the same change, re-pinning the manifest key set · M | `chief/54-mcp-a2a-endpoint-surface` *(proposed)* |
+
+*Depends on:* none in-repo. Source: `progress.txt` US-AG3.
+
+### Phase D — Conformance / telemetry rewrite — ⬜ planned (scale: M)
+
+`console/src/kcs/spans.ts` is the one piece of the console that expects to be *rewritten against a
+spec* rather than to define one — today any future-KCS predicate reports `pending` and never passes.
+Rewrite the observability reader against a ratified KCS emitted-telemetry contract, and add the
+outstanding KMI media-map predicate.
+
+| Status | Milestone | Tasklist |
+|---|---|---|
+| ⬜ | Rewrite `spans.ts` + the §5 assertion vocabulary against a ratified KCS emitted-telemetry (observability) extension, so the control-plane view is complete and predicates can pass · M | `chief/55-kcs-observability-rewrite` *(proposed)* |
+| ⬜ | KCS §5 `media_map_complete` predicate to read KMI delta-I's asset-id ↔ path media map · S | `chief/56-kmi-media-map-complete-predicate` *(proposed)* |
+
+*Depends on:* koine (a ratified KCS observability extension + the KMI delta-I media map). Sources: `DESIGN.md` console runtime-notes, `console/README.md`.
+
+### Phase E — Erlang cutover / Python-router retirement — ⬜ planned (scale: L, external — may never trigger)
+
+Retire `provider-router/` (Python) to its own repo and freeze its conformance corpus as the frozen
+contract record — but **NO-GO today**. The four preconditions below are the definition-of-done; until
+*all four* hold, the byte-for-byte equality `apr_conformance_SUITE` asserts is the cheaper guarantee
+and both routers stay green.
+
+| Status | Milestone | Tasklist |
+|---|---|---|
+| ⬜ | Retire the Python router once all four hold: (1) an upstream *terminal*-rung mechanism that cannot fail, not a chain that ends in one; (2) a per-request, caller-supplied pre-dial ceiling that falls through rather than aborts; (3) unknown ≠ free (an unmapped model is refusable, not priced at zero); (4) an Erlang-reachable dispatch (a wire sidecar) **or** an ADR-0004 reversal · L | `chief/57-python-router-retirement` *(proposed)* |
+
+*Depends on:* four external preconditions (none in agora's gift). Source: `docs/router-hand-built-behaviours.md` §5.
+
+### Phase F — Contract-version pin advances — ⬜ planned (scale: S)
+
+`SPEC_VERSIONS.kgp` is pinned `0.4.0` while koine's KGP is `0.5.0` (Candidate); ingest compares
+majors only, so a conformant producer that moved first is not rejected. Decide whether to bump the
+pin before KGP re-ratifies — and keep every language gate (Python, Erlang, TS) asserting in lockstep
+when any spec version moves.
+
+| Status | Milestone | Tasklist |
+|---|---|---|
+| ⬜ | Decide + apply the KGP pin advance (0.4.0 → 0.5.0) across `schemas/src/versions.ts` and the Python/Erlang/TS gates in lockstep, or record the deferral until KGP re-ratifies · S | `chief/58-kgp-version-pin-advance` *(proposed)* |
+
+*Depends on:* koine KGP re-ratification. Source: `progress.txt` US-1.
+
+### Ongoing — steady-state, not a phase — 🚧 continuous
+
+| Status | Milestone | Tasklist |
+|---|---|---|
+| 🚧 | **Cutover readiness watch** — both routers stay byte-identical green (a change to the router's external contract lands in both or neither) and the conformance corpus stays *live*, until Phase E's four preconditions trigger | — |
+| 🚧 | **Vendor/adapter breadth** — keep widening the dispatch coverage the router borrows while the differentiators stay hand-built (feeds Phase B) | — |
+| 🚧 | **Contract-version tracking** — as koine specs revise, bump `schemas/src/versions.ts` and keep every language gate asserting against it in lockstep (feeds Phase F) | — |
+
+### Loose wishlist — ⬜ not yet phased
+
+Smaller open threads noted across the docs, each with a known site, none big enough to anchor a phase:
+
+- **Ids in the §7.2 egress report** — `inspectPackEgress` reports a violating entity record *without* an id, because `EgressBearing` reads `record.id` while a KGP §2 entity record is keyed by `csid`; section + index still locate it, so it was left alone in `schemas/` (`progress.txt` US-1).
+- **Harden the Ollama localhost default** — `resolve_tier` must *not* inherit LiteLLM's `http://localhost:11434` default, or "no local server configured" would depend on whatever happens to be listening; the default must be overridden, not inherited (`docs/spike-litellm-leaf.md` N2/N3).
+- **Re-prove the guards on any new dispatch path** — `resolve_all` never raising and `unpriced` never passing a ceiling must be re-asserted whenever a Phase-B adapter adds a rung (`docs/router-hand-built-behaviours.md` §2.3).
 
 ---
 
@@ -146,8 +225,12 @@ steady breadth work.
 - Two tasklists carried cross-repo `dependsOn` into koine (`koine:10-kmi-adopt-otio`,
   `koine:40-fabric-producer-contracts`); both dependencies were satisfied before the agora work
   merged.
-- No open autonomous work remains in this repo. The remaining items above are cutover/follow-up
-  work, not queued tasklists.
+- **10 proposed tasklists** (`chief/41` and `chief/50`–`58`) back the planned Phases A–F above —
+  **none authored yet** (no `tasks/chief/*.json`); they are roadmap stubs, numbered to not collide
+  with the merged bands or the cross-repo `agora:80`/`agora:90` references.
+- No open *autonomous* work remains in this repo. The second-act phases are cutover/follow-up and
+  breadth work; several rows are cross-repo (`koine`, the orchestrator, `pinakes`) or gated on
+  external preconditions (Phase E), so they are proposals, not queued tasklists.
 
 ---
 
