@@ -2,9 +2,9 @@
   "name": null,
   "project": "agora",
   "branchName": "chief/64-studio-analytics-dashboards",
-  "description": "Add analytics & reporting dashboards to Agora Studio: traffic, latency, cost, and capability-usage across the user's network of AI apps/services. Traffic and latency are aggregated from the same KCS telemetry the message viewer reads (`console/src/kcs/spans.ts`); cost reuses the provider-router's existing cost-estimation semantics (the router's cost-estimation / budget-ceiling model — mirrored in the registry's cost ranking `registry/src/cost.ts`) rather than inventing a pricing model; capability-usage is aggregated over the KCB capabilities the discovered participants advertise. Studio remains an observer reading existing surfaces (ADR-0001). Scope: the `studio/` workspace only. agora gates on `make check`.",
+  "description": "Add analytics & reporting dashboards to Agora Studio: traffic, latency, cost, and capability-usage across the user's network of AI apps/services. Traffic and latency are aggregated from the same KCS telemetry the message viewer reads (`console/src/kcs/spans.ts`) — depending on `55-kcs-observability-rewrite` (Phase D) so the aggregates are built on the ratified emitted-telemetry shape, never on the provisional `ObservedSpan` shape Phase D replaces; cost reuses the provider-router's existing cost-estimation semantics (the router's cost-estimation / budget-ceiling model — mirrored in the registry's cost ranking `registry/src/cost.ts`) rather than inventing a pricing model; capability-usage is aggregated over the KCB capabilities the discovered participants advertise. Studio remains an observer reading existing surfaces (ADR-0001). Scope: the `studio/` workspace only. agora gates on `make check`.",
   "parked": false,
-  "dependsOn": ["60-studio-ui-backbone"],
+  "dependsOn": ["60-studio-ui-backbone", "55-kcs-observability-rewrite"],
   "touches": ["studio"],
   "iters": 7,
   "warmup": [

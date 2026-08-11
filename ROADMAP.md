@@ -7,7 +7,7 @@
 > *koine specifies, agora implements* — a thin shared commons where peers discover by capability
 > and dial each other directly.
 
-**Status:** Core surfaces implemented & gated (Chief bands `10`–`40` merged, 4/4); Erlang-router cutover and telemetry follow-ups in progress, with a mined "second act" (Phases A–F below) proposed · **Last updated:** 2026-08-10
+**Status:** Core surfaces implemented & gated (Chief bands `10`–`40` merged, 4/4); Erlang-router cutover and telemetry follow-ups in progress, with a mined "second act" (Phases A–H below) proposed · **Last updated:** 2026-08-11
 
 This is the single canonical roadmap for agora. It is the first consolidated roadmap for the
 repo, synthesized from the README, `DESIGN.md`, `CLAUDE.md`, the `docs/` decision records, and the
@@ -69,7 +69,7 @@ into `make check` (what CI runs):
 - **schemas** (`schemas/`, TS) — `@agora/schemas`, shared manifest schemas / protocol types; the
   koine spec versions are pinned once here and asserted across every language gate.
 
-**Chief program:** 4/4 built-program tasklists merged (`10`, `20`, `30`, `40`); 17 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 1 parked.
+**Chief program:** 4/4 built-program tasklists merged (`10`, `20`, `30`, `40`); 19 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 1 parked.
 
 ---
 
@@ -79,7 +79,7 @@ One list, everything: shipped, in-progress, and planned. Two axes run through ag
 **contract-coverage** axis (a running surface for each koine spec) and a **build-vs-adopt /
 platform** axis (the Chief-driven work that stands those surfaces on established tools) — so the
 shipped work is shown as those two tracks; the mined-but-unbuilt "second act" follows as Phases
-`A`–`F`, and the **Ongoing** and **Loose wishlist** blocks close it out. Status legend:
+`A`–`H`, and the **Ongoing** and **Loose wishlist** blocks close it out. Status legend:
 **✅ complete/merged · 🚧 partial / in-progress / cutover-blocked · ⬜ planned**. The Tasklist column
 is the Chief tasklist that delivered a row (✅ merged), the pre-Chief bootstrap program that did
 (US-AG1–4), or the *(proposed)* tasklist that would.
@@ -87,9 +87,9 @@ is the Chief tasklist that delivered a row (✅ merged), the pre-Chief bootstrap
 > The completed Chief bands are `10`–`40` (4/4 merged); the router/registry/resolver surfaces
 > predate that program and were built by the **US-AG1–4 bootstrap** (see `progress.txt`), which
 > has no completed `NN-*.json` record of its own. Proposed second-act tasklists are numbered
-> `chief/41`, `chief/50`–`58` (Phases A–F) and `chief/60`–`66` (Phase G — Agora Studio), chosen to
-> not collide with the merged bands or the cross-repo `agora:80`/`agora:90` references in
-> `CLAUDE.md` / `trainer/README.md`.
+> `chief/41`, `chief/50`–`58` (Phases A–F), `chief/60`–`66` (Phase G — Agora Studio), and
+> `chief/67`–`68` (Phase H — trust & hardening), chosen to not collide with the merged bands or
+> the cross-repo `agora:80`/`agora:90` references in `CLAUDE.md` / `trainer/README.md`.
 
 ### Chief build program (bands 10–40) — ✅ complete (4/4 merged)
 
@@ -129,7 +129,7 @@ cannot close until an orchestrator-side KCB *client* replaces the `Runner::Stub`
 | ⬜ | ajv/jsonschema validator + conformance CI for `finetune-job.schema.json` (KFT §3); semantic admission (modality×method, egress) stays in the providers — a named-but-unbuilt agora tasklist · S/M | `chief/41-finetune-job-validator` *(proposed)* |
 | ⬜ | Un-404 the trainer's real §6 telemetry stream / §5.3 export / §8 registry, driven by the orchestrator-side KCB finetune **client** that replaces `Runner::Stub` (discover → invoke → subscribe → issue `invoke:finetune` grants) · M, cross-repo | `chief/50-finetune-live-endpoints` *(proposed)* |
 
-*Depends on:* `koine:20-kft-finetune-profile`; the cross-repo `90-finetune-client` (orchestrator) and `pinakes:90-finetune-provider` land the runtime the trainer's stream dials. Source: `trainer/README.md` follow-up table.
+*Depends on:* the KFT contract (`koine/specs/fine-tuning.md`; the previously-cited `koine:20-kft-finetune-profile` stem never existed — koine's `chief/20` is `20-kgp-standards-alignment`, and the KFT profile is the spec itself). The cross-repo runtime the trainer's stream dials is now **merged**: the orchestrator-side client is `cuneiform:90-finetune-client` (merged, `Runner::Kcb`), and the specialized provider is **lugh** (`lugh:30-kft-provider-manifest`, merged) — the previously-cited `pinakes:90-finetune-provider` was never authored (pinakes `90` became `90-extract-lugh`; cuneiform `102-retarget-finetune-provider-to-lugh` records the retarget). `chief/50`'s `dependsOn` encodes both. Source: `trainer/README.md` follow-up table.
 
 ### Phase B — Provider-router adapter breadth — ⬜ planned (scale: M)
 
@@ -217,12 +217,29 @@ inventing a new control plane.
 | ⬜ | UI shell / backbone — the app scaffold with **no preconfigured apps/services/connections**; participants come only from the user's own config (rosetta is the internal dogfood, per rosetta's roadmap); source-first TS + React alongside `console/` · M | `chief/60-studio-ui-backbone` *(proposed)* |
 | ⬜ | Live topology graph — nodes = AI apps/services, edges = MCP/A2A connections (internal + external), discovered via the KCB `registry/` (addresses, cross-plane paths) and `resolver/` KINP identities · L | `chief/61-studio-topology-graph` *(proposed)* |
 | ⬜ | Connection monitoring — per-connection health/status, uptime, and error surfaces over the real MCP/A2A links (never relayed) · M | `chief/62-studio-connection-monitoring` *(proposed)* |
-| ⬜ | On-the-wire message viewer **with animation** — messages flowing between services animated along the graph edges in real time, with payload inspection, read from the `console/src/kcs/spans.ts` telemetry reader · L | `chief/63-studio-message-viewer-animated` *(proposed)* |
-| ⬜ | Analytics & reporting dashboards — traffic, latency, cost (router cost-estimation), and capability-usage across the network · M | `chief/64-studio-analytics-dashboards` *(proposed)* |
+| ⬜ | On-the-wire message viewer **with animation** — messages flowing between services animated along the graph edges in real time, with payload inspection, read from the `console/src/kcs/spans.ts` telemetry reader — **after `chief/55`** (Phase D), so the viewer is built on the ratified emitted-telemetry shape, not the provisional `ObservedSpan` shape Phase D replaces · L | `chief/63-studio-message-viewer-animated` *(proposed)* |
+| ⬜ | Analytics & reporting dashboards — traffic, latency, cost (router cost-estimation), and capability-usage across the network — **after `chief/55`** (Phase D), same rationale as the message viewer · M | `chief/64-studio-analytics-dashboards` *(proposed)* |
 | ⬜ | Spec-definition viewer — render the koine contracts each participant advertises (KINP/KGP/KCB/KMI/KCS/KFT) plus its AgentCard/manifest, validated by `@agora/schemas` · M | `chief/65-studio-spec-viewer` *(proposed)* |
 | ⬜ | Runnable example setups — several example topologies with *thin* AI app/service examples (barely more than local-inference wrappers) so a user sees Studio populated without wiring their own; consumes the published `@agora/sdk`, never imported by it · M | `chief/66-studio-example-setups` *(proposed)* |
 
-*Depends on:* rosetta (the internal/proprietary test setup that dogfoods this UI — see rosetta's roadmap) and koine specs (the KINP/KGP/KCB/KMI/KCS/KFT contracts the spec-definition viewer renders). Reads existing surfaces: `registry/`, `resolver/`, `console/src/kcs/spans.ts`, `schemas/`.
+*Depends on:* rosetta (the internal/proprietary test setup that dogfoods this UI — see rosetta's roadmap) and koine specs (the KINP/KGP/KCB/KMI/KCS/KFT contracts the spec-definition viewer renders). The telemetry-reading rows (`63`, `64`) additionally depend on `chief/55-kcs-observability-rewrite` (Phase D) so Studio never ships on the provisional `spans.ts` shape. Reads existing surfaces: `registry/`, `resolver/`, `console/src/kcs/spans.ts`, `schemas/`.
+
+### Phase H — Control-plane trust & local-tier hardening — ⬜ planned (scale: M)
+
+Two runtime-commons gaps promoted from prose. The **grant issuer** is the missing service half of
+koine KCB §5: agora holds the relying-party half everywhere (`apr_grant.erl`, the trainer's
+`Grant`, the `grants_required` manifest shape) while issuance/rotation/ceiling policy — which KCB
+places in "the control-plane host's infra" — has no reference runtime anywhere; downstream
+enforcement (`pinakes:111-grant-enforcement-and-budget-ceilings`) explicitly waits on it. The
+**local-backend hardening** row is the wishlist's Ollama-default item made executable — it touches
+the always-completes ladder's correctness, so it re-proves the §2.3 guards on every path it touches.
+
+| Status | Milestone | Tasklist |
+|---|---|---|
+| ⬜ | **KCB grant issuer** — issuance / rotation / ceiling-policy service per KCB §5, minting the exact `<verb>:<scope>` + `budget_units` shape the relying parties already parse; key rotation with overlap, expiry, published verification material, attenuation that only narrows; consumed cross-repo by `pinakes:111` · M | `chief/67-kcb-grant-issuer` *(proposed)* |
+| ⬜ | **Local-backend (Ollama/mlx-serve) hardening** — no dispatch path inherits LiteLLM's `http://localhost:11434` default (a local rung exists only by explicit config), explicit auth/bind posture, and failure modes proven inside the always-completes ladder, in both routers in lockstep · M | `chief/68-local-backend-hardening` *(proposed)* |
+
+*Depends on:* none in-repo (`67` is consumed by, not dependent on, pinakes; `68` re-proves existing guards). Sources: `koine/specs/capability-bus.md` §5, `docs/spike-litellm-leaf.md` N2/N3, `docs/router-hand-built-behaviours.md` §2.3.
 
 ### Ongoing — steady-state, not a phase — 🚧 continuous
 
@@ -237,23 +254,26 @@ inventing a new control plane.
 Smaller open threads noted across the docs, each with a known site, none big enough to anchor a phase:
 
 - **Ids in the §7.2 egress report** — `inspectPackEgress` reports a violating entity record *without* an id, because `EgressBearing` reads `record.id` while a KGP §2 entity record is keyed by `csid`; section + index still locate it, so it was left alone in `schemas/` (`progress.txt` US-1).
-- **Harden the Ollama localhost default** — `resolve_tier` must *not* inherit LiteLLM's `http://localhost:11434` default, or "no local server configured" would depend on whatever happens to be listening; the default must be overridden, not inherited (`docs/spike-litellm-leaf.md` N2/N3).
+- ✅ **Harden the Ollama localhost default** — *promoted to a tasklist*: now Phase H's `chief/68-local-backend-hardening` (the default must be overridden, not inherited, plus auth/bind posture and ladder failure modes; `docs/spike-litellm-leaf.md` N2/N3).
 - **Re-prove the guards on any new dispatch path** — `resolve_all` never raising and `unpriced` never passing a ceiling must be re-asserted whenever a Phase-B adapter adds a rung (`docs/router-hand-built-behaviours.md` §2.3).
 
 ---
 
 ## Chief Tasklist Status
 
-- **4/4 built-program tasklists merged**; 17 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 1 parked. Records live in
+- **4/4 built-program tasklists merged**; 19 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 1 parked. Records live in
   [`tasks/chief/completed/`](tasks/chief/completed/): `10-litellm-leaf-gateway`,
   `20-client-sdk-and-starter`, `30-translation-otio`, `40-fabric-data-plane-bridges` — each with a
   `mergedToMain` commit and all user stories `passes: true`.
 - Two tasklists carried cross-repo `dependsOn` into koine (`koine:10-kmi-adopt-otio`,
   `koine:40-fabric-producer-contracts`); both dependencies were satisfied before the agora work
   merged.
-- **17 proposed tasklists** (`chief/41`, `chief/50`–`58`, `chief/60`–`66`) back the planned Phases
-  A–G above — **now authored** (`tasks/chief/*.json`, `passes: false`, unrun); they are numbered to
-  not collide with the merged bands or the cross-repo `agora:80`/`agora:90` references.
+- **19 proposed tasklists** (`chief/41`, `chief/50`–`58`, `chief/60`–`66`, `chief/67`–`68`) back
+  the planned Phases A–H above — **now authored** (`tasks/chief/*.json`, `passes: false`, unrun);
+  they are numbered to not collide with the merged bands or the cross-repo `agora:80`/`agora:90`
+  references. `chief/50` additionally encodes its now-merged cross-repo closure deps
+  (`cuneiform:90-finetune-client`, `lugh:30-kft-provider-manifest`), and `chief/63`/`64` depend on
+  `chief/55` so Studio is never built on the provisional telemetry shape.
 - No open *autonomous* work remains in this repo. The second-act phases are cutover/follow-up and
   breadth work; several rows are cross-repo (`koine`, the orchestrator, `pinakes`) or gated on
   external preconditions (Phase E), so they are proposals, not queued tasklists.

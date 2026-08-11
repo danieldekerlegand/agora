@@ -2,9 +2,9 @@
   "name": null,
   "project": "agora",
   "branchName": "chief/63-studio-message-viewer-animated",
-  "description": "Add the animated on-the-wire message viewer to Agora Studio: messages flowing between services animated along the topology-graph edges (61) in real time, with payload inspection. It reads from the console's existing KCS telemetry reader (`console/src/kcs/spans.ts`) — the same span/telemetry surface the conformance console consumes — rather than inventing a new observability plane; Studio remains an observer that never sees relayed traffic (it reads emitted telemetry/spans, ADR-0001). Scope: the `studio/` workspace only, reading `console/`'s span reader by reference. agora gates on `make check`.",
+  "description": "Add the animated on-the-wire message viewer to Agora Studio: messages flowing between services animated along the topology-graph edges (61) in real time, with payload inspection. It reads from the console's KCS telemetry reader (`console/src/kcs/spans.ts`) — the same span/telemetry surface the conformance console consumes — rather than inventing a new observability plane; it depends on `55-kcs-observability-rewrite` (Phase D) so it is built on the reader's ratified emitted-telemetry shape, never on the provisional `ObservedSpan` shape Phase D replaces; Studio remains an observer that never sees relayed traffic (it reads emitted telemetry/spans, ADR-0001). Scope: the `studio/` workspace only, reading `console/`'s span reader by reference. agora gates on `make check`.",
   "parked": false,
-  "dependsOn": ["60-studio-ui-backbone"],
+  "dependsOn": ["60-studio-ui-backbone", "55-kcs-observability-rewrite"],
   "touches": ["studio"],
   "iters": 8,
   "warmup": [
