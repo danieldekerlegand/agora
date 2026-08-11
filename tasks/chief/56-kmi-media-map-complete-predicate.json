@@ -1,0 +1,47 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/56-kmi-media-map-complete-predicate",
+  "description": "Phase D (conformance / telemetry rewrite). Close the one known KCS gap DESIGN.md names: KMI delta-I gives every NLE projection an asset-id <-> path media map, and KCS §5 has NO predicate to read one. Add a `media_map_complete(projection)` predicate to the console's §5 media assertion vocabulary (`console/src/kcs/assertions.ts` `ASSERTION_PLANES.media`, alongside asset_attaches_to / source_world_is / analysis_attributed_to_constituent) that reads the KMI delta-I media map and asserts every projected asset id resolves to a path. Cross-repo: gated on koine's KMI delta-I media map. Evaluated over plane-typed observations, never generated text (§7 Q2). agora gates on `make check`; the console gates on `make check-console`.",
+  "parked": false,
+  "dependsOn": [
+    "koine:kmi-media-map"
+  ],
+  "touches": [
+    "console"
+  ],
+  "iters": 6,
+  "warmup": [
+    "sed -n '57,72p' console/src/kcs/assertions.ts",
+    "sed -n '195,205p' DESIGN.md",
+    "sed -n '500,540p' console/src/kcs/assertions.ts",
+    "sed -n '1,40p' console/src/kcs/assertions.test.ts"
+  ],
+  "verify": [
+    "make check"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Add media_map_complete(projection) to the §5 media vocabulary",
+      "description": "Add the `media_map_complete` predicate to `ASSERTION_PLANES.media` with an evaluator that reads a KMI delta-I NLE projection's asset-id <-> path media map and asserts every asset id in the projection resolves to a path — the KCS §5 predicate for the map that had none.",
+      "acceptanceCriteria": [
+        "`media_map_complete` is added to `ASSERTION_PLANES.media` (and thereby `ASSERTION_NAMES`) with an evaluator reading the KMI delta-I asset-id<->path media map; it is evaluated over the plane-typed media observation, never generated text (§7 Q2).",
+        "The predicate is registered on the media plane so a scenario naming it is not a silently-ignored assertion; `make check-console` green."
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-2",
+      "title": "Test complete vs dangling maps",
+      "description": "Pin the predicate with tests: it passes when the projection's media map is complete, and fails when a projected asset id has no path (a dangling entry), mirroring the console's existing assertion-evaluator test shape.",
+      "acceptanceCriteria": [
+        "A test asserts `media_map_complete` returns a passing verdict for a complete media map and a failing verdict for a projection with a dangling asset id (an id with no path), and reports through the standard `AssertionVerdict` path.",
+        "`make check-console` green; no other §5 predicate's behaviour changes."
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

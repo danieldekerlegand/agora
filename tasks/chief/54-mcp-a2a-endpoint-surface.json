@@ -1,0 +1,58 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/54-mcp-a2a-endpoint-surface",
+  "description": "Phase C (KCB endpoint surface). Today the provider-router advertises NO `mcp`/`a2a` keys 'until they exist' — an advertised address is a promise a peer will dial directly (ADR-0001 §3), so `test_manifest.py` pins the endpoint key set to exactly `{openai, doctor, manifest}` (provider-router/tests + trainer/tests), and `test_it_advertises_no_endpoint_it_does_not_serve`/`test_the_card_advertises_no_a2a_endpoint_it_does_not_serve` guard it. Stand up the MCP + A2A server endpoints on the router AND advertise them in the KCB manifest + AgentCard in the SAME change, re-pinning the key set — so the server and the advertisement can never drift apart. Lands in both routers (Python spec-of-record + Erlang canonical) so the byte-for-byte corpus stays green. agora gates on `make check`; the routers gate on `make check-provider-router` + `make check-router-erl` (clean-skips where rebar3 is absent).",
+  "parked": false,
+  "dependsOn": [],
+  "touches": [
+    "provider-router",
+    "provider-router-erl",
+    "schemas"
+  ],
+  "iters": 8,
+  "warmup": [
+    "sed -n '116,126p' progress.txt",
+    "grep -nE 'endpoints|mcp|a2a|no_endpoint|no_a2a' provider-router/tests/test_manifest.py",
+    "grep -nE 'endpoints|well-known|agent-card|kcb-manifest' provider-router/src/agora_provider_router/*.py | head -20",
+    "sed -n '1,40p' ~/Development/koine/specs/capability-bus.md"
+  ],
+  "verify": [
+    "make check"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Serve MCP + A2A endpoints on the provider-router",
+      "description": "Stand up the MCP and A2A server endpoints on the router so it answers those transports directly (ADR-0001: peers dial the address, no proxy). These are new served surfaces alongside the existing `openai`/`doctor`/`manifest` endpoints.",
+      "acceptanceCriteria": [
+        "The router serves working MCP and A2A endpoints (answering the KCB §4 verbs the manifest will advertise), proven by a test that dials each transport directly and gets a valid response.",
+        "The endpoints are observer-safe (no relay/proxy of traffic between other peers, ADR-0001); `make check-provider-router` green."
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-2",
+      "title": "Advertise them in the manifest atomically and re-pin the key set",
+      "description": "In the SAME change that serves the endpoints, add the `mcp`/`a2a` keys to the KCB manifest and AgentCard, and update `test_manifest.py`'s pinned endpoint set from `{openai, doctor, manifest}` to include them — so an advertised address is always a served one (never a promise the peer cannot dial).",
+      "acceptanceCriteria": [
+        "The KCB manifest `endpoints` and the AgentCard advertise `mcp`/`a2a`, and `test_manifest.py`'s `test_it_advertises_no_endpoint_it_does_not_serve` + `test_the_card_advertises_no_a2a_endpoint_it_does_not_serve` are re-pinned to the new key set — the server and the advertisement land together, never apart.",
+        "The manifest schema in `schemas/` validates the new endpoint keys; `make check-schemas` + `make check-provider-router` green."
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-3",
+      "title": "Both routers serve and advertise identically",
+      "description": "The Erlang canonical router (ADR-0004) serves and advertises the same MCP/A2A surface as the Python spec-of-record, so `apr_conformance_SUITE` byte-for-byte equality holds and the change lands in both or neither.",
+      "acceptanceCriteria": [
+        "The Erlang router serves + advertises the identical MCP/A2A endpoint set; re-running `capture_python_surface.py` reproduces the corpus and `apr_conformance_SUITE` stays green.",
+        "`make check-router-erl` runs the full gate where rebar3 is present and clean-skips otherwise; `make check` green end to end."
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

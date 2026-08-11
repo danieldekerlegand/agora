@@ -1,0 +1,49 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/58-kgp-version-pin-advance",
+  "description": "Phase F (contract-version pin advances). `SPEC_VERSIONS.kgp` is pinned `0.4.0` in `schemas/src/versions.ts` while koine's KGP is `0.5.0` (Candidate); ingest compares majors only, so a conformant producer that moved first is not rejected. Decide whether to bump the pin 0.4.0 -> 0.5.0 before KGP re-ratifies — and if so, move EVERY language gate in lockstep: `schemas/src/versions.ts` (TS), `agora_provider_router.KCB_VERSION`/the Python constants asserted by `provider-router/tests/` + `trainer/tests/`, and the Erlang constant asserted by `apr_conformance_SUITE`. Bump one without the others and those gates go red (CLAUDE.md 'bump all or those gates go red'). If deferring, record the deferral until KGP re-ratifies. Cross-repo: gated on koine KGP re-ratification. agora gates on `make check`.",
+  "parked": false,
+  "dependsOn": [
+    "koine:kgp-reratification"
+  ],
+  "touches": [
+    "schemas",
+    "provider-router",
+    "provider-router-erl"
+  ],
+  "iters": 6,
+  "warmup": [
+    "sed -n '1,20p' schemas/src/versions.ts",
+    "sed -n '14,32p' progress.txt",
+    "grep -rnE 'KCB_VERSION|KGP|0\\.4\\.0|SPEC_VERSION' provider-router/src trainer/src provider-router-erl/src 2>/dev/null | head -20",
+    "sed -n '76,81p' CLAUDE.md"
+  ],
+  "verify": [
+    "make check"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Decide: bump now or defer until KGP re-ratifies, and record it",
+      "description": "KGP 0.5.0 is Candidate, not ratified; ingest compares majors so 0.4.0 does not reject a 0.5.0 producer. Decide whether to advance the pin before re-ratification or hold at 0.4.0, and record the decision with its rationale (the ongoing 'contract-version tracking' thread).",
+      "acceptanceCriteria": [
+        "A recorded decision (in a doc / ADR-style note / progress.txt) states whether the KGP pin advances to 0.5.0 now or defers until KGP re-ratifies, with the rationale (major-only ingest compare; Candidate vs ratified).",
+        "If the decision is to defer, the deferral is documented as the outcome and no version constants change; `make check` green."
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-2",
+      "title": "If bumping: advance 0.4.0 -> 0.5.0 across every language gate in lockstep",
+      "description": "Only if US-1 decides to bump: change `SPEC_VERSIONS.kgp` in `schemas/src/versions.ts` and every mirrored constant (the Python `KCB_VERSION`/spec constants the provider-router + trainer pytests cross-assert, and the Erlang constant `apr_conformance_SUITE` asserts) in the SAME change, so all gates agree.",
+      "acceptanceCriteria": [
+        "If bumping, `schemas/src/versions.ts` `kgp` is `0.5.0` and every mirrored constant (Python + Erlang) is advanced in lockstep so the cross-language pin assertions (`provider-router/tests/`, `trainer/tests/`, `apr_conformance_SUITE`) all pass; a partial bump is proven to go red first, then fixed.",
+        "`make check` green across every area (TS, Python, Erlang where present); if US-1 deferred, this story is a no-op recorded as such."
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

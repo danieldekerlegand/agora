@@ -1,0 +1,47 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/52-wire-codec-vendor-breadth",
+  "description": "Phase B (provider-router adapter breadth). Widen the Rust `wire` codec (`translation/crates/wire/src/lib.rs`) — OpenAI wire <-> native vendor wire, the CANONICAL Erlang router's hot-path dispatch — past its 8 `(vendor,modality)` pairs it renders today (anthropic/text, gemini/text, replicate/{image,music}, elevenlabs/speech, runway/video, luma/video, minimax/video). Add the pending `(vendor,modality)` pairs in the modalities agora routes each of the 7 native-wire vendors for, so the Erlang router keeps dispatch parity with what the Python/LiteLLM side (51) covers. The codec is a PURE function of the payload (no clock/fs/network; caller supplies `created`) and key order is part of the output (a `Serialize` struct out, `Value` in) — an unsupported pair is an `Err`, never a panic. agora gates on `make check`; the crate gates on `make check-translation` (cargo build + clippy + test), the canonical router on `make check-router-erl` (clean-skips where rebar3 is absent).",
+  "parked": false,
+  "dependsOn": [],
+  "touches": [
+    "translation",
+    "provider-router-erl"
+  ],
+  "iters": 8,
+  "warmup": [
+    "sed -n '1,60p' translation/crates/wire/src/lib.rs",
+    "sed -n '100,155p' translation/crates/wire/src/lib.rs",
+    "grep -nE 'NATIVE_PROVIDERS|to_native|from_native|match' translation/crates/wire/src/lib.rs | head -30",
+    "cat translation/check.sh",
+    "sed -n '61,75p' Makefile"
+  ],
+  "verify": [
+    "make check"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Widen the codec's (vendor,modality) coverage with round-trip proofs",
+      "description": "Add the pending `(vendor,modality)` pairs to `to_native`/`from_native` in `translation/crates/wire/src/lib.rs` for the modalities agora routes each native-wire vendor for, matching the router's `PAID_PROVIDERS` routing. Each new pair round-trips (OpenAI request -> native body+path -> OpenAI-shaped response envelope) with vendor key order preserved.",
+      "acceptanceCriteria": [
+        "New `(vendor,modality)` pairs are added to both `to_native` and `from_native` so a covered pair renders the vendor's native request (correct path + body in vendor key order) and re-emits the OpenAI envelope for the modality (`chat.completion` / `<modality>.generation`), each with a round-trip cargo test.",
+        "An unsupported pair, malformed request, or unreadable response is an `Err` (never a panic, never a partial document); `#![deny(clippy::all)]` clean; `make check-translation` green."
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-2",
+      "title": "Keep the canonical Erlang router at dispatch parity",
+      "description": "Wire the widened codec into the Erlang router's dispatch so the canonical (ADR-0004) router dials every pair the codec now renders — the point of the codec is to remove the `pending-adapter` fall-through for the canonical side, matching the Python/LiteLLM breadth from 51.",
+      "acceptanceCriteria": [
+        "The Erlang provider-router dispatches each newly covered `(vendor,modality)` pair through the widened codec rather than falling through to `pending-adapter`, keeping canonical-router coverage aligned with the Python side.",
+        "`make check-router-erl` runs the full gate (compile + dialyzer + eunit + ct) where rebar3 is present and clean-skips otherwise (its host-guarded target); `make check` green."
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

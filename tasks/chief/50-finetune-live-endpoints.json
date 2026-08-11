@@ -1,0 +1,61 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/50-finetune-live-endpoints",
+  "description": "Phase A (KFT completion), cross-repo. Un-404 the trainer's real output endpoints — the KFT §6 training-telemetry stream, the §5.3 export, and the §8 registry registration — turning today's stubbed/404 surfaces into a live, subscribable stream. These endpoints only come alive when an orchestrator-side KCB finetune CLIENT replaces `Runner::Stub` (discover -> invoke -> subscribe to the §6 stream -> issue `invoke:finetune` grants per §7): the trainer's stream dials that runtime. agora's half is standing the endpoints up as real, subscribable surfaces and proving them with an in-repo KCB client that drives the four-verb dance the orchestrator will run. Cross-repo per ROADMAP Phase A: the orchestrator `90-finetune-client` and `pinakes:90-finetune-provider` land the runtime dialed at deploy time. agora gates on `make check`; the trainer gates on `make check-trainer`.",
+  "parked": false,
+  "dependsOn": [
+    "41-finetune-job-validator",
+    "koine:20-kft-finetune-profile",
+    "pinakes:90-finetune-provider"
+  ],
+  "touches": [
+    "trainer"
+  ],
+  "iters": 8,
+  "warmup": [
+    "make help 2>/dev/null | head -40",
+    "sed -n '28,73p' trainer/README.md",
+    "sed -n '120,135p' trainer/README.md",
+    "ls trainer/src/agora_trainer",
+    "sed -n '1,80p' ~/Development/koine/specs/fine-tuning.md"
+  ],
+  "verify": [
+    "make check"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "The §6 training-telemetry stream goes live and subscribable",
+      "description": "Turn the KFT §6 training-telemetry from a stub/404 into a live stream over the `/invoke` request (KCB §4 subscribe), one event per training step in monotonic order, content-addressed by `job + step` so redelivery is idempotent, closed by the terminal event carrying the minted finetuned-model id + weight/export asset ids (trainer/README.md §'Admission, engines & telemetry').",
+      "acceptanceCriteria": [
+        "`/invoke` streams real KFT §6 telemetry (one idempotent, content-addressed event per step, terminal event carrying the minted model + asset ids) rather than returning a stub/404 — driven by the recorded-run adapter where no GPU is present (never a fabricated loss curve).",
+        "A subscriber (KCB §4 subscribe) receives the ordered event sequence to the terminal event; a test asserts monotonic ordering and idempotent redelivery; `make check-trainer` green."
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-2",
+      "title": "Un-404 the §5.3 export and §8 registry registration",
+      "description": "Make the §5.3 export matrix (weights + each requested export as KMI assets with lineage) and the §8 discovery-registry registration of the minted model entity live, replacing the 404s. Output-egress enforcement at registration (§5.4/FT-A) must refuse a `local-only`-inheriting model a cross-boundary registration (`egress-output`).",
+      "acceptanceCriteria": [
+        "The §5.3 export endpoint returns the real export matrix (KMI assets carrying `media:derived_from`/`media:variant_of` lineage) and the §8 registration surface registers the minted model entity, both replacing prior 404s.",
+        "Registration enforces the §5.4/FT-A output-egress rule — a `local-only`-inheriting model is refused cross-boundary registration (`egress-output`), an in-tier one admits — proven by a test; `make check-trainer` green."
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-3",
+      "title": "An in-repo KCB finetune client drives the four-verb dance end to end",
+      "description": "Prove the live endpoints with an in-repo KCB client that runs discover -> invoke -> subscribe -> issue `invoke:finetune` grant — the same dance the orchestrator's `Runner::Stub` replacement (cross-repo `90-finetune-client`) will run at deploy time. This is the agora-side standing proof; the production client is another repo's work.",
+      "acceptanceCriteria": [
+        "A test-scoped KCB finetune client discovers the trainer, invokes a schema-valid job, subscribes to the live §6 stream to the terminal event, and carries an `invoke:finetune` grant token with a `X-Agora-Budget-Units` ceiling (§7) — end to end against the live endpoints, no stub.",
+        "The test documents itself as the agora-side stand-in for the orchestrator's `Runner::Stub` replacement (cross-repo `90-finetune-client`), which dials `pinakes:90-finetune-provider` + this trainer at runtime; `make check` green."
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

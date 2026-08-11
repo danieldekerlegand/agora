@@ -1,0 +1,57 @@
+{
+  "name": null,
+  "project": "agora",
+  "branchName": "chief/51-litellm-adapter-vendor-breadth",
+  "description": "Phase B (provider-router adapter breadth). Widen the Python/LiteLLM dispatch adapter past the 2-of-7 native-wire vendors it dials today (anthropic/gemini text — see docs/litellm-dispatch-adapter.md §'Which vendors actually became dialable'). Write the pending-adapter rungs for replicate / elevenlabs / minimax / runway / luma in the modalities agora ROUTES them for (`PAID_PROVIDERS`), turning honest `pending-adapter` refusals into real rungs ONLY where LiteLLM genuinely dials that modality — never forcing a translation nobody verified. The adapter stays BELOW the transport boundary and behind `AGORA_LITELLM=1` (off by default), so every hand-built differentiator (always-completes terminal rung, per-request pre-dial ceiling, `unpriced`!=free, KCB manifest) is untouched, and the byte-for-byte Erlang/Python corpus (`apr_conformance_SUITE`) stays green. agora gates on `make check`; the router gates on `make check-provider-router`.",
+  "parked": false,
+  "dependsOn": [],
+  "touches": [
+    "provider-router"
+  ],
+  "iters": 8,
+  "warmup": [
+    "sed -n '1,64p' docs/litellm-dispatch-adapter.md",
+    "sed -n '44,63p' docs/litellm-dispatch-adapter.md",
+    "ls provider-router/src/agora_provider_router",
+    "grep -nE 'PAID_PROVIDERS|PAID_VENDORS|wire.*native|pending-adapter' provider-router/src/agora_provider_router/backends.py",
+    "sed -n '1,60p' provider-router/tests/test_litellm_dispatch.py"
+  ],
+  "verify": [
+    "make check"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Add the LiteLLM rungs that genuinely dial the modality agora routes",
+      "description": "For each of replicate/elevenlabs/minimax/runway/luma, add the LiteLLM-backed rung ONLY in the modality `PAID_PROVIDERS` routes the vendor for, where LiteLLM actually dials it — each with a round-trip test proving the pair. Where LiteLLM cannot serve agora's routed modality (the docs §'Which vendors' gap table: replicate chat-only, minimax no-video, elevenlabs binary-stream mismatch, runway/luma no-adapter), the rung stays an honest `pending-adapter`, never a fabricated dial.",
+      "acceptanceCriteria": [
+        "Every rung added dials the modality agora routes the vendor for (per `PAID_PROVIDERS`) and round-trips through a stand-in LiteLLM in a test; a vendor/modality LiteLLM does not cover keeps resolving to `pending-adapter` (an honest refusal), matching the anti-fabrication rule in docs/litellm-dispatch-adapter.md.",
+        "The docs/litellm-dispatch-adapter.md gap table is updated to reflect the new coverage vs the still-uncovered pairs; `make check-provider-router` green."
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-2",
+      "title": "Re-prove the hand-built guards below every new rung",
+      "description": "Per docs/router-hand-built-behaviours.md §2.3, the always-completes invariant, the pre-dial ceiling refusal, and `unpriced`!=free must be re-asserted whenever a Phase-B adapter adds a rung. Prove that turning the adapter on for the new vendors cannot make a zero-budget request spend, and that `resolve_all` never raises.",
+      "acceptanceCriteria": [
+        "A test counts the calls a stand-in LiteLLM receives and asserts a request over the ceiling is refused BEFORE the transport is reached for every new rung (the `TestTheCeilingStillRefuses` shape), and an unmapped model stays `unpriced` (refusable, not priced zero).",
+        "The always-completes terminal placeholder rung and `resolve_all` never-raises invariant hold with the new rungs present; `make check-provider-router` green."
+      ],
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-3",
+      "title": "Default surface and byte-for-byte corpus unchanged",
+      "description": "The adapter stays keyed off `AGORA_LITELLM=1` (off by default, lazy import, optional extra) so the Python router's default surface is exactly what it was, and `apr_conformance_SUITE`'s Erlang/Python byte-for-byte equality still holds — re-running `capture_python_surface.py` must reproduce the corpus byte for byte.",
+      "acceptanceCriteria": [
+        "With `AGORA_LITELLM` unset the router's surface is unchanged (a missing extra degrades the ladder with an actionable message, never denies service); the new rungs are reachable only with the variable set.",
+        "Re-running `provider-router-erl/test/apr_conformance_SUITE_data/capture_python_surface.py` reproduces `python-surface.json` byte for byte (the `AGORA_*` variable is scrubbed by the suite); `make check` green."
+      ],
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
