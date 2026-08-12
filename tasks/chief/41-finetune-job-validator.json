@@ -55,7 +55,7 @@
         "A short doc (or a section in an existing doc / trainer/README.md follow-up) records that agora:41 is structural-only and names where semantic admission lives, closing the 'named-but-unbuilt agora tasklist' row in trainer/README.md.",
         "`make check` green end to end."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
