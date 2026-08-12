@@ -43,7 +43,7 @@
         "A drift test asserts `schemas/src/koine-schemas/finetune-job.schema.json` and `trainer/src/agora_trainer/schemas/finetune-job.schema.json` are byte-identical to each other (and to koine's `specs/` copy where reachable), failing loudly on any divergence \u2014 the schema is pinned, never forked.",
         "The test runs under the existing gates (vitest via `make check-schemas`, pytest via `make check-trainer`), not a new one-off runner; `make check-schemas` and `make check-trainer` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
