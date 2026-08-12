@@ -1,11 +1,17 @@
 {
   "name": null,
   "project": "agora",
+  "category": "feature",
   "branchName": "chief/64-studio-analytics-dashboards",
-  "description": "Add analytics & reporting dashboards to Agora Studio: traffic, latency, cost, and capability-usage across the user's network of AI apps/services. Traffic and latency are aggregated from the same KCS telemetry the message viewer reads (`console/src/kcs/spans.ts`) — depending on `55-kcs-observability-rewrite` (Phase D) so the aggregates are built on the ratified emitted-telemetry shape, never on the provisional `ObservedSpan` shape Phase D replaces; cost reuses the provider-router's existing cost-estimation semantics (the router's cost-estimation / budget-ceiling model — mirrored in the registry's cost ranking `registry/src/cost.ts`) rather than inventing a pricing model; capability-usage is aggregated over the KCB capabilities the discovered participants advertise. Studio remains an observer reading existing surfaces (ADR-0001). Scope: the `studio/` workspace only. agora gates on `make check`.",
+  "description": "Add analytics & reporting dashboards to Agora Studio: traffic, latency, cost, and capability-usage across the user's network of AI apps/services. Traffic and latency are aggregated from the same KCS telemetry the message viewer reads (`console/src/kcs/spans.ts`) \u2014 depending on `55-kcs-observability-rewrite` (Phase D) so the aggregates are built on the ratified emitted-telemetry shape, never on the provisional `ObservedSpan` shape Phase D replaces; cost reuses the provider-router's existing cost-estimation semantics (the router's cost-estimation / budget-ceiling model \u2014 mirrored in the registry's cost ranking `registry/src/cost.ts`) rather than inventing a pricing model; capability-usage is aggregated over the KCB capabilities the discovered participants advertise. Studio remains an observer reading existing surfaces (ADR-0001). Scope: the `studio/` workspace only. agora gates on `make check`.",
   "parked": false,
-  "dependsOn": ["60-studio-ui-backbone", "55-kcs-observability-rewrite"],
-  "touches": ["studio"],
+  "dependsOn": [
+    "60-studio-ui-backbone",
+    "55-kcs-observability-rewrite"
+  ],
+  "touches": [
+    "studio"
+  ],
   "iters": 7,
   "warmup": [
     "ls studio/src console/src/kcs registry/src",
@@ -13,7 +19,9 @@
     "sed -n '1,40p' registry/src/cost.ts",
     "sed -n '202,225p' ROADMAP.md"
   ],
-  "verify": ["make check"],
+  "verify": [
+    "make check"
+  ],
   "userStories": [
     {
       "id": "US-1",
@@ -30,9 +38,9 @@
     {
       "id": "US-2",
       "title": "Cost and capability-usage dashboards",
-      "description": "Report cost using the router's existing cost-estimation semantics and capability-usage over the KCB capabilities participants advertise — reusing existing surfaces, not a new pricing model.",
+      "description": "Report cost using the router's existing cost-estimation semantics and capability-usage over the KCB capabilities participants advertise \u2014 reusing existing surfaces, not a new pricing model.",
       "acceptanceCriteria": [
-        "A cost dashboard reports spend/estimated cost using the provider-router's existing cost-estimation semantics (mirrored by the registry cost ranking `registry/src/cost.ts`), honoring `unpriced` ≠ free (an unpriced call is shown as unpriced, never as zero), and a capability-usage view aggregates calls by the KCB capability the discovered participants advertise",
+        "A cost dashboard reports spend/estimated cost using the provider-router's existing cost-estimation semantics (mirrored by the registry cost ranking `registry/src/cost.ts`), honoring `unpriced` \u2260 free (an unpriced call is shown as unpriced, never as zero), and a capability-usage view aggregates calls by the KCB capability the discovered participants advertise",
         "A test asserts the cost aggregation reuses the router's cost semantics (including the `unpriced` case) and that capability-usage is grouped by advertised capability, not by a hard-wired participant name",
         "`make check` green; Studio invents no new pricing model and relays no traffic (observer-only, ADR-0001)"
       ],

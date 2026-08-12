@@ -1,8 +1,9 @@
 {
   "name": null,
   "project": "agora",
+  "category": "replace",
   "branchName": "chief/53-litellm-price-map-source",
-  "description": "Phase B (provider-router adapter breadth). Adopt LiteLLM's maintained model price map as a SOURCE of rates underneath `AGORA_PRICE_TABLE` — layered UNDER the hand-built cost rules, never replacing them. The router's `cost.py` keeps its three safety rules intact (docs/router-hand-built-behaviours.md §2.2, docs/litellm-dispatch-adapter.md keep-list): `unpriced`!=free (an unmapped model is refusable, not priced at zero), the `budget_units` denomination, and the non-text `measure()` path. LiteLLM only fills in rates for models it prices; anything it does not price stays `unpriced`. The change lands in lockstep across both routers (Python `cost.py` + the Erlang cost model) since a change to the router's external contract lands in both or neither. agora gates on `make check`; the routers gate on `make check-provider-router` + `make check-router-erl` (the Erlang gate clean-skips where rebar3 is absent).",
+  "description": "Phase B (provider-router adapter breadth). Adopt LiteLLM's maintained model price map as a SOURCE of rates underneath `AGORA_PRICE_TABLE` \u2014 layered UNDER the hand-built cost rules, never replacing them. The router's `cost.py` keeps its three safety rules intact (docs/router-hand-built-behaviours.md \u00a72.2, docs/litellm-dispatch-adapter.md keep-list): `unpriced`!=free (an unmapped model is refusable, not priced at zero), the `budget_units` denomination, and the non-text `measure()` path. LiteLLM only fills in rates for models it prices; anything it does not price stays `unpriced`. The change lands in lockstep across both routers (Python `cost.py` + the Erlang cost model) since a change to the router's external contract lands in both or neither. agora gates on `make check`; the routers gate on `make check-provider-router` + `make check-router-erl` (the Erlang gate clean-skips where rebar3 is absent).",
   "parked": false,
   "dependsOn": [],
   "touches": [
@@ -23,7 +24,7 @@
     {
       "id": "US-1",
       "title": "Layer the LiteLLM price map in as an AGORA_PRICE_TABLE source of rates",
-      "description": "Wire LiteLLM's maintained price map in as a source that populates `AGORA_PRICE_TABLE` rates, sitting UNDER the existing cost model — it supplies numbers for models LiteLLM prices, and `AGORA_PRICE_TABLE`/hand-set overrides still win. It never becomes the cost model, only a feed of rates.",
+      "description": "Wire LiteLLM's maintained price map in as a source that populates `AGORA_PRICE_TABLE` rates, sitting UNDER the existing cost model \u2014 it supplies numbers for models LiteLLM prices, and `AGORA_PRICE_TABLE`/hand-set overrides still win. It never becomes the cost model, only a feed of rates.",
       "acceptanceCriteria": [
         "The LiteLLM price map is adopted as a rate source layered under `AGORA_PRICE_TABLE` (an explicit `AGORA_PRICE_TABLE` entry or override still takes precedence), demonstrated by a test where a model priced by the map resolves a non-zero rate and an overridden model uses the override.",
         "The source is optional/opt-in in the same shape as the LiteLLM adapter (no new mandatory dependency on the default path); `make check-provider-router` green."
@@ -34,7 +35,7 @@
     {
       "id": "US-2",
       "title": "The three hand-built cost rules survive, in lockstep across both routers",
-      "description": "Re-assert `unpriced`!=free, the `budget_units` denomination, and the non-text `measure()` rules on top of the new rate source — an unmapped model must stay refusable, not silently priced at zero by LiteLLM's `(0,0)` return. Keep the Python and Erlang cost models in lockstep so the byte-for-byte corpus stays green.",
+      "description": "Re-assert `unpriced`!=free, the `budget_units` denomination, and the non-text `measure()` rules on top of the new rate source \u2014 an unmapped model must stay refusable, not silently priced at zero by LiteLLM's `(0,0)` return. Keep the Python and Erlang cost models in lockstep so the byte-for-byte corpus stays green.",
       "acceptanceCriteria": [
         "A test asserts a model neither the price map nor `AGORA_PRICE_TABLE` covers stays `unpriced` (refusable at the ceiling, never priced zero), and that `budget_units` denomination + non-text `measure()` are unchanged (`tests/test_cost.py` shape).",
         "The change lands in both the Python and Erlang cost models in lockstep; `apr_conformance_SUITE` byte-for-byte equality holds; `make check` green."

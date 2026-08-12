@@ -1,8 +1,9 @@
 {
   "name": null,
   "project": "agora",
+  "category": "replace",
   "branchName": "chief/57-python-router-retirement",
-  "description": "Phase E (Erlang cutover / Python-router retirement) — PARKED (external, may never trigger). Retire `provider-router/` (Python) to its own repo and freeze its conformance corpus as the frozen contract record — but NO-GO today. This is gated on FOUR external preconditions (docs/router-hand-built-behaviours.md §5), none in agora's gift: (1) an upstream *terminal*-rung mechanism that cannot fail, not a chain that ends in one; (2) a per-request, caller-supplied pre-dial ceiling that falls through rather than aborts; (3) unknown != free (an unmapped model is refusable, not priced at zero); (4) an Erlang-reachable dispatch (a wire sidecar over the wire, not a library import) OR an ADR-0004 reversal. Until ALL FOUR hold, the byte-for-byte equality `apr_conformance_SUITE` asserts is the cheaper guarantee and both routers stay green — so this tasklist is parked and must not run. agora gates on `make check`.",
+  "description": "Phase E (Erlang cutover / Python-router retirement) \u2014 PARKED (external, may never trigger). Retire `provider-router/` (Python) to its own repo and freeze its conformance corpus as the frozen contract record \u2014 but NO-GO today. This is gated on FOUR external preconditions (docs/router-hand-built-behaviours.md \u00a75), none in agora's gift: (1) an upstream *terminal*-rung mechanism that cannot fail, not a chain that ends in one; (2) a per-request, caller-supplied pre-dial ceiling that falls through rather than aborts; (3) unknown != free (an unmapped model is refusable, not priced at zero); (4) an Erlang-reachable dispatch (a wire sidecar over the wire, not a library import) OR an ADR-0004 reversal. Until ALL FOUR hold, the byte-for-byte equality `apr_conformance_SUITE` asserts is the cheaper guarantee and both routers stay green \u2014 so this tasklist is parked and must not run. agora gates on `make check`.",
   "parked": true,
   "dependsOn": [],
   "touches": [
@@ -23,7 +24,7 @@
     {
       "id": "US-1",
       "title": "Gate: verify all four preconditions hold before any retirement",
-      "description": "The definition-of-done for Phase E is that all four docs/router-hand-built-behaviours.md §5 preconditions hold. Before touching the router, prove each one with evidence (terminal rung that cannot fail; fall-through pre-dial ceiling; unknown!=free; an Erlang-reachable wire sidecar or an ADR-0004 reversal). If any one fails, this tasklist stays parked.",
+      "description": "The definition-of-done for Phase E is that all four docs/router-hand-built-behaviours.md \u00a75 preconditions hold. Before touching the router, prove each one with evidence (terminal rung that cannot fail; fall-through pre-dial ceiling; unknown!=free; an Erlang-reachable wire sidecar or an ADR-0004 reversal). If any one fails, this tasklist stays parked.",
       "acceptanceCriteria": [
         "A recorded check confirms all FOUR preconditions hold with evidence (not mood): the terminal-rung mechanism, the caller-supplied pre-dial fall-through ceiling, unknown!=free, and an Erlang-reachable dispatch (wire sidecar) OR an ADR-0004 reversal.",
         "If any precondition is unmet, the tasklist remains parked and no retirement is performed; `make check` green (both routers still byte-for-byte)."
@@ -34,7 +35,7 @@
     {
       "id": "US-2",
       "title": "Move provider-router/ to its own repo, freezing its conformance corpus",
-      "description": "Once the four hold, extract `provider-router/` (Python) to its own repo and FREEZE its conformance corpus as the frozen contract record — the executable specification is retired from the live tree to an archived record, not deleted.",
+      "description": "Once the four hold, extract `provider-router/` (Python) to its own repo and FREEZE its conformance corpus as the frozen contract record \u2014 the executable specification is retired from the live tree to an archived record, not deleted.",
       "acceptanceCriteria": [
         "`provider-router/` is removed from the live agora tree and its conformance corpus is frozen as an archived contract record (referenced, not maintained); the extraction is reversible and documented.",
         "The Erlang canonical router (ADR-0004) remains the sole in-tree router and `make check` green without the Python area."
@@ -45,7 +46,7 @@
     {
       "id": "US-3",
       "title": "The Erlang router stands alone; retire the byte-for-byte suite to a frozen record",
-      "description": "With the Python spec-of-record extracted, `apr_conformance_SUITE`'s byte-for-byte equality no longer has a live counterpart — retire it to the frozen contract record and confirm the Erlang router's own gate (compile/dialyzer/eunit/ct) fully covers the external contract on its own.",
+      "description": "With the Python spec-of-record extracted, `apr_conformance_SUITE`'s byte-for-byte equality no longer has a live counterpart \u2014 retire it to the frozen contract record and confirm the Erlang router's own gate (compile/dialyzer/eunit/ct) fully covers the external contract on its own.",
       "acceptanceCriteria": [
         "The byte-for-byte `apr_conformance_SUITE` is retired to the frozen corpus record; the Erlang router's own gate (`make check-router-erl`) covers the external contract standalone.",
         "`make check` green with the Erlang router as the only router; the CLAUDE.md/Makefile references to the superseded Python router are updated."

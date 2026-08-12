@@ -1,5 +1,6 @@
 {
   "project": "agora",
+  "category": "unblock",
   "branchName": "chief/74-trainer-engine-or-honest-refusal",
   "description": "\ud83d\udd34 **BLOCKING DEFECT \u2014 the 'general trainer' has no training engine, and lugh's refusal grammar routes to it.** Verified 2026-08-11: `trainer/src` contains **zero imports** of `torch`, `transformers`, `trl`, `peft`, `accelerate` \u2014 or even `subprocess`. Its complete third-party set is `fastapi, uvicorn, pydantic, httpx, jsonschema, referencing`. `llama_factory.py:145` falls back to `recorded_text_run()` \u2014 a JSON fixture \u2014 and the docstring's 'shells out to LLaMA-Factory' path **does not exist in code**. Meanwhile ROADMAP lists KFT as *'`trainer/` **general** provider implemented & gated'*, and **D9 makes this the documented destination for every job lugh refuses**: lugh's graded refusal codes name agora's general trainer as where an out-of-envelope job should go. So the refusal-routing contract currently routes to a fixture replayer. **Either outcome is acceptable; the current state is not.** Note `50-finetune-live-endpoints` does NOT cover this \u2014 it stands up the \u00a76/\u00a75.3/\u00a78 *endpoints*, which is the contract surface, not the engine behind it.",
   "parked": false,

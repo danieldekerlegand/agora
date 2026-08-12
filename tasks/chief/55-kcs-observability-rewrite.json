@@ -1,8 +1,9 @@
 {
   "name": null,
   "project": "agora",
+  "category": "replace",
   "branchName": "chief/55-kcs-observability-rewrite",
-  "description": "Phase D (conformance / telemetry rewrite). `console/src/kcs/spans.ts` is the one piece of the console that expects to be REWRITTEN against a spec rather than to define one: koine has no emitted-telemetry contract yet (KCB §4 fixes discover/describe/invoke/subscribe/fetch and nothing about observability), so today `spans.ts` reads a PROVISIONAL `ObservedSpan` shape and any future-KCS control-plane predicate reports `pending` and never passes (DESIGN.md console runtime-notes). When koine ratifies a KCS emitted-telemetry (observability) extension, rewrite `spans.ts` and the §5 control-plane assertion vocabulary against it so the control-plane view is complete and its predicates can pass. Cross-repo: gated on the ratified koine extension. agora gates on `make check`; the console gates on `make check-console`.",
+  "description": "Phase D (conformance / telemetry rewrite). `console/src/kcs/spans.ts` is the one piece of the console that expects to be REWRITTEN against a spec rather than to define one: koine has no emitted-telemetry contract yet (KCB \u00a74 fixes discover/describe/invoke/subscribe/fetch and nothing about observability), so today `spans.ts` reads a PROVISIONAL `ObservedSpan` shape and any future-KCS control-plane predicate reports `pending` and never passes (DESIGN.md console runtime-notes). When koine ratifies a KCS emitted-telemetry (observability) extension, rewrite `spans.ts` and the \u00a75 control-plane assertion vocabulary against it so the control-plane view is complete and its predicates can pass. Cross-repo: gated on the ratified koine extension. agora gates on `make check`; the console gates on `make check-console`.",
   "parked": false,
   "dependsOn": [
     "koine:68-kcs-open-questions"
@@ -24,7 +25,7 @@
     {
       "id": "US-1",
       "title": "Rewrite spans.ts against the ratified KCS emitted-telemetry contract",
-      "description": "Replace the provisional `ObservedSpan` reader in `console/src/kcs/spans.ts` with one that reads the ratified KCS observability extension's emitted-telemetry shape — keeping the strict recognition rule (a frame is telemetry only when it says it is; a KGP delta is never re-read as an invocation) and the observer-only stance (ADR-0001 decision 7: subscribe, never tap the wire between two other peers).",
+      "description": "Replace the provisional `ObservedSpan` reader in `console/src/kcs/spans.ts` with one that reads the ratified KCS observability extension's emitted-telemetry shape \u2014 keeping the strict recognition rule (a frame is telemetry only when it says it is; a KGP delta is never re-read as an invocation) and the observer-only stance (ADR-0001 decision 7: subscribe, never tap the wire between two other peers).",
       "acceptanceCriteria": [
         "`spans.ts` reads the ratified KCS emitted-telemetry shape (not the provisional agora reading), preserving the strict `kind: exchange`/span-envelope recognition rule and never inferring control-plane events from KGP/KMI deltas.",
         "The reader stays observer-only (no wire-tap of exchanges the console was not a party to); its tests are updated to the ratified shape; `make check-console` green."
@@ -34,10 +35,10 @@
     },
     {
       "id": "US-2",
-      "title": "Extend the §5 control-plane assertion vocabulary so predicates can pass",
-      "description": "With a ratified telemetry contract, the §5 control-plane predicates (`console/src/kcs/assertions.ts` `ASSERTION_PLANES.control`: capability_path_exists, cost_within_ceiling, tier_resolved, dangling_ref_tolerated, refused) can be evaluated against real emitted telemetry rather than reporting `pending`. Give the vocabulary the evaluators the ratified extension makes possible so a control-plane scenario actually passes.",
+      "title": "Extend the \u00a75 control-plane assertion vocabulary so predicates can pass",
+      "description": "With a ratified telemetry contract, the \u00a75 control-plane predicates (`console/src/kcs/assertions.ts` `ASSERTION_PLANES.control`: capability_path_exists, cost_within_ceiling, tier_resolved, dangling_ref_tolerated, refused) can be evaluated against real emitted telemetry rather than reporting `pending`. Give the vocabulary the evaluators the ratified extension makes possible so a control-plane scenario actually passes.",
       "acceptanceCriteria": [
-        "The §5 control-plane assertion vocabulary evaluates against the rewritten `spans.ts` reader so its predicates report pass/fail (not `pending`) when a provider emits conformant telemetry, and still report `pending` only for genuinely-unspecified predicates.",
+        "The \u00a75 control-plane assertion vocabulary evaluates against the rewritten `spans.ts` reader so its predicates report pass/fail (not `pending`) when a provider emits conformant telemetry, and still report `pending` only for genuinely-unspecified predicates.",
         "A KCS scenario asserting a control-plane guarantee (e.g. cost_within_ceiling / tier_resolved) passes over emitted telemetry in a test; `make check-console` green."
       ],
       "passes": false,
@@ -46,7 +47,7 @@
     {
       "id": "US-3",
       "title": "The control-plane panel is complete over emitted telemetry",
-      "description": "Confirm the console's control-plane view (the third panel, DESIGN.md 'The conformance console') is complete against the ratified contract — visible wherever a provider emits telemetry, with the documented limitation (a provider that emits nothing is absent at the invoke level) recorded, not silently broken.",
+      "description": "Confirm the console's control-plane view (the third panel, DESIGN.md 'The conformance console') is complete against the ratified contract \u2014 visible wherever a provider emits telemetry, with the documented limitation (a provider that emits nothing is absent at the invoke level) recorded, not silently broken.",
       "acceptanceCriteria": [
         "A test drives the console over a captured emitted-telemetry stream and asserts the control-plane observations render completely (provider/caller/verb/tier/cost/status), with an emitting-nothing provider documented as absent rather than erroring.",
         "The DESIGN.md/console README notes that named `spans.ts` as provisional are updated to reflect the ratified rewrite; `make check` green."

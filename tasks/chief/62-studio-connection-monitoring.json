@@ -1,11 +1,16 @@
 {
   "name": null,
   "project": "agora",
+  "category": "feature",
   "branchName": "chief/62-studio-connection-monitoring",
-  "description": "Add per-connection monitoring to Agora Studio on top of the topology graph (61): health/status, uptime, and error surfaces for each MCP/A2A connection in the user's setup, read over the REAL direct links between participants (ADR-0001 — never relayed through Studio, which stays an observer). Reuse the console's existing link/transport primitives as the reference for probing real connections (`console/src/kcs/link.ts`, `http.ts`, `a2a-wire.ts`, `mcp-wire.ts`) rather than inventing a new client. Scope: the `studio/` workspace only. agora gates on `make check`.",
+  "description": "Add per-connection monitoring to Agora Studio on top of the topology graph (61): health/status, uptime, and error surfaces for each MCP/A2A connection in the user's setup, read over the REAL direct links between participants (ADR-0001 \u2014 never relayed through Studio, which stays an observer). Reuse the console's existing link/transport primitives as the reference for probing real connections (`console/src/kcs/link.ts`, `http.ts`, `a2a-wire.ts`, `mcp-wire.ts`) rather than inventing a new client. Scope: the `studio/` workspace only. agora gates on `make check`.",
   "parked": false,
-  "dependsOn": ["60-studio-ui-backbone"],
-  "touches": ["studio"],
+  "dependsOn": [
+    "60-studio-ui-backbone"
+  ],
+  "touches": [
+    "studio"
+  ],
   "iters": 6,
   "warmup": [
     "ls studio/src console/src/kcs",
@@ -13,14 +18,16 @@
     "sed -n '1,25p' console/src/kcs/a2a-wire.ts; sed -n '1,25p' console/src/kcs/mcp-wire.ts",
     "sed -n '202,225p' ROADMAP.md"
   ],
-  "verify": ["make check"],
+  "verify": [
+    "make check"
+  ],
   "userStories": [
     {
       "id": "US-1",
       "title": "Per-connection health/status over the real direct links",
       "description": "Compute a health/status for each edge by observing the actual MCP/A2A connection (reusing the console's link/transport primitives), never by proxying traffic through Studio.",
       "acceptanceCriteria": [
-        "Each graph edge carries a per-connection status (e.g. up / degraded / down) derived from observing the real direct MCP/A2A link — reusing the console's link/transport primitives (`console/src/kcs/link.ts`/`http.ts`/`a2a-wire.ts`/`mcp-wire.ts`) by reference, not a new relay",
+        "Each graph edge carries a per-connection status (e.g. up / degraded / down) derived from observing the real direct MCP/A2A link \u2014 reusing the console's link/transport primitives (`console/src/kcs/link.ts`/`http.ts`/`a2a-wire.ts`/`mcp-wire.ts`) by reference, not a new relay",
         "A test drives status computation from synthetic reachable and unreachable connections and asserts the correct per-edge status, with an unknown/unprobed connection reported as such rather than assumed healthy",
         "`make check` green (`npm run lint` + `npm run typecheck` + `vitest` for `studio/`); Studio relays no traffic (ADR-0001)"
       ],

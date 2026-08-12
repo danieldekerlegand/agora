@@ -1,8 +1,9 @@
 {
   "name": null,
   "project": "agora",
+  "category": "feature",
   "branchName": "chief/67-kcb-grant-issuer",
-  "description": "Stand up the KCB grant ISSUER — the issuance / rotation / ceiling-policy service side of koine's capability-grant model (capability-bus.md §5). Today agora holds only the RELYING-PARTY half: `provider-router-erl/src/apr_grant.erl` parses a presented `<verb>:<scope>` token + `budget_units` ceiling and enforces what the grant says ('the router is a relying party, never an issuer'), `trainer/src/agora_trainer/grant.py` does the same for finetune, and `schemas/src/manifest.ts` fixes only the `auth.grants_required` SHAPE. KCB §5 places issuance/rotation in 'the control-plane host's infra' — this tasklist makes agora's runtime commons provide that infra as a reference service ANY control-plane host can run (capability, never caller: no project name in the tree). Cross-repo consumer: `pinakes:111-grant-enforcement-and-budget-ceilings` enforces grants pinakes-side and depends on THIS issuer (`agora:67-kcb-grant-issuer`) for issuance/rotation/spend-ceiling policy. New source-first TS workspace `grants/` with its own gate wired into `make check`. Ground every shape decision in koine/specs/capability-bus.md §5 — never re-specify the contract here.",
+  "description": "Stand up the KCB grant ISSUER \u2014 the issuance / rotation / ceiling-policy service side of koine's capability-grant model (capability-bus.md \u00a75). Today agora holds only the RELYING-PARTY half: `provider-router-erl/src/apr_grant.erl` parses a presented `<verb>:<scope>` token + `budget_units` ceiling and enforces what the grant says ('the router is a relying party, never an issuer'), `trainer/src/agora_trainer/grant.py` does the same for finetune, and `schemas/src/manifest.ts` fixes only the `auth.grants_required` SHAPE. KCB \u00a75 places issuance/rotation in 'the control-plane host's infra' \u2014 this tasklist makes agora's runtime commons provide that infra as a reference service ANY control-plane host can run (capability, never caller: no project name in the tree). Cross-repo consumer: `pinakes:111-grant-enforcement-and-budget-ceilings` enforces grants pinakes-side and depends on THIS issuer (`agora:67-kcb-grant-issuer`) for issuance/rotation/spend-ceiling policy. New source-first TS workspace `grants/` with its own gate wired into `make check`. Ground every shape decision in koine/specs/capability-bus.md \u00a75 \u2014 never re-specify the contract here.",
   "parked": false,
   "dependsOn": [],
   "touches": [
@@ -23,12 +24,12 @@
   "userStories": [
     {
       "id": "US-1",
-      "title": "Issue grants in the exact §5 shape the relying parties already parse",
-      "description": "A `grants/` service mints capability grants per KCB §5: a token naming the granted verb + scope (`invoke:finetune`, `subscribe:world/<w>`, `fetch:asset`), per-capability and per-world (scope `*` / trailing `/*` subtree semantics, same spelling as `world_pattern`), carrying an optional `budget_units` spend ceiling — signed with the shared `{key_id, alg}` signing shape KCB §5 gives manifests and packs.",
+      "title": "Issue grants in the exact \u00a75 shape the relying parties already parse",
+      "description": "A `grants/` service mints capability grants per KCB \u00a75: a token naming the granted verb + scope (`invoke:finetune`, `subscribe:world/<w>`, `fetch:asset`), per-capability and per-world (scope `*` / trailing `/*` subtree semantics, same spelling as `world_pattern`), carrying an optional `budget_units` spend ceiling \u2014 signed with the shared `{key_id, alg}` signing shape KCB \u00a75 gives manifests and packs.",
       "acceptanceCriteria": [
-        "An issuance endpoint/API mints a grant as `{verb, scope, budget_units?}` plus a `{key_id, alg}` signature, restricted to the KCB §4 verb set — and a minted grant round-trips through the existing relying parties unchanged: a test asserts the issued object satisfies the exact shape `apr_grant:parse/1` and the trainer's `Grant` accept (verb:scope split, ceiling read as the same scalar).",
+        "An issuance endpoint/API mints a grant as `{verb, scope, budget_units?}` plus a `{key_id, alg}` signature, restricted to the KCB \u00a74 verb set \u2014 and a minted grant round-trips through the existing relying parties unchanged: a test asserts the issued object satisfies the exact shape `apr_grant:parse/1` and the trainer's `Grant` accept (verb:scope split, ceiling read as the same scalar).",
         "Scope semantics match the relying-party rule: an issued `*` or trailing-`/*` scope is honored as subtree coverage, and issuing an unknown verb is refused at mint time (an issuer must not mint what a relying party would 422).",
-        "The issuer is capability-scoped, never caller-scoped — no project name appears as a literal; the grantee is whatever principal the host names; `make check` green with the new `grants/` gate wired in."
+        "The issuer is capability-scoped, never caller-scoped \u2014 no project name appears as a literal; the grantee is whatever principal the host names; `make check` green with the new `grants/` gate wired in."
       ],
       "passes": false,
       "notes": ""
@@ -36,9 +37,9 @@
     {
       "id": "US-2",
       "title": "Key rotation, expiry, and published verification material",
-      "description": "KCB §5 leaves 'token issuance, rotation, identity providers' to the host's infra — provide the rotation half: signing keys rotate with an overlap window, grants carry expiry, and relying parties (pinakes's enforcement seam among them) can fetch the issuer's current + overlapping public key material to verify without dialing per-request.",
+      "description": "KCB \u00a75 leaves 'token issuance, rotation, identity providers' to the host's infra \u2014 provide the rotation half: signing keys rotate with an overlap window, grants carry expiry, and relying parties (pinakes's enforcement seam among them) can fetch the issuer's current + overlapping public key material to verify without dialing per-request.",
       "acceptanceCriteria": [
-        "Signing keys rotate: a grant signed under the previous `key_id` verifies during a declared overlap window and is refused after retirement; a test drives issue → rotate → verify-old → retire → refuse.",
+        "Signing keys rotate: a grant signed under the previous `key_id` verifies during a declared overlap window and is refused after retirement; a test drives issue \u2192 rotate \u2192 verify-old \u2192 retire \u2192 refuse.",
         "Grants carry an expiry; an expired grant fails verification with a refusal (not an error a caller cannot act on), mirroring apr_grant's 403-vs-422 grading; verification material (key set with `key_id`/`alg`) is served on a stable, documented endpoint a relying party can poll.",
         "The verification check is exposed as a small importable/reusable function in the workspace so downstream enforcement (e.g. pinakes 111) consumes the same logic shape rather than re-deriving it; `make check` green."
       ],
@@ -48,10 +49,10 @@
     {
       "id": "US-3",
       "title": "Ceiling policy: spend ceilings that only ever narrow",
-      "description": "The policy layer over `budget_units`: per-scope ceiling caps set by the operator, and grant attenuation for cross-participant chains — KCB §5's 'a cross-participant chain cannot exceed the caller's authorized spend' means a derived grant may narrow scope and lower the ceiling, never widen or raise.",
+      "description": "The policy layer over `budget_units`: per-scope ceiling caps set by the operator, and grant attenuation for cross-participant chains \u2014 KCB \u00a75's 'a cross-participant chain cannot exceed the caller's authorized spend' means a derived grant may narrow scope and lower the ceiling, never widen or raise.",
       "acceptanceCriteria": [
-        "The issuer applies an operator-supplied ceiling policy at mint time: a requested grant above the policy cap for its scope is minted clamped to the cap or refused (configurable), and a missing requested ceiling never mints an unbounded grant when policy declares a cap — the apr_grant rule ('an authorization input the caller failed to state can never widen what the caller may do') holds at issuance too, proven by tests.",
-        "Attenuation: deriving a child grant from a presented parent succeeds only when the child's verb:scope is covered by the parent's and its `budget_units` is ≤ the parent's; a widening/raising derivation is refused — tested for scope, verb, and ceiling.",
+        "The issuer applies an operator-supplied ceiling policy at mint time: a requested grant above the policy cap for its scope is minted clamped to the cap or refused (configurable), and a missing requested ceiling never mints an unbounded grant when policy declares a cap \u2014 the apr_grant rule ('an authorization input the caller failed to state can never widen what the caller may do') holds at issuance too, proven by tests.",
+        "Attenuation: deriving a child grant from a presented parent succeeds only when the child's verb:scope is covered by the parent's and its `budget_units` is \u2264 the parent's; a widening/raising derivation is refused \u2014 tested for scope, verb, and ceiling.",
         "The issuer's own KCB manifest advertises grant issuance as a capability (discoverable via `registry/`, address-only, never proxied), and the workspace README states the split: koine fixes the grant SHAPE, this service is the reference issuance runtime, relying parties enforce; `make check` green."
       ],
       "passes": false,

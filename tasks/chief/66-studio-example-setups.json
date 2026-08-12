@@ -1,11 +1,16 @@
 {
   "name": null,
   "project": "agora",
+  "category": "feature",
   "branchName": "chief/66-studio-example-setups",
-  "description": "Ship several runnable example topologies with THIN AI app/service examples — barely more than local-inference wrappers — so a user sees Agora Studio populated (graph + connections + messages + specs) without wiring their own setup first. The thin examples live under `examples/` beside `participant-starter/` (the ~20-line copy-and-run participant that serves an AgentCard carrying a KCB manifest and answers one A2A `message/send`), consume the PUBLISHED `@agora/sdk` only, and are NEVER imported by the SDK (dependency points one way — the SDK stays the single publishable surface). The example config is loaded by Studio's runtime config path (60) as a user config would be — these are sample data, not a bundled roster (capability, never caller). Scope: `examples/` (new thin participants + example topology configs) + a Studio-side loader for the example config; consumes `@agora/sdk`. agora gates on `make check`.",
+  "description": "Ship several runnable example topologies with THIN AI app/service examples \u2014 barely more than local-inference wrappers \u2014 so a user sees Agora Studio populated (graph + connections + messages + specs) without wiring their own setup first. The thin examples live under `examples/` beside `participant-starter/` (the ~20-line copy-and-run participant that serves an AgentCard carrying a KCB manifest and answers one A2A `message/send`), consume the PUBLISHED `@agora/sdk` only, and are NEVER imported by the SDK (dependency points one way \u2014 the SDK stays the single publishable surface). The example config is loaded by Studio's runtime config path (60) as a user config would be \u2014 these are sample data, not a bundled roster (capability, never caller). Scope: `examples/` (new thin participants + example topology configs) + a Studio-side loader for the example config; consumes `@agora/sdk`. agora gates on `make check`.",
   "parked": false,
-  "dependsOn": ["60-studio-ui-backbone"],
-  "touches": ["studio"],
+  "dependsOn": [
+    "60-studio-ui-backbone"
+  ],
+  "touches": [
+    "studio"
+  ],
   "iters": 7,
   "warmup": [
     "ls examples examples/participant-starter examples/participant-starter/src studio/src",
@@ -13,15 +18,17 @@
     "sed -n '1,30p' clients/sdk/src/index.ts; sed -n '1,25p' clients/sdk/src/kcb.ts",
     "sed -n '202,225p' ROADMAP.md"
   ],
-  "verify": ["make check"],
+  "verify": [
+    "make check"
+  ],
   "userStories": [
     {
       "id": "US-1",
       "title": "Thin local-inference example participants over the published SDK",
       "description": "Add thin example participants under examples/ (local-inference wrappers) modeled on participant-starter, each serving an AgentCard/KCB manifest over the wire and consuming @agora/sdk only.",
       "acceptanceCriteria": [
-        "New thin example participants live under `examples/` (alongside `participant-starter/`), each barely more than a local-inference wrapper that serves an AgentCard carrying a KCB manifest and answers over MCP/A2A, depending on the PUBLISHED `@agora/sdk` (and `@agora/schemas`) only — no other in-repo package",
-        "The SDK is never imported by these examples in reverse: `clients/sdk/`'s `index.test.ts` SDK_API drift test still passes (examples consume the SDK, the SDK does not consume them), and the examples stay runnable the way `participant-starter/` is (Node strip-only loader compatible — no TS parameter properties/enums)",
+        "New thin example participants live under `examples/` (alongside `participant-starter/`), each barely more than a local-inference wrapper that serves an AgentCard carrying a KCB manifest and answers over MCP/A2A, depending on the PUBLISHED `@agora/sdk` (and `@agora/schemas`) only \u2014 no other in-repo package",
+        "The SDK is never imported by these examples in reverse: `clients/sdk/`'s `index.test.ts` SDK_API drift test still passes (examples consume the SDK, the SDK does not consume them), and the examples stay runnable the way `participant-starter/` is (Node strip-only loader compatible \u2014 no TS parameter properties/enums)",
         "`make check` green (including `check-clients`/`check-examples` and the `studio/` gate)"
       ],
       "passes": false,
@@ -32,8 +39,8 @@
       "title": "Example topologies that populate Studio out of the box",
       "description": "Provide several example topology configs wiring the thin participants together, loadable by Studio's runtime config path so a fresh user sees a populated graph/connections/messages/specs.",
       "acceptanceCriteria": [
-        "Several example topology configs are provided as sample data (marked as such — sample, not a default roster) and are loaded through Studio's runtime config path (from 60), so loading one populates the graph (61), connections (62), messages (63), analytics (64), and spec viewer (65)",
-        "A test asserts loading an example config yields the expected nodes/edges in Studio, and that the examples are sample data only — Studio still starts empty with no config (the 60 backbone ships with no preconfigured participants)",
+        "Several example topology configs are provided as sample data (marked as such \u2014 sample, not a default roster) and are loaded through Studio's runtime config path (from 60), so loading one populates the graph (61), connections (62), messages (63), analytics (64), and spec viewer (65)",
+        "A test asserts loading an example config yields the expected nodes/edges in Studio, and that the examples are sample data only \u2014 Studio still starts empty with no config (the 60 backbone ships with no preconfigured participants)",
         "`make check` green; Studio stays source-first, observer-only, and free of any hard-wired participant literal (project names in examples are marked sample data per CLAUDE.md)"
       ],
       "passes": false,

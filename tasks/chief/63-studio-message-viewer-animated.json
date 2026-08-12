@@ -1,11 +1,17 @@
 {
   "name": null,
   "project": "agora",
+  "category": "feature",
   "branchName": "chief/63-studio-message-viewer-animated",
-  "description": "Add the animated on-the-wire message viewer to Agora Studio: messages flowing between services animated along the topology-graph edges (61) in real time, with payload inspection. It reads from the console's KCS telemetry reader (`console/src/kcs/spans.ts`) — the same span/telemetry surface the conformance console consumes — rather than inventing a new observability plane; it depends on `55-kcs-observability-rewrite` (Phase D) so it is built on the reader's ratified emitted-telemetry shape, never on the provisional `ObservedSpan` shape Phase D replaces; Studio remains an observer that never sees relayed traffic (it reads emitted telemetry/spans, ADR-0001). Scope: the `studio/` workspace only, reading `console/`'s span reader by reference. agora gates on `make check`.",
+  "description": "Add the animated on-the-wire message viewer to Agora Studio: messages flowing between services animated along the topology-graph edges (61) in real time, with payload inspection. It reads from the console's KCS telemetry reader (`console/src/kcs/spans.ts`) \u2014 the same span/telemetry surface the conformance console consumes \u2014 rather than inventing a new observability plane; it depends on `55-kcs-observability-rewrite` (Phase D) so it is built on the reader's ratified emitted-telemetry shape, never on the provisional `ObservedSpan` shape Phase D replaces; Studio remains an observer that never sees relayed traffic (it reads emitted telemetry/spans, ADR-0001). Scope: the `studio/` workspace only, reading `console/`'s span reader by reference. agora gates on `make check`.",
   "parked": false,
-  "dependsOn": ["60-studio-ui-backbone", "55-kcs-observability-rewrite"],
-  "touches": ["studio"],
+  "dependsOn": [
+    "60-studio-ui-backbone",
+    "55-kcs-observability-rewrite"
+  ],
+  "touches": [
+    "studio"
+  ],
   "iters": 8,
   "warmup": [
     "ls studio/src console/src/kcs",
@@ -13,14 +19,16 @@
     "sed -n '1,25p' console/src/kcs/facts.ts; sed -n '1,20p' console/src/kcs/outcome.ts",
     "sed -n '202,225p' ROADMAP.md"
   ],
-  "verify": ["make check"],
+  "verify": [
+    "make check"
+  ],
   "userStories": [
     {
       "id": "US-1",
       "title": "Map telemetry spans onto graph edges",
       "description": "Read messages from the console's KCS telemetry reader (`spans.ts`) and map each to the topology-graph edge it traversed, so the viewer is driven by real emitted telemetry.",
       "acceptanceCriteria": [
-        "The viewer sources messages from the console's KCS telemetry reader (`console/src/kcs/spans.ts`), reused by reference — Studio adds no second telemetry plane — and maps each span/message to the source→target edge of the 61 graph",
+        "The viewer sources messages from the console's KCS telemetry reader (`console/src/kcs/spans.ts`), reused by reference \u2014 Studio adds no second telemetry plane \u2014 and maps each span/message to the source\u2192target edge of the 61 graph",
         "A test feeds a synthetic span set and asserts each message resolves to the correct edge, and that a span between two undiscovered/unmapped participants is dropped or flagged rather than drawn on a nonexistent edge",
         "`make check` green (`npm run lint` + `npm run typecheck` + `vitest` for `studio/`)"
       ],
@@ -32,8 +40,8 @@
       "title": "Animate messages along edges in real time",
       "description": "Animate each message travelling along its edge as it arrives, so the graph shows live on-the-wire flow.",
       "acceptanceCriteria": [
-        "Messages animate along their mapped edges in real time as telemetry arrives (a message appears, travels source→target, and clears), keeping up with an incremental span stream rather than only a static batch",
-        "A test asserts the animation state is driven by the span stream (a new span produces an in-flight message on the right edge; edges with no traffic stay idle) using a deterministic clock/test double — no real network",
+        "Messages animate along their mapped edges in real time as telemetry arrives (a message appears, travels source\u2192target, and clears), keeping up with an incremental span stream rather than only a static batch",
+        "A test asserts the animation state is driven by the span stream (a new span produces an in-flight message on the right edge; edges with no traffic stay idle) using a deterministic clock/test double \u2014 no real network",
         "`make check` green; the viewer remains observer-only (reads telemetry, relays nothing)"
       ],
       "passes": false,
