@@ -69,6 +69,36 @@ workspace; `make build-sdk` emits its `dist/` and stages the publishable copy.
 fixture under `src/fixtures/koine-registry/` from a sibling `koine` checkout; `--check` verifies
 the committed copy still matches.
 
+## Structural validation only — where semantic admission lives
+
+Both validator CLIs answer exactly one question: *does this instance conform to the koine JSON
+Schema?* They carry no policy. That boundary matters most for `finetune-job` (KFT §3, agora:41),
+which the conformance loop admits **structurally and nothing more**:
+
+| Judgement | Clause | Who makes it |
+|---|---|---|
+| the job manifest is well-formed — required fields, enums, types, `$ref` resolution | KFT §3 | **here**, in both ecosystems: `validate('finetune-job', job)` / `python -m agora_provider_router.artifact_validator finetune-job job.json`, looped by `make check-conformance` |
+| `modality × method` is a compatible pair (e.g. `dpo × text-to-image` is not) | KFT §3.1, FT-F | the **provider** at `invoke` — `trainer/README.md` §"Admission, engines & telemetry" |
+| effective egress over `{data ∪ base model}`, and the placement it permits | KFT §4.2, FT-B/FT-J | the **provider** — `trainer/README.md` §"Egress-gated placement & spend gating" |
+| the per-job `gpu-seconds` estimate against the grant's ceiling | KFT §7, FT-E | the **provider** — it needs resolved dataset cardinality and the caller's grant, neither of which is in the manifest |
+| which provider serves the job (general vs. a caller's specialized one) | KFT §8/§9, FT-K | the discovery **registry** — `registry/src/select.ts` |
+
+So a schema-valid job is *admissible*, not *admitted*: the validator says the paperwork parses, the
+provider decides whether the run may happen. Keeping the split here is what lets a caller check its
+own job offline — and CI gate a fixture — without importing agora's policy, and lets a
+**specialized** provider in someone else's repo (FT-K) reuse the structural check without
+inheriting the general trainer's admission rules. Semantic rules do not belong in this package: put
+one here and every peer would silently inherit a judgement only a provider has the facts to make.
+
+`make check` reaches this through `check-conformance`, so a regression in the schema or in either
+validator turns the whole gate red — the self-gating "first gate" property. The Makefile's
+`ARTIFACTS` list is itself pinned to `ARTIFACT_SCHEMAS` by
+`src/conformance/gate-coverage.test.ts`, so the loop cannot quietly stop covering an artifact.
+
+The schema itself is pinned, never forked: `src/koine-schemas/finetune-job.schema.json` is
+byte-identical to koine's copy (`regen:koine-schemas:check`) *and* to the trainer's vendored copy
+(`src/koine-schema-drift.test.ts` ⇔ `trainer/tests/test_schema_drift.py`).
+
 ## Usage
 
 ```ts

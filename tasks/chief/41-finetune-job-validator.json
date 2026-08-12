@@ -32,7 +32,7 @@
         "The validator emits agora's standard exit-code semantics \u2014 0 ok / 1 invalid / 2 usage \u2014 on both CLIs for a well-formed and a malformed job; a hand-mutated invalid job (e.g. missing a \u00a73 required field) is rejected 1 by both.",
         "No semantic admission is added here (no modality\u00d7method, egress, or spend logic \u2014 that stays in the providers per trainer/README.md); `make check` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -43,7 +43,7 @@
         "A drift test asserts `schemas/src/koine-schemas/finetune-job.schema.json` and `trainer/src/agora_trainer/schemas/finetune-job.schema.json` are byte-identical to each other (and to koine's `specs/` copy where reachable), failing loudly on any divergence \u2014 the schema is pinned, never forked.",
         "The test runs under the existing gates (vitest via `make check-schemas`, pytest via `make check-trainer`), not a new one-off runner; `make check-schemas` and `make check-trainer` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -55,7 +55,7 @@
         "A short doc (or a section in an existing doc / trainer/README.md follow-up) records that agora:41 is structural-only and names where semantic admission lives, closing the 'named-but-unbuilt agora tasklist' row in trainer/README.md.",
         "`make check` green end to end."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]

@@ -106,3 +106,19 @@ class TestTheCli:
 
     def test_wrong_arg_count_exits_two(self) -> None:
         assert main(["prog"]) == 2
+
+    def test_valid_finetune_job_exits_zero(self) -> None:
+        # agora:41 — the KFT §3 job manifest rides the same smoke loop as the five
+        # legacy-absorbed artifacts, so its exit codes are asserted here too, case for case
+        # with the TS `validate.test.ts`.
+        assert main(["prog", "finetune-job", str(FIXTURES / "finetune-job.json")]) == 0
+
+    def test_finetune_job_missing_a_required_field_exits_one(self, tmp_path: Path) -> None:
+        # STRUCTURAL rejection only: a dropped KFT §3 required field. The CLI makes no
+        # modality×method / egress / spend judgement — that is provider behavior at invoke
+        # (agora:90-finetune-trainer, pinakes:90-finetune-provider).
+        job = copy.deepcopy(load("finetune-job"))
+        del job["base_model"]
+        path = tmp_path / "finetune-job-no-base-model.json"
+        path.write_text(json.dumps(job), encoding="utf-8")
+        assert main(["prog", "finetune-job", str(path)]) == 1

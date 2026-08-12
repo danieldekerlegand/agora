@@ -118,6 +118,17 @@ advertised as a distinct capability on the bus, never an adapter in here. Per AD
 specifies, agora implements) and the multi-provider decision (FT-K), those follow-ups are handed to
 the participants' own repos and run under their own gates.
 
+**`agora:41-finetune-job-validator` is delivered** — it was the one row here naming *this* repo,
+and it is now the `finetune-job` entry in the Makefile's `ARTIFACTS` set: the KFT §3 job manifest
+rides the same two-validator conformance smoke as every other interchange artifact (ajv over
+`schemas/src/validate.ts`, jsonschema over `agora_provider_router.artifact_validator`), under
+`make check` via `check-conformance`. It is **structural admission only** — schema conformance,
+0 ok / 1 invalid / 2 usage, no policy. Every semantic judgement described above stays exactly where
+it is: `modality × method` (§3.1/FT-F), the §4.2 egress gate and placement (FT-B/FT-J) and the §7
+spend ceiling (FT-E) are **this provider's** admission, and a specialized provider's are its own
+repo's. The full split is tabulated in `schemas/README.md`
+§"Structural validation only — where semantic admission lives".
+
 The table below is a **historical record** of how that boundary fell for the ecosystem agora was
 extracted from — named there because koine's program map (`../koine/tasks/chief/README.md`,
 Tranche D) is where the live version lives, not because agora knows these callers:
@@ -126,7 +137,6 @@ Tranche D) is where the live version lives, not because agora knows these caller
 |---|---|---|---|
 | `90-finetune-provider` | **pinakes** | Pinakes's own **specialized** `finetune` provider — its `ml/` TRL+PEFT (SLM + neurosymbolic + Mac-MPS) path exposed as a **distinct capability on the bus**, NOT an adapter inside agora; inherently `local-only`. | `koine:20-kft-finetune-profile`, `pinakes:41-publish-kcb-manifest` |
 | `90-finetune-client` | **orchestrator** | The KCB **client** replacing `Runner::Stub` — discover → invoke → **subscribe** to the real §6 stream, un-404-ing export (§5.3) and the registry (§8), issuing `invoke:finetune` grants (§7). | `koine:20-kft-finetune-profile` (dials `agora:90` + `pinakes:90` at runtime) |
-| `agora:41-finetune-job-validator` | **agora** | The ajv/jsonschema validator + conformance CI for `finetune-job.schema.json` (§3); semantic admission (modality×method, egress) stays in the providers. | `agora:40-absorb-legacy-validators-ci`, `koine:20-kft-finetune-profile` |
 
 ## The KFT dataset bridge — a producer's training exhaust, by reference (`40:US-2`)
 
