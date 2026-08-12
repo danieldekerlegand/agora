@@ -32,7 +32,7 @@
         "The validator emits agora's standard exit-code semantics \u2014 0 ok / 1 invalid / 2 usage \u2014 on both CLIs for a well-formed and a malformed job; a hand-mutated invalid job (e.g. missing a \u00a73 required field) is rejected 1 by both.",
         "No semantic admission is added here (no modality\u00d7method, egress, or spend logic \u2014 that stays in the providers per trainer/README.md); `make check` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
