@@ -1,0 +1,57 @@
+{
+  "project": "agora",
+  "branchName": "chief/73-canonical-router-live-transport",
+  "description": "\ud83d\udd34 **BLOCKING DEFECT \u2014 the canonical router cannot make a network call, and other repos' decisions depend on it being able to.** Verified 2026-08-11 against source: `apr_router.erl:216` ships `default_transport() -> fun(_Backend, _Payload) -> {error, <<\"no live transport configured\">>} end`; there is no `httpc`/`inets`/`gun`/`hackney` anywhere in `provider-router-erl/src/`; and **nothing injects a real transport** \u2014 the only `transport =>` site in the tree is the default itself. **This is NOT the same claim tasklist `69` corrects, and `69`'s wording invites the confusion**: the Rust port program `translation/crates/wire` declares ONLY `serde` + `serde_json` (no HTTP client of any kind) and `apr_translate.erl`'s own docstring says it renders *'An OpenAI-shaped request out to Provider's native wire: `{ok, Path, Body}`'* while *'recognised, reported, **never dialed**'* and *'the worker records an **undialed attempt**'*. So the port RENDERS a request; something still has to SEND it, and nothing does. `69` is right that the router reaches seven vendors' **wire formats** \u2014 that is coverage, not dispatch. The honest degrade is already built (a `pending-adapter` rung is reported and the ladder walks on), so the router is INERT rather than broken \u2014 but the always-completes ladder currently always completes at the placeholder. **Downstream this invalidates two decisions in other repos**: formant's image-ladder consolidation (2,386 LOC) targets this router, and D9 routes lugh's out-of-envelope finetune jobs to agora \u2014 neither can land while the target cannot dial.",
+  "parked": false,
+  "dependsOn": [],
+  "touches": [
+    "provider-router-erl/"
+  ],
+  "iters": 8,
+  "warmup": [
+    "provider-router-erl/src/apr_router.erl",
+    "provider-router-erl/src/apr_translate.erl",
+    "tasks/chief/69-router-dispatch-record-correction.json"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Give the canonical router a real transport",
+      "description": "The rendered `{ok, Path, Body}` becomes an actual dial. `69`/US-3 already records **`req_llm`** (554\u2605 Apache-2.0, native BEAM, 21 providers / 1,205 models with normalized token accounting and USD cost) as *'the untried better option'* \u2014 evaluate it against a plain HTTP client, and prefer **`gun`** (947\u2605 **ISC**, same maintainer and license as the already-used cowboy) over `hackney` (NOASSERTION) if a bare client wins.",
+      "acceptanceCriteria": [
+        "A live transport is injected and the canonical router completes a real paid-rung call end to end against at least one vendor; the rung is recorded as DIALED rather than as an undialed attempt.",
+        "The choice between `req_llm` and a bare HTTP client is recorded with its reasoning. \u26a0\ufe0f `req_llm` is 554\u2605 single-org \u2014 a thin maintainer pool for a layer-zero dependency \u2014 but it is the only credible BEAM-native alternative to hand-writing 21 provider adapters, and ADR-0004 already rejected embedding LiteLLM in the BEAM (correctly).",
+        "The ladder/budget/cost layer is UNTOUCHED \u2014 it never touches provider specifics, which is exactly what makes the transport a one-module swap. `unpriced` must still never pass a ceiling.",
+        "The **always-completes** property is preserved and re-proven: the terminal placeholder rung still cannot fail, so a transport that dies mid-ladder degrades rather than aborting.",
+        "`default_transport()` no longer returns an error as the shipped default \u2014 or, if an inert default is deliberately retained for tests, the production boot path is asserted to inject a live one."
+      ],
+      "passes": false,
+      "notes": "The Rust port stays doing what it is good at \u2014 CPU-bound serde wire conversion in a supervised OS process so a panic cannot take down the node. This adds the sender, not a second translator."
+    },
+    {
+      "id": "US-2",
+      "title": "Correct `69`'s wording so the next reader is not misled",
+      "description": "`69` states the router *'reaches ALL SEVEN native-wire vendors \u2026 through a Rust port program.'* That is true of wire COVERAGE and false of DISPATCH, and the ambiguity is what let this defect sit unnoticed.",
+      "acceptanceCriteria": [
+        "`69`'s description and the docs echoing it distinguish **wire coverage** (8 `(vendor,modality)` pairs the codec can render) from **dispatch capability** (whether anything sends the rendered request).",
+        "The `pending-adapter`/undialed-attempt degrade is documented as the honest reporting mechanism it is, not as evidence that dispatch works.",
+        "ROADMAP Phase B is re-ordered so 'widen the codec' (`52`) is correctly framed as breadth ON TOP OF a transport that must exist first \u2014 widening what a router renders while it cannot send is work with no observable effect.",
+        "A test asserts the router's own reported dispatch state, so 'can it dial' is answerable from the suite rather than by reading source."
+      ],
+      "passes": false,
+      "notes": "This is the documentation half, and it is why the defect survived: two true-sounding sentences that describe different things."
+    },
+    {
+      "id": "US-3",
+      "title": "Unblock the two downstream consumers explicitly",
+      "description": "The point of fixing this is that other repos are waiting on it.",
+      "acceptanceCriteria": [
+        "The **image** and **speech** modalities are confirmed dialable end to end, because formant's consolidation replaces a working image ladder with this router and must not degrade it \u2014 `apr_backends.erl` already declares `paid_providers(image) -> [openai, replicate]`.",
+        "A short note in `docs/` states which modalities are live, so a consumer repo can check rather than assume.",
+        "Once green, formant's `61`/image-ladder work and any D9 routing claim are unblocked; say so in the notes so the dependency is traceable in both directions."
+      ],
+      "passes": false,
+      "notes": "Formant's tasklist should NOT delete its own registry until this story is green \u2014 a consolidation onto an inert router would silently break image generation."
+    }
+  ]
+}

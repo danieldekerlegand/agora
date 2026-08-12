@@ -1,0 +1,57 @@
+{
+  "project": "agora",
+  "branchName": "chief/74-trainer-engine-or-honest-refusal",
+  "description": "\ud83d\udd34 **BLOCKING DEFECT \u2014 the 'general trainer' has no training engine, and lugh's refusal grammar routes to it.** Verified 2026-08-11: `trainer/src` contains **zero imports** of `torch`, `transformers`, `trl`, `peft`, `accelerate` \u2014 or even `subprocess`. Its complete third-party set is `fastapi, uvicorn, pydantic, httpx, jsonschema, referencing`. `llama_factory.py:145` falls back to `recorded_text_run()` \u2014 a JSON fixture \u2014 and the docstring's 'shells out to LLaMA-Factory' path **does not exist in code**. Meanwhile ROADMAP lists KFT as *'`trainer/` **general** provider implemented & gated'*, and **D9 makes this the documented destination for every job lugh refuses**: lugh's graded refusal codes name agora's general trainer as where an out-of-envelope job should go. So the refusal-routing contract currently routes to a fixture replayer. **Either outcome is acceptable; the current state is not.** Note `50-finetune-live-endpoints` does NOT cover this \u2014 it stands up the \u00a76/\u00a75.3/\u00a78 *endpoints*, which is the contract surface, not the engine behind it.",
+  "parked": false,
+  "dependsOn": [],
+  "touches": [
+    "trainer/",
+    "docs/"
+  ],
+  "iters": 7,
+  "warmup": [
+    "trainer/src/agora_trainer/llama_factory.py",
+    "trainer/src/agora_trainer/engine.py",
+    "../lugh/src/pinakes_ml/kft.py"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "Decide, and record, which agora is building",
+      "description": "Two legitimate answers. Pick one in writing before any code moves.",
+      "acceptanceCriteria": [
+        "An ADR records either **(a) adopt a real engine** \u2014 LLaMA-Factory (73,993\u2605 Apache-2.0) or Axolotl (12,339\u2605 Apache-2.0) behind the existing `run_source` seam, which is already the injection point \u2014 or **(b) agora does not train**, and the general-trainer role is retired or re-scoped.",
+        "The decision confronts the real cost of (a): agora inherits torch and a GPU story it deliberately does not have today, which is presumably why the fixture design exists in the first place.",
+        "If (b), the ADR states what happens to D9 \u2014 lugh's refusal codes must name a destination that exists, so either another provider takes the role or the refusal grammar changes.",
+        "Whichever way it lands, the frozen conformance corpus and the KFT contract surface are unaffected \u2014 this is about the engine, not the wire."
+      ],
+      "passes": false,
+      "notes": "The fixture-replay design is HONEST in its docstring. The failure is that nothing above it says so, and a contract in another repo points here."
+    },
+    {
+      "id": "US-2",
+      "title": "Stop reporting a capability that is not there",
+      "description": "Independent of US-1, and cheap. This is the minimum fix even if the engine question stays open.",
+      "acceptanceCriteria": [
+        "`POST /invoke` returns a **graded refusal** rather than replaying a fixture when no engine is configured \u2014 a provider that cannot train must say so in the KFT vocabulary, which is exactly the discipline lugh is praised for.",
+        "README and ROADMAP stop describing the general trainer as implemented; the honest state is stated with what would change it.",
+        "A test asserts that with no engine configured, `invoke` refuses rather than returning a plausible-looking recorded run \u2014 a fixture that reads as a completed training run is the worst failure shape here, because a caller cannot tell it apart from success.",
+        "The KCB manifest stops advertising a `finetune` capability the trainer cannot honour, or advertises it with a state that makes the limitation discoverable \u2014 an advertised capability that always refuses is a routing lie (the manifest \u2194 admission cross-gate rule lugh already enforces)."
+      ],
+      "passes": false,
+      "notes": "Do this even if US-1 stalls. A silent fixture is worse than an honest refusal, and lugh's own design already proves the pattern."
+    },
+    {
+      "id": "US-3",
+      "title": "Close the loop with lugh",
+      "description": "D9's contract spans two repos; verify it end to end rather than assuming.",
+      "acceptanceCriteria": [
+        "An out-of-envelope job refused by lugh is followed through to agora and the result is recorded \u2014 either it trains, or it refuses with a code the caller can act on.",
+        "Whatever the outcome, `rosetta/strategy/DECISIONS.md`'s D9 entry is updated so the register does not keep asserting a routing target that behaves differently than described.",
+        "Nothing in `~/Development/lugh` is edited by this tasklist \u2014 the cross-repo change, if any, is authored there."
+      ],
+      "passes": false,
+      "notes": "This is the assertion that would have caught the defect: nobody ever followed a refusal across the boundary."
+    }
+  ]
+}
