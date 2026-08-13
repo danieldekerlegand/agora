@@ -12,11 +12,30 @@ import { STUDIO_CONFIG_FORMAT } from './config.ts';
 
 export { App, type AppProps } from './App.tsx';
 export { Stage, type StageProps } from './Stage.tsx';
+export { TopologyGraph, type TopologyGraphProps } from './TopologyGraph.tsx';
+export { useTopology, type TopologyReading } from './useTopology.ts';
 export {
   embeddedConfigText,
   readStudioConfig,
   type StudioConfigReading,
 } from './config.ts';
+export {
+  discoverNodes,
+  discoverTopology,
+  edgesOf,
+  nodesOf,
+  pathEdges,
+  resolveNodes,
+  topologyOf,
+  type Discovery,
+  type EdgeScope,
+  type IdentityResolver,
+  type Topology,
+  type TopologyEdge,
+  type TopologyInput,
+  type TopologyNode,
+  type TopologyQuery,
+} from './topology.ts';
 export {
   backboneOf,
   EMPTY_BACKBONE,

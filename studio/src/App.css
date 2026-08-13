@@ -81,11 +81,11 @@
   font-variant-numeric: tabular-nums;
 }
 
-.studio-cast section {
+.studio-graph section {
   margin-bottom: 1.25rem;
 }
 
-.studio-cast h2 {
+.studio-graph h2 {
   margin: 0 0 0.35rem;
   font-size: 0.8rem;
   font-weight: 600;
@@ -94,23 +94,53 @@
   color: #555;
 }
 
-.studio-cast ul {
+.studio-graph ul {
   margin: 0;
   padding: 0;
   list-style: none;
   font-size: 0.9rem;
 }
 
-.studio-cast li {
+.studio-graph li {
   padding: 0.15rem 0;
 }
 
-.studio-cast .identity,
-.studio-cast .capabilities,
-.studio-cast .transport {
+.studio-graph .identity,
+.studio-graph .capabilities,
+.studio-graph .aliases,
+.studio-graph .transport,
+.studio-graph .capability,
+.studio-graph .plane {
   color: #666;
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 0.8rem;
+}
+
+/* What discovery said about a node, as a quiet marker rather than a status light: `observed`
+   is a peer the host saw but the registry has never indexed, `unreachable` a provider that is
+   indexed and published no endpoint. Both are ordinary states of a real fabric. */
+.studio-graph .origin,
+.studio-graph .unreachable,
+.studio-graph .scope,
+.studio-graph .cross-plane {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #777;
+}
+
+.studio-graph .unreachable {
+  color: #8a6d00;
+}
+
+/* An edge that leaves the discovered fabric is drawn dimmer, not hidden: an outside MCP
+   server or A2A peer is part of the picture, it is simply not part of the index. */
+.studio-edge-external {
+  color: #555;
+}
+
+.studio-edge-external .scope {
+  color: #8a6d00;
 }
 
 .studio-none {
@@ -142,4 +172,13 @@
   padding-left: 1.1rem;
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 0.8rem;
+}
+
+/* A lookup that failed. Reported beside the picture it could not refresh — the last good
+   graph stays up, because a registry Studio could not read is not a fabric that emptied. */
+.studio-alert {
+  margin: 1rem 0 0;
+  max-width: 60ch;
+  color: #6a5300;
+  font-size: 0.85rem;
 }

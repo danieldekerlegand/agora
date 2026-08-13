@@ -1,25 +1,40 @@
 /**
- * The stage — what the shell shows for a given backbone.
+ * The stage — what the shell shows for a given fabric.
  *
  * Empty is the first thing anyone sees and a legitimate steady state, so it says so plainly:
  * zero participants, zero connections, and where a cast comes from. It is not a spinner and
  * not an error. Studio bundles no apps, no services and no connections, so an install nobody
- * has configured has genuinely nothing to draw.
+ * has configured and nobody has pointed at a registry has genuinely nothing to draw.
+ *
+ * Anything else is one picture: the topology graph. A configured cast and a discovered one are
+ * the same shape — a node is a participant, an edge is a connection — so rather than two views
+ * competing to describe the fabric, a backbone with no discovery behind it is projected into a
+ * graph of observed nodes and drawn by the same component. Discovery's answer wins when there
+ * is one, because it is the live reading; the configured cast is what Studio was *told*.
  *
  * Populated, it is still only a read: labels, identities, advertised capability names, and the
  * links the participants hold with each other. Nothing here dials anything — the capability
  * names are text on a page, not buttons, because Studio watches this fabric rather than
  * driving it (ADR-0001 decision 7).
  */
-import { isEmpty, labelOf, type Backbone } from './backbone.ts';
+import { TopologyGraph } from './TopologyGraph.tsx';
+import type { Backbone } from './backbone.ts';
+import { topologyOf, type Topology } from './topology.ts';
 
 export interface StageProps {
   /** The picture to draw. Whatever was observed or configured — never anything from here. */
   backbone: Backbone;
+  /**
+   * Discovery's own answer, when the host has a registry to ask. Takes precedence over the
+   * configured backbone: it is what is reachable *now*, re-read on every pass.
+   */
+  topology?: Topology;
 }
 
-export function Stage({ backbone }: StageProps) {
-  if (isEmpty(backbone)) {
+export function Stage({ backbone, topology }: StageProps) {
+  const graph = graphOf(backbone, topology);
+
+  if (graph.nodes.length === 0 && graph.edges.length === 0) {
     return (
       <div className="studio-empty" role="status">
         <h2>nothing on the fabric yet</h2>
@@ -32,47 +47,17 @@ export function Stage({ backbone }: StageProps) {
     );
   }
 
-  const { participants, connections } = backbone;
+  return <TopologyGraph topology={graph} />;
+}
 
-  return (
-    <div className="studio-cast">
-      <p className="studio-counts">
-        {participants.length} participants · {connections.length} connections
-      </p>
-
-      <section>
-        <h2 id="studio-participants">participants</h2>
-        <ul aria-labelledby="studio-participants">
-          {participants.map((participant) => (
-            <li key={participant.identity}>
-              <span className="label">{labelOf(participant)}</span>{' '}
-              <span className="identity">{participant.identity}</span>
-              {participant.capabilities?.length ? (
-                <span className="capabilities"> {participant.capabilities.join(' · ')}</span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section>
-        <h2 id="studio-connections">connections</h2>
-        {connections.length === 0 ? (
-          <p className="studio-none">none observed</p>
-        ) : (
-          <ul aria-labelledby="studio-connections">
-            {connections.map((connection) => (
-              <li key={`${connection.from}→${connection.to}:${connection.transport ?? ''}`}>
-                <span className="identity">{connection.from}</span> →{' '}
-                <span className="identity">{connection.to}</span>
-                {connection.transport ? (
-                  <span className="transport"> {connection.transport}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </div>
-  );
+/**
+ * The graph to draw: discovery's answer when it found anything, else the configured cast.
+ *
+ * A discovery pass that answered with nobody falls back rather than blanking a cast the user
+ * described — it emptied the *discovered* fabric, and it has no standing to erase what the
+ * host says it is watching.
+ */
+function graphOf(backbone: Backbone, topology?: Topology): Topology {
+  if (topology && (topology.nodes.length > 0 || topology.edges.length > 0)) return topology;
+  return topologyOf({ observed: backbone });
 }

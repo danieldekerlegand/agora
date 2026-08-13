@@ -789,3 +789,130 @@ Full Erlang gate green (compile + dialyzer + eunit 103 + ct 51/7 skipped); `make
   of `apr_mcp:handle/2` to preserve that ordering would bend the two surface modules away from
   being straight mirrors of `mcp.py`/`a2a.py`. A subscriber therefore sees generations dialed
   over `/v1` only — worth closing when the bus and the transports are next touched together.
+---
+## 61-studio-topology-graph — US-1: the graph's nodes come from KCB discovery, not a roster
+- New `studio/src/topology.ts`: `nodesOf(matches)` projects the registry's own cost-ranked
+  `Match[]` into `TopologyNode` (a `Participant` + the discovered `ProviderAddress` + `reachable`),
+  and `discoverNodes(discovery, query?)` asks a `Discovery` (structurally the registry's `find`)
+  and projects the answer. One node per discovered address, in discovery's order; repeats of an
+  identity collapse; nobody indexed = no nodes. New `studio/src/topology.test.ts` (11 tests),
+  exports added to `studio/src/index.ts`, `studio/README.md` gained the module row + a section.
+- **Discovery is an argument, never a lookup.** The host hands in the find surface exactly the
+  way `readStudioConfig` is handed text, so `studio/` still contains no `fetch(` — which is not
+  incidental, `backbone.test.ts` greps every authored source in the area for a transport call and
+  fails on one. Same guard forbids a KINP identity literal in authored source (doc comments
+  included — write shapes, not examples) and any export whose name matches
+  `/relay|proxy|invoke|forward|dispatch|^call|^send|^dial|^request/i`.
+- **`Object.entries(studio)` non-function exports are pinned to exactly `EMPTY_BACKBONE`** by that
+  same test. A new `EMPTY_TOPOLOGY`-style constant would fail the gate; export functions and types
+  only (this is why `nodesOf` returns a fresh `[]` instead of a shared frozen empty).
+- The registry is imported **type-only** (`import type { FindQuery, Match }`) so `@agora/registry`'s
+  `server.ts`/`node:http` never enters the browser bundle; the only runtime import is the SDK's
+  `isDialable`. The TEST imports `createRegistry` for real and registers synthetic manifests — the
+  claim under test is that Studio consumes the discovery surface rather than re-implementing it,
+  and hand-built `Match` literals would not test that.
+- Gate: `make check` exit 0 (studio 42 tests).
+
+### Learnings for future iterations
+- A manifest `identity` must be a KINP id whose kind is one of `ent|claim|asset|world|agent|src`
+  (`schemas/src/identity.ts` `KINP_KINDS`) — `sample:service:x` is refused by `register`, `agent` is
+  the fixture kind to reach for.
+- `registry/src/fixtures/providers.ts` is NOT reachable from another workspace (`@agora/registry`
+  exports `.` only), so a consumer's test authors its own sample manifests. Keep them `.example`
+  hostnames and say in the header that they are sample data (CLAUDE.md's capability-never-caller).
+- US-2 seams already in place: `TopologyNode.address.endpoints` carries the mcp/a2a split the edge
+  types need (`transportOf` in `clients/sdk/src/kcb.ts` names it without re-deriving), and node
+  identity is a plain string field, so the resolver merge is a fold over `nodesOf`'s output.
+---
+## 61-studio-topology-graph — US-2: edges are connections, and identity is the resolver's ruling
+- `studio/src/topology.ts` grew the second half of the graph: `TopologyEdge` (a `Connection`
+  plus `scope`, and the registry's own port facts `capability`/`plane`/`crossPlane`), `edgesOf`,
+  `pathEdges`, `resolveNodes`, `topologyOf` and `discoverTopology` (find → resolve → plan → draw
+  in one call). `TopologyNode` gained `discovered`, `aliases`, `alsoAt`. 16 new tests (58 in the
+  area), exports added to `src/index.ts`, README gained an "edges are connections" section.
+- **Every distinction is somebody else's answer.** internal/external is read off the discovery
+  index on each pass (both ends indexed → internal), cross-plane is whatever `registry.path`
+  computed, sameness is what `resolve` ruled. Studio classifies nothing itself, so a peer joining
+  the index flips its edges internal on the next pass with no code edited — that is the same
+  churn-safety US-1 got from holding no roster, extended to the edges.
+- **The merge is a union-find over `same_as`, never over `based_on`** (identity.md §4.3). The
+  group keeps its first-sighted address (discovery's cost ranking survives), collects the others
+  into `alsoAt`, is `reachable` if ANY of them is dialable, and exposes the collapsed identities
+  as `aliases` — which is what lets `edgesOf` re-point a link named against a merged-away address
+  and then drop it if both ends turn out to be one entity.
+- **A resolver that cannot answer must not be able to delete a participant.** `resolveNodes`
+  catches per-node (`AuthorityUnreachableError` for an `ent` id with nothing cached) and leaves
+  that node exactly as discovery gave it. Same for no resolver at all: nothing merges.
+- The tests drive a REAL `createAuthorityResolver` with its HTTP surface stubbed, the way US-1
+  drives a real `createRegistry` — the claim under test is that Studio reads those surfaces, and
+  a fake resolver object would test only Studio's own arithmetic.
+- Gate: `make check` exit 0.
+
+### Learnings for future iterations
+- **`createAuthorityResolver` only dials for `ent`-kind ids** (`needsAuthority` in
+  `resolver/src/authority.ts`); every other KINP kind self-resolves in-process. A merge fixture
+  therefore needs `…:ent:…` identities — `agent`-kind manifests will never reach the authority
+  stub, however it answers.
+- The authority's resolve response is read by `readResolution`: `same_as`/`same_as_closure`,
+  `based_on`, and `links`/`assertions`/`claims`/`equivalences` entries shaped
+  `{relation, subject, object}`. It keeps the REQUESTED id as `id` — it never renames an entity —
+  so a consumer that wants one canonical node per entity picks the representative itself (here:
+  the first-sighted member, so discovery's ranking survives the merge).
+- **`satisfies()` requires both ends of a hop to share a plane**, so a plane crossing lives
+  INSIDE a capability (`input.plane !== output.plane`), never between two hops. An edge therefore
+  carries the handoff plane and flags the far end as the crossing; deriving "cross-plane" from a
+  pair of manifests instead of from `registry.path` would have been the assumption the story
+  forbids.
+- `exactOptionalPropertyTypes` bites at every seam that forwards an optional through: passing
+  `options.observed` (typed `X | null | undefined`) into a field typed `X | null` is an error.
+  Forward with `?? null` rather than widening the target's type.
+- The area's guards (`backbone.test.ts`) still hold and are worth re-reading before adding to
+  `studio/src`: no quoted KINP identity literal in authored source (doc comments included), no
+  `fetch(`/`WebSocket(`/…, no export matching `/relay|proxy|invoke|forward|dispatch|^call|^send|
+  ^dial|^request/i`, and non-function exports pinned to exactly `EMPTY_BACKBONE`.
+- **US-3 seam:** `discoverTopology(query)` is the whole graph in one await and remembers nothing
+  between calls, so the render story's churn test is "call it again after the index changed" —
+  no cache to invalidate and no stale node to evict.
+
+---
+## 61-studio-topology-graph — US-3: the graph renders, and follows churn
+- New `studio/src/TopologyGraph.tsx` (a `Topology` in, elements out — nodes annotated
+  discovered/observed/unreachable + resolver aliases, edges annotated transport / internal-external
+  scope / capability / plane / cross-plane) and `studio/src/useTopology.ts` (`useTopology(query)`:
+  one `discoverTopology` pass per snapshot, re-run on a new query object or on `refresh()`).
+  `Stage.tsx` now draws ONE picture — a backbone with no discovery behind it goes through
+  `topologyOf({ observed })` and renders through the same component, discovery's answer wins when
+  there is one. `App.tsx` gained a `discovery?: TopologyQuery | null` prop and folds the configured
+  cast in as that pass's `observed`. New `studio/src/TopologyGraph.test.tsx` (11 tests, real
+  registry + real `createAuthorityResolver`), `App.css`, `README.md`. `make check` exit 0
+  (studio 69 tests).
+- **The churn requirement needed no removal logic.** Because a topology is the *value* of one pass
+  and nothing is remembered between passes, a participant leaving the index is simply absent from
+  the next answer. The test proves the update happened in-place by capturing the `main` element
+  before the churn and asserting `toBe` the same element after — that is what "without a page
+  reload" means as an assertion.
+- **A failed pass keeps the last good picture** and reports the problem beside it (`role="alert"`).
+  A lookup that could not be made is NOT a fabric that emptied; blanking the graph would assert a
+  churn event that never happened. A pass that succeeds with nobody in it does empty it.
+- Base integration this iteration: rebased onto `main` @32e62fa (8 commits), one conflict, in
+  `progress.txt` — both sides were appends, so both were kept with a `---` between them.
+
+### Learnings for future iterations
+- **`exactOptionalPropertyTypes: true` is on.** Passing `foo={cond ? value : undefined}` to a
+  `foo?: T` prop is a type error. Either widen the prop to `T | undefined` or — usually better —
+  restructure so the value is always present; here `useTopology` already returns an empty
+  `Topology` rather than `undefined`, and the receiving component's fallback made the ternary
+  unnecessary.
+- **`vitest` runs with `globals: false` in `studio/vite.config.ts`**, so RTL's auto-cleanup never
+  registers. A test that renders more than once must `import { cleanup }` and call it in
+  `afterEach` (the older tests get away with `document.body.innerHTML = ''` because they never
+  `rerender`).
+- `backbone.test.ts`'s greps constrain any new UI file here: no `fetch(`/`WebSocket(` in authored
+  source, no quoted `a:b:c` KINP literal (doc comments and backticks included — write shapes), and
+  `Object.entries(studio)` non-function exports are pinned to exactly `EMPTY_BACKBONE`, so a new
+  module's "empty" constant must stay module-local (`NOTHING` in `useTopology.ts`).
+- The registry exposes `remove(identity)` on `CapabilityRegistry`, which is what makes a
+  *departure* testable against the real discovery surface rather than a stub.
+- Keeping the rendered vocabulary as `participants` / `connections` (the accessible list names the
+  60 tests query) let the graph replace the plain cast list without touching a single existing
+  test — a node IS a participant, so the rename would have been churn for its own sake.
