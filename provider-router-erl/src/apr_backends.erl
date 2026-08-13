@@ -15,9 +15,10 @@
 -module(apr_backends).
 
 -export([paid_providers/1, endpoints/1, mlx_provider/0, local_provider/0,
-         paid_vendors/0, native_providers/0,
+         local_providers/0, paid_vendors/0, native_providers/0,
          placeholder_backend/1, resolve_tier/3, resolve_tier/4,
-         backend_url/1, backend_describe/1, resolution_describe/1]).
+         backend_url/1, dispatch_url/1, dispatch_headers/1, local_bind/1,
+         backend_describe/1, resolution_describe/1]).
 
 -type modality() :: atom().
 -type tier() :: paid | mlx | local | placeholder.
@@ -32,8 +33,11 @@
                        backend := backend() | undefined,
                        reason := binary() | undefined}.
 -type rank() :: fun((backend()) -> number()) | undefined.
+%% Where a local backend's configured address puts it: on this machine's loopback interface,
+%% or somewhere a packet has to leave the box to reach.
+-type local_bind() :: loopback | remote.
 
--export_type([backend/0, resolution/0]).
+-export_type([backend/0, resolution/0, local_bind/0]).
 
 %% @doc modality -> paid vendors in preference order (`backends.py::PAID_PROVIDERS').
 -spec paid_providers(modality()) -> [binary()].
@@ -56,6 +60,18 @@ mlx_provider() -> <<"mlx-serve">>.
 
 -spec local_provider() -> binary().
 local_provider() -> <<"ollama">>.
+
+%% @doc The providers of the keyless local tiers (`backends.py::LOCAL_PROVIDERS').
+%%
+%% Their address is the operator's and nobody else's: a client library will happily supply one
+%% (LiteLLM defaults `ollama' to `http://localhost:11434'), and inheriting it would make "no
+%% local server configured" a statement about whatever happens to be listening on the box
+%% rather than about the configuration. The rule is held twice — {@link resolve_tier/3} never
+%% yields such a rung, and {@link dispatch_url/1} refuses to name an address for one that
+%% somehow reached a transport anyway. See `docs/local-backend-posture.md', which states the
+%% whole posture (bind, auth, why the default is never inherited).
+-spec local_providers() -> [binary()].
+local_providers() -> [mlx_provider(), local_provider()].
 
 %% @doc The paid vendors, keyed by name (`backends.py::PAID_VENDORS').
 -spec paid_vendors() -> #{binary() => map()}.
@@ -181,7 +197,7 @@ resolve_keyless(Tier, Provider, Models, Modality, Config) ->
             end,
     BaseUrl = maps:get(base_url, Settings),
     ModalityBin = atom_to_binary(Modality, utf8),
-    HasBaseUrl = BaseUrl =/= undefined andalso BaseUrl =/= <<>>,
+    HasBaseUrl = has_base_url(BaseUrl),
     Usable = apr_config:usable(Settings),
     if
         Model =:= undefined ->
@@ -194,11 +210,33 @@ resolve_keyless(Tier, Provider, Models, Modality, Config) ->
             resolution(Tier, unconfigured, undefined,
                        <<Provider/binary, " explicitly disabled">>);
         true ->
+            %% Keyless is the local tiers' default posture, not the only one: an operator
+            %% who authenticated their local server configured a key, and it is dialed with
+            %% ({@link dispatch_headers/1}).
             Backend = #{tier => Tier, provider => Provider, modality => Modality,
-                        model => Model, base_url => BaseUrl, api_key => undefined,
+                        model => Model, base_url => BaseUrl,
+                        api_key => maps:get(api_key, Settings),
                         wire => openai, path => undefined},
-            resolution(Tier, ready, Backend, undefined)
+            resolution(Tier, ready, Backend, bind_reason(Provider, BaseUrl))
     end.
+
+%% A `reason' on a *ready* rung is the one thing `/doctor' says about a rung it is otherwise
+%% happy with — which is the weight a remote-local address deserves: allowed, because
+%% configured; never silent, because unauthenticated local backends were designed for a
+%% loopback interface (`docs/local-backend-posture.md').
+bind_reason(Provider, BaseUrl) ->
+    case local_bind(BaseUrl) of
+        loopback -> undefined;
+        _ -> remote_local_reason(Provider, BaseUrl)
+    end.
+
+%% Built with `/utf8' rather than `unicode:characters_to_binary/1' so the result is a binary
+%% by construction: this string reaches a reason field typed `binary()'.
+remote_local_reason(Provider, BaseUrl) ->
+    Head = <<" is configured at a non-loopback address (">>,
+    Tail = <<") \x{2014} a local backend reached over a network, which is an explicit "/utf8>>,
+    Rest = <<"operator choice and not a default">>,
+    <<Provider/binary, Head/binary, BaseUrl/binary, Tail/binary, Rest/binary>>.
 
 resolution(Tier, Status, Backend, Reason) ->
     #{tier => Tier, status => Status, backend => Backend, reason => Reason}.
@@ -244,6 +282,131 @@ backend_url(#{path := Path} = Backend) when is_binary(Path) ->
 backend_url(#{modality := Modality} = Backend) ->
     <<(base(Backend))/binary, (endpoints(Modality))/binary>>.
 
+%% @doc The address a rung is dialed at, or why it has none (`backends.py::dispatch_url').
+%%
+%% Only the keyless local tiers are held to it: a paid rung's address is its vendor's, which
+%% is public vocabulary, where a local one is a fact about an operator's machine. An error is
+%% not a failed request — to {@link apr_rung_worker} it is one more rung that did not answer,
+%% recorded `dialed => false' because nothing was contacted.
+-spec dispatch_url(backend()) -> {ok, binary()} | {error, binary()}.
+dispatch_url(#{provider := Provider, base_url := BaseUrl} = Backend) ->
+    IsLocal = lists:member(Provider, local_providers()),
+    case IsLocal andalso not has_base_url(BaseUrl) of
+        true -> {error, no_address_reason(Provider)};
+        false -> {ok, backend_url(Backend)}
+    end.
+
+%% Built with `/utf8' rather than `unicode:characters_to_binary/1' so the result is a binary
+%% by construction: this string reaches a reason field typed `binary()'.
+no_address_reason(Provider) ->
+    Head = <<" has no configured base URL \x{2014} a local tier is never dialed at "/utf8>>,
+    Tail = <<"a default address, only at one an operator set">>,
+    <<Provider/binary, Head/binary, Tail/binary>>.
+
+has_base_url(undefined) -> false;
+has_base_url(<<>>) -> false;
+has_base_url(_BaseUrl) -> true.
+
+%% @doc The headers a rung is dialed with (`backends.py::dispatch_headers'): JSON, plus auth
+%% iff one was configured.
+%%
+%% The local tiers are keyless *by default*, not by rule. Ollama and mlx-serve ship
+%% unauthenticated, so a stock one needs no credential — but an operator who has put one
+%% behind a reverse proxy has a credential for it, and `AGORA_PROVIDER_OLLAMA_API_KEY' is
+%% carried here the same way a paid vendor's is. What this never does is invent one: with
+%% nothing configured there is no `authorization' header at all, rather than an empty bearer
+%% that a permissive backend would accept and a strict one would reject for the wrong reason.
+%% See `docs/local-backend-posture.md'.
+-spec dispatch_headers(backend()) -> [{binary(), binary()}].
+dispatch_headers(#{api_key := Key}) when is_binary(Key), byte_size(Key) > 0 ->
+    [{<<"content-type">>, <<"application/json">>},
+     {<<"authorization">>, <<"Bearer ", Key/binary>>}];
+dispatch_headers(_Backend) ->
+    [{<<"content-type">>, <<"application/json">>}].
+
+%% @doc Classify a local backend's address (`backends.py::local_bind'); `undefined' when
+%% there is none to classify.
+%%
+%% Anything not *demonstrably* loopback is `remote'. A host this cannot parse, or one that
+%% only a resolver could settle, is the operator's to explain — and the safe reading of "I
+%% could not tell" is "it leaves the box", because that is the reading under which an
+%% unauthenticated backend is the operator's explicit choice rather than this module's
+%% silent one. Never resolves DNS: classification is a fact about the configuration.
+-spec local_bind(binary() | undefined) -> local_bind() | undefined.
+local_bind(undefined) -> undefined;
+local_bind(<<>>) -> undefined;
+local_bind(BaseUrl) ->
+    case uri_host(BaseUrl) of
+        undefined -> remote;
+        Host -> classify_host(ascii_lowercase(Host))
+    end.
+
+%% `OLLAMA_HOST=localhost:11434' is a real spelling, and to a URI parser a bare `host:port'
+%% reads as scheme `host' — so an authority with no `//' is given one. A host the parser
+%% declines to give back as a binary is `undefined', i.e. `remote': the conservative answer
+%% is the one this classification is for.
+uri_host(BaseUrl) ->
+    Trimmed = trim_spaces(BaseUrl),
+    Candidate = case binary:match(Trimmed, <<"//">>) of
+                    nomatch -> <<"//", Trimmed/binary>>;
+                    _ -> Trimmed
+                end,
+    case uri_string:parse(Candidate) of
+        #{host := Host} when is_binary(Host) -> Host;
+        _ -> undefined
+    end.
+
+classify_host(<<"localhost">>) -> loopback;
+classify_host(Host) ->
+    case ends_with(<<".localhost">>, Host) of
+        true -> loopback;
+        false -> classify_address(Host)
+    end.
+
+%% IPv4 loopback is the whole 127/8 block; IPv6 loopback is `::1' and nothing else. An
+%% IPv4-mapped `::ffff:127.0.0.1' is deliberately not loopback, which is what
+%% `ipaddress.ip_address(...).is_loopback' answers on the Python side too.
+classify_address(Host) ->
+    case inet:parse_address(binary_to_list(Host)) of
+        {ok, {127, _, _, _}} -> loopback;
+        {ok, {0, 0, 0, 0, 0, 0, 0, 1}} -> loopback;
+        _ -> remote
+    end.
+
+ends_with(Suffix, Bin) ->
+    SuffixSize = byte_size(Suffix),
+    byte_size(Bin) > SuffixSize
+        andalso binary:part(Bin, byte_size(Bin) - SuffixSize, SuffixSize) =:= Suffix.
+
+%% `string:lowercase/1' and `string:trim/1' are spelled over `unicode:chardata()' and return
+%% it, so neither is a `binary()' to dialyzer. A host name is ASCII (an international one
+%% arrives punycoded), and these two say so by construction — the same reason
+%% `no_address_reason/1' builds its binary with `/utf8' rather than through `unicode'.
+ascii_lowercase(Bin) -> << <<(lower_char(C))>> || <<C>> <= Bin >>.
+
+lower_char(C) when C >= $A, C =< $Z -> C + 32;
+lower_char(C) -> C.
+
+trim_spaces(<<C, Rest/binary>>) when C =:= $\s; C =:= $\t; C =:= $\n; C =:= $\r ->
+    trim_spaces(Rest);
+trim_spaces(Bin) -> trim_trailing_spaces(Bin).
+
+trim_trailing_spaces(<<>>) -> <<>>;
+trim_trailing_spaces(Bin) ->
+    case binary:last(Bin) of
+        C when C =:= $\s; C =:= $\t; C =:= $\n; C =:= $\r ->
+            trim_trailing_spaces(binary:part(Bin, 0, byte_size(Bin) - 1));
+        _ -> Bin
+    end.
+
+%% Where a backend's `bind' is reportable at all: a paid vendor's address is public
+%% vocabulary, not a statement about anybody's network.
+backend_bind(#{provider := Provider, base_url := BaseUrl}) ->
+    case lists:member(Provider, local_providers()) of
+        true -> local_bind(BaseUrl);
+        false -> undefined
+    end.
+
 base(Backend) ->
     strip_trailing_slash(coalesce(maps:get(base_url, Backend), <<>>)).
 
@@ -263,7 +426,15 @@ backend_describe(Backend) ->
     {obj, [{<<"tier">>, atom_to_binary(maps:get(tier, Backend), utf8)},
            {<<"provider">>, maps:get(provider, Backend)},
            {<<"model">>, maps:get(model, Backend)},
-           {<<"base_url">>, nn(maps:get(base_url, Backend))}]}.
+           {<<"base_url">>, nn(maps:get(base_url, Backend))}] ++ bind_field(Backend)}.
+
+%% Reported only where it means something, so that a local rung's posture is visible on
+%% `/doctor' without inventing a field for the eight vendors it cannot describe.
+bind_field(Backend) ->
+    case backend_bind(Backend) of
+        undefined -> [];
+        Bind -> [{<<"bind">>, atom_to_binary(Bind, utf8)}]
+    end.
 
 %% @doc The `/doctor' view of a rung (`backends.py::TierResolution.describe').
 -spec resolution_describe(resolution()) -> {obj, [{binary(), term()}]}.
@@ -277,6 +448,7 @@ resolution_describe(Resolution) ->
                 Base ++ [{<<"provider">>, maps:get(provider, Backend)},
                          {<<"model">>, maps:get(model, Backend)},
                          {<<"base_url">>, nn(maps:get(base_url, Backend))}]
+                     ++ bind_field(Backend)
         end,
     case maps:get(reason, Resolution) of
         undefined -> {obj, WithBackend};

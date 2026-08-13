@@ -31,8 +31,8 @@
         "The same explicit-config-only rule is asserted on the native (non-LiteLLM) tier resolution in BOTH routers \u2014 Python and Erlang tests each pin it \u2014 and the two remain byte-identical on the external surface (`apr_conformance_SUITE` green; corpus regenerated only if the surface legitimately moved).",
         "`make check-provider-router` and `make check-router-erl` green."
       ],
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "The local rung never reaches LiteLLM at all (the adapter checks the tier before the vendor table), so the explicit address it is dialed at is the direct POST's rather than a LiteLLM `api_base`; the criterion's intent \u2014 the library default unreachable from any agora path \u2014 is pinned either way."
     },
     {
       "id": "US-2",
@@ -43,8 +43,8 @@
         "A non-loopback local base URL is accepted only as explicit configuration and is surfaced (logged/marked) as a remote-local choice rather than silently treated the same as loopback; a test pins the distinction.",
         "`docs/` gains a short local-backend-posture note (bind expectations, auth options, why the default is never inherited) referenced from the spike doc's N2/N3 section; `make check` green."
       ],
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "`bind` is a conditional field: only a local rung carries one, so the conformance corpus (which configures no local backend) did not move. The Erlang router has no live HTTP transport, so its mirror of the auth rule is `dispatch_headers/1` plus the credential now reaching the backend an injected transport is handed."
     },
     {
       "id": "US-3",
@@ -55,8 +55,8 @@
         "The `unpriced`-never-passes-a-ceiling and `resolve_all`-never-raises guards are re-asserted on every dispatch path this tasklist touched, per the \u00a72.3 rule that any change to a dispatch path re-proves the guards.",
         "`make check` green; if the external surface changed, the conformance corpus was regenerated via `capture_python_surface.py` and `apr_conformance_SUITE` passes against it."
       ],
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "A non-object answer was a real crash on the Python side (`settle` reads `.get` off the response outside the transport's try), so the story's fix is a guard rather than only a test: `router.py::_malformed` / `apr_rung_worker:malformed/1`, same wording in both. The Erlang half's refused/timeout/malformed cases arrive as an injected transport \u2014 the canonical router has no live HTTP dial yet \u2014 which is the same failure the ladder sees. `make check` also needed the stale vendored koine finetune-job snapshot refreshed (red on main since koine cd98c41); the refresh is additive and every gate is green."
     }
   ]
 }

@@ -96,6 +96,10 @@ Note that `resolve_tier` deliberately refuses to assume a localhost port; LiteLL
 `ollama` to `http://localhost:11434`, which would make "no local server configured" depend on
 whatever happens to be listening on the box. That default must be overridden, not inherited.
 
+> **Since hardened.** That override, the bind expectations of an unauthenticated local
+> server, and the optional credential the router carries for an authenticated one are now
+> one standing rule: [`local-backend-posture.md`](local-backend-posture.md).
+
 ### N4 — the per-request ceiling (exp 7, exp 8)
 
 This is the load-bearing gap. LiteLLM has four budget-shaped things and none of them is the

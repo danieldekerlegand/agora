@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://koine.ecosystem/schemas/finetune-job.schema.json",
   "title": "FinetuneJob",
-  "description": "The invoke payload for the KFT `finetune` capability (specs/fine-tuning.md §3, KFT 0.4.0). The machine-readable twin of the job manifest. Data is referenced by KINP/KGP/KMI id, never inlined. The cross-schema $refs below resolve against schemas/provenance.schema.json (shared $defs) and schemas/dataset-jsonl-header.schema.json (the training-record header) in this directory. A golden positive example lives at schemas/fixtures/finetune-job.json; the validators + conformance suite that exercise this schema live downstream in a runtime commons per ADR-0001 (koine = contracts), NOT in koine.",
+  "description": "The invoke payload for the KFT `finetune` capability (specs/fine-tuning.md §3, KFT 0.4.0). The machine-readable twin of the job manifest. Two intakes — a base model and a dataset — each a reference plus, optionally, the document that describes it in its own standard's terms; the shape follows Kubeflow TrainJob's initializer.{model,dataset}.storageUri precedent (§3.2). Data is referenced by KINP/KGP/KMI id, never inlined, and no descriptor is ever an admission input. The cross-schema $refs below resolve against schemas/provenance.schema.json (shared $defs) and schemas/dataset-jsonl-header.schema.json (the training-record header) in this directory. A golden positive example lives at schemas/fixtures/finetune-job.json; the validators + conformance suite that exercise this schema live downstream in a runtime commons per ADR-0001 (koine = contracts), NOT in koine.",
   "type": "object",
   "$defs": {
     "kinpId": {
@@ -22,7 +22,12 @@
     },
     "base_model": {
       "$ref": "#/$defs/kinpId",
-      "description": "The base-model KINP `model` entity. External (Hub) bases are minted entities carrying an external anchor to their Hub coordinate — never a raw hf:… string (KFT §5.1, FT-G)."
+      "description": "Intake 1 — the base-model KINP `model` entity, the counterpart of Kubeflow TrainJob's initializer.model.storageUri (KFT §3.2). External (Hub) bases are minted entities carrying an external anchor to their Hub coordinate — never a raw hf:… string (KFT §5.1, FT-G)."
+    },
+    "base_model_descriptor": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/kinpId" },
+      "description": "KMI asset ids of the base model's published description — its Hugging Face model card (carrying base_model / base_model_relation, KFT §5.1.1) and/or its KitOps/ModelPack Kitfile (KFT §5.3.1), adopted by reference; KFT restates neither. The model-side twin of dataset.descriptor. Optional and descriptive: the §4.2 egress gate, §4.3 license/trust lineage, and §7 estimate MUST NOT read it, and a base-model coordinate, license, or egress class MUST NOT be derived from it — on disagreement the KINP entity wins (KFT §3.2)."
     },
     "modality": {
       "type": "string",
@@ -36,7 +41,7 @@
     },
     "dataset": {
       "type": "object",
-      "description": "Training data by reference only (KFT §4.1). At least one of knowledge/media MUST be non-empty.",
+      "description": "Intake 2 — training data by reference only (KFT §4.1), the counterpart of Kubeflow TrainJob's initializer.dataset.storageUri, split three ways because a koine corpus is knowledge, media, or training records (KFT §3.2). At least one of knowledge/media/records MUST be non-empty.",
       "properties": {
         "knowledge": {
           "type": "array",
@@ -52,6 +57,11 @@
           "type": "array",
           "items": { "$ref": "#/$defs/kinpId" },
           "description": "KMI asset ids of the training-record JSONL file(s) — a producing application's training exhaust, and the FT-I per-sample join surface. Each carries media type application/vnd.koine.dataset+jsonl (registry/media-types.tsv) and opens with a dataset-jsonl-header (KFT §4.1, FT-M)."
+        },
+        "descriptor": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/kinpId" },
+          "description": "KMI asset ids of MLCommons Croissant v1.1 dataset descriptions (application/ld+json), adopted by reference — KFT describes no dataset itself (KFT §4.1.1). Not positional: one descriptor may cover any subset of knowledge/media/records. Optional and descriptive: the §4.2 egress gate, §4.3 license/trust lineage, and §7 estimate MUST NOT read it; on disagreement the dataset-jsonl-header wins."
         },
         "header": {
           "description": "The dataset-jsonl-header(s) copied inline — carries tier + license + egress + recordCount + provenance so the §4.2 gate and §7 estimate run before any fetch. An array, positionally one per records[] entry (FT-O); a bare object is the degenerate one-file form. Verified against the file's actual first record on fetch; a disagreement rejects the job (KFT §4.1).",
@@ -70,7 +80,7 @@
     },
     "hyperparams": {
       "type": "object",
-      "description": "Method-specific hyperparameters (epochs, lr, max_seq_len, lora{r,alpha,dropout,target_modules}, …). Permissive — engine adapters own the detail (KFT §9).",
+      "description": "Method-specific hyperparameters (epochs, lr, max_seq_len, lora{r,alpha,dropout,target_modules}, …). Permissive — engine adapters own the detail (KFT §9). With `method`, this is KFT's deliberate divergence from TrainJob, which passes adaptation through spec.trainer.args (KFT §3.2).",
       "additionalProperties": true
     },
     "export": {
@@ -85,7 +95,7 @@
         "class": {
           "type": "string",
           "minLength": 1,
-          "description": "Requested compute class (e.g. local-mps, single-gpu-a100-80gb). A cross-boundary class is rejected for a local-only-effective run (KFT §4.2)."
+          "description": "Requested compute class (e.g. local-mps, single-gpu-a100-80gb) — a class, not a pod resource shape (contrast TrainJob's spec.trainer.resourcesPerNode; KFT §3.2). A cross-boundary class is rejected for a local-only-effective run (KFT §4.2)."
         },
         "egress": {
           "type": "string",

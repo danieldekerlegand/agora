@@ -105,6 +105,7 @@ ceiling with is now pinned across the language boundary in both directions
 |---|---|---|---|
 | The four-tier ladder `paid → mlx → local → placeholder`, per modality, ordered by `AGORA_<MODALITY>_LADDER` with `AGORA_PREFER_LOCAL=1` fronting the zero-spend tiers | `ladder.py` | `apr_ladder` | `tests/test_ladder.py`, `apr_ladder_tests` |
 | `resolve_all` never raises, so `/doctor` always answers | `ladder.py`, `app.py` | `apr_ladder`, `apr_doctor_handler` | `tests/test_app.py`, `apr_http_SUITE` |
+| A rung's answer must be a JSON **object** — anything else is a rung that did not answer, recorded `dialed=true` and walked past, never settled and relayed | `router.py` (`_malformed`) | `apr_rung_worker` (`malformed/1`) | `tests/test_local_failure_modes.py`, `test/apr_local_failure_SUITE.erl` |
 | An unadaptable vendor resolves to **`pending-adapter`** — a named, reported refusal rather than a fake tier that fails on every real request | `backends.py` | `apr_backends` | `tests/test_ladder.py`, `tests/test_litellm_dispatch.py` |
 | No read endpoint echoes a configured key, and a failed rung redacts it from its reason | `app.py`, `router.py` | `apr_doctor_handler`, `apr_router` | `apr_conformance_SUITE` (two dedicated cases) |
 | `/v1/audio/music-generations` — agora's own route over its own vendors | `app.py` | `apr_routes`, `apr_generate_handler` | both routers' route tables, the corpus' music generation |

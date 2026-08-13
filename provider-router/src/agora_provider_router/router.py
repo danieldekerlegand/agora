@@ -32,7 +32,15 @@ from typing import Any
 
 import httpx
 
-from .backends import Backend, Rank, TierResolution, placeholder_backend, resolve_tier
+from .backends import (
+    Backend,
+    Rank,
+    TierResolution,
+    dispatch_headers,
+    dispatch_url,
+    placeholder_backend,
+    resolve_tier,
+)
 from .config import RouterConfig
 from .cost import Cost, project, refusal, settle, take_ceiling, within
 from .ladder import MODALITIES, PLACEHOLDER, safe_resolve
@@ -43,7 +51,9 @@ from .placeholder import complete as placeholder_complete
 logger = logging.getLogger(__name__)
 
 #: An injected transport: dial ``backend`` with ``payload``, return the decoded response.
-#: Raising is how it reports "this rung did not answer" — the router falls through.
+#: Raising is how it reports "this rung did not answer" — the router falls through. So is
+#: returning anything that is not a JSON object: an answer the ladder cannot read is an
+#: answer it did not get (:func:`_malformed`).
 Transport = Callable[[Backend, dict[str, Any]], Awaitable[dict[str, Any]]]
 
 #: Seconds a single rung gets before it counts as unavailable. A slow paid tier must not
@@ -121,12 +131,20 @@ class Completion:
 
 
 async def http_transport(backend: Backend, payload: dict[str, Any]) -> dict[str, Any]:
-    """The real transport: POST the OpenAI-shaped payload at the backend's endpoint."""
-    headers = {"content-type": "application/json"}
-    if backend.api_key is not None:
-        headers["authorization"] = f"Bearer {backend.api_key.get_secret_value()}"
+    """The real transport: POST the OpenAI-shaped payload at the backend's endpoint.
+
+    The endpoint comes from :func:`~agora_provider_router.backends.dispatch_url`, which
+    refuses an address nobody configured rather than reaching for a default one — a local
+    rung that got this far without an operator's base URL raises here, and raising is just
+    "the next rung, please". The headers come from
+    :func:`~agora_provider_router.backends.dispatch_headers`, which carries a credential
+    when one was configured — for a local rung as much as a paid one — and fabricates none
+    when it was not.
+    """
+    url = dispatch_url(backend)
+    headers = dispatch_headers(backend)
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-        response = await client.post(backend.url, json=payload, headers=headers)
+        response = await client.post(url, json=payload, headers=headers)
         response.raise_for_status()
         decoded: dict[str, Any] = response.json()
         return decoded
@@ -290,6 +308,25 @@ class Router:
                     )
                 )
                 continue
+            malformed = _malformed(response)
+            if malformed is not None:
+                logger.warning(
+                    "tier %s (%s) answered %s for %s",
+                    backend.tier,
+                    backend.provider,
+                    malformed,
+                    modality,
+                )
+                attempts.append(
+                    Attempt(
+                        tier=backend.tier,
+                        provider=backend.provider,
+                        ok=False,
+                        reason=malformed,
+                        projected=projected,
+                    )
+                )
+                continue
             attempts.append(
                 Attempt(tier=backend.tier, provider=backend.provider, ok=True, projected=projected)
             )
@@ -344,3 +381,36 @@ def _reason(exc: Exception, backend: Backend) -> str:
         if secret:
             reason = reason.replace(secret, "***")
     return reason
+
+
+def _malformed(response: Any) -> str | None:
+    """Why ``response`` is not an answer, or ``None`` if it is one.
+
+    A rung that replies with something other than a JSON **object** did not answer. Every
+    modality's response is read out of an object — ``usage`` for what a text call billed,
+    ``data`` for the artifacts an image or music call returned — so a bare array, string or
+    number would be settled, relayed and reported as though it were a completion. A local
+    backend is the likeliest source (a proxy's error page, a half-implemented ``/v1`` shim
+    in front of a model server), which is exactly the tier whose address the operator, not
+    a vendor, is responsible for; and the ladder's answer to a rung that did not answer is
+    the next rung. Reported like any other failed attempt, with ``dialed`` true — it was
+    contacted, so it may well have billed.
+    """
+    if isinstance(response, Mapping):
+        return None
+    return f"malformed response: expected a JSON object, got {_json_type(response)}"
+
+
+def _json_type(value: Any) -> str:
+    """The JSON name for what a rung sent back, so both routers can say the same thing."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, (list, tuple)):
+        return "array"
+    return "a non-JSON value"

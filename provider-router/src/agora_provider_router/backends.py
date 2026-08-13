@@ -25,7 +25,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from ipaddress import ip_address
 from typing import Literal
+from urllib.parse import urlsplit
 
 from pydantic import SecretStr
 
@@ -122,6 +124,51 @@ OLLAMA_MODELS: dict[str, str] = {"text": "llama3.2"}
 MLX_PROVIDER = "mlx-serve"
 LOCAL_PROVIDER = "ollama"
 
+#: The providers of those tiers, as a set. Their address is the operator's and nobody
+#: else's: a client library will happily supply one (LiteLLM defaults ``ollama`` to
+#: ``http://localhost:11434``), and inheriting it would make "no local server configured"
+#: a statement about whatever happens to be listening on the box rather than about the
+#: configuration. Every agora dispatch path overrides that default by refusing to dial
+#: without an explicit one — see :func:`dispatch_url`, and
+#: ``docs/local-backend-posture.md``, which states the whole posture (bind, auth, why the
+#: default is never inherited).
+LOCAL_PROVIDERS: frozenset[str] = frozenset({MLX_PROVIDER, LOCAL_PROVIDER})
+
+#: Where a local backend's configured address puts it: on this machine's loopback
+#: interface, or somewhere a packet has to leave the box to reach. Ollama and mlx-serve
+#: ship unauthenticated and bound for local use, so the two are not the same deployment
+#: and are not reported as the same thing (``docs/local-backend-posture.md``).
+LocalBind = Literal["loopback", "remote"]
+
+
+def local_bind(base_url: str | None) -> LocalBind | None:
+    """Classify a local backend's address; ``None`` when there is none to classify.
+
+    Anything not *demonstrably* loopback is ``remote``. A host this cannot parse, or one
+    that only a resolver could settle, is the operator's to explain — and the safe reading
+    of "I could not tell" is "it leaves the box", because that is the reading under which
+    an unauthenticated backend is the operator's explicit choice rather than this module's
+    silent one. Never resolves DNS: classification is a fact about the configuration.
+    """
+    if not base_url:
+        return None
+    # ``OLLAMA_HOST=localhost:11434`` is a real spelling, and to ``urlsplit`` a bare
+    # ``host:port`` reads as scheme ``host`` — so an authority with no ``//`` is given one.
+    raw = base_url.strip()
+    candidate = raw if "//" in raw else f"//{raw}"
+    try:
+        host = urlsplit(candidate).hostname
+    except ValueError:
+        return "remote"
+    if not host:
+        return "remote"
+    if host == "localhost" or host.endswith(".localhost"):
+        return "loopback"
+    try:
+        return "loopback" if ip_address(host).is_loopback else "remote"
+    except ValueError:
+        return "remote"
+
 
 @dataclass(frozen=True)
 class Backend:
@@ -140,13 +187,26 @@ class Backend:
         """The full endpoint for this backend's modality."""
         return f"{(self.base_url or '').rstrip('/')}{ENDPOINTS[self.modality]}"
 
+    @property
+    def bind(self) -> LocalBind | None:
+        """Where a *local* rung is bound. ``None`` for every other backend: a paid vendor's
+        address is public vocabulary, not a statement about anybody's network."""
+        if self.provider not in LOCAL_PROVIDERS:
+            return None
+        return local_bind(self.base_url)
+
     def describe(self) -> dict[str, object]:
-        return {
+        entry: dict[str, object] = {
             "tier": self.tier,
             "provider": self.provider,
             "model": self.model,
             "base_url": self.base_url,
         }
+        # Reported only where it means something, so that a local rung's posture is visible
+        # on ``/doctor`` without inventing a field for the eight vendors it cannot describe.
+        if self.bind is not None:
+            entry["bind"] = self.bind
+        return entry
 
 
 @dataclass(frozen=True)
@@ -165,6 +225,54 @@ class TierResolution:
         if self.reason:
             entry["reason"] = self.reason
         return entry
+
+
+class UnconfiguredLocalAddress(RuntimeError):
+    """A local rung reached a transport without an operator-configured base URL.
+
+    :func:`resolve_tier` never yields such a rung, so this is the same rule held a second
+    time at the dispatch boundary — the half that a *transport* has to obey, so that no
+    library one is layered under can substitute an address nobody configured. Raised
+    rather than dialed: to :meth:`~agora_provider_router.router.Router.complete` that is
+    one more rung that did not answer, and the walk continues to the next one.
+    """
+
+
+def dispatch_url(backend: Backend) -> str:
+    """The address ``backend`` is dialed at — never one nobody configured.
+
+    Only the keyless local tiers are held to it: a paid rung dialed through a borrowed
+    adapter legitimately carries no address of its own, because the adapter knows the
+    vendor's (:mod:`agora_provider_router.litellm_dispatch`), and a vendor address is
+    public vocabulary where a local one is a fact about an operator's machine.
+
+    Where that machine *is* is a separate question, answered by :func:`local_bind` and
+    reported rather than judged: a non-loopback local backend is dialed exactly as
+    configured, and marked so that it never passes for a loopback one.
+    """
+    if backend.provider in LOCAL_PROVIDERS and not backend.base_url:
+        raise UnconfiguredLocalAddress(
+            f"{backend.provider} has no configured base URL — a local tier is never dialed "
+            "at a default address, only at one an operator set"
+        )
+    return backend.url
+
+
+def dispatch_headers(backend: Backend) -> dict[str, str]:
+    """The headers ``backend`` is dialed with: JSON, plus auth iff one was configured.
+
+    The local tiers are keyless *by default*, not by rule. Ollama and mlx-serve ship
+    unauthenticated, so a stock one needs no credential — but an operator who has put one
+    behind a reverse proxy has a credential for it, and ``AGORA_PROVIDER_OLLAMA_API_KEY``
+    is carried here the same way a paid vendor's is. What this never does is invent one:
+    with nothing configured there is no ``authorization`` header at all, rather than an
+    empty bearer that a permissive backend would accept and a strict one would reject for
+    the wrong reason. See ``docs/local-backend-posture.md``.
+    """
+    headers = {"content-type": "application/json"}
+    if backend.api_key is not None and backend.api_key.get_secret_value():
+        headers["authorization"] = f"Bearer {backend.api_key.get_secret_value()}"
+    return headers
 
 
 def placeholder_backend(modality: str) -> Backend:
@@ -256,6 +364,10 @@ def _resolve_keyless(
     A base URL must be *configured* — the router never assumes a default localhost port.
     Probing one would make "no local servers" depend on whatever happens to be listening on
     the box, which is exactly the state the zero-spend invariant has to be able to assert.
+
+    A credential is optional and, when set, carried (:func:`dispatch_headers`); an address
+    that is not loopback still resolves, and is marked as the operator choice it is rather
+    than passing for one. Both are ``docs/local-backend-posture.md``.
     """
     settings = config.provider(provider)
     model = settings.model or models.get(modality)
@@ -284,7 +396,27 @@ def _resolve_keyless(
             modality=modality,
             model=model,
             base_url=settings.base_url,
+            # Keyless is the default posture, not the only one: an operator who
+            # authenticated their local server configured a key, and it is dialed with.
+            api_key=settings.api_key,
         ),
+        # A ``reason`` on a *ready* rung is the one thing ``/doctor`` says about a rung it
+        # is otherwise happy with — which is exactly the weight a remote-local address
+        # deserves: allowed, because configured; never silent, because unauthenticated
+        # local backends were designed for a loopback interface.
+        reason=(
+            None
+            if local_bind(settings.base_url) == "loopback"
+            else _remote_local_reason(provider, settings.base_url)
+        ),
+    )
+
+
+def _remote_local_reason(provider: str, base_url: str | None) -> str:
+    """Why a ready local rung still has something to say for itself."""
+    return (
+        f"{provider} is configured at a non-loopback address ({base_url}) — a local backend "
+        "reached over a network, which is an explicit operator choice and not a default"
     )
 
 

@@ -23,7 +23,8 @@
 %%% monitored `gen_server:call' — records the crash as a failed attempt and walks on. That is
 %%% the always-completes invariant expressed as a supervision tree: an unconfigured, over
 %%% budget, timing out, crashing or erroring rung is just the next child, never a failed
-%%% request.
+%%% request. So is one that answers with something the ladder cannot read: a reply that is not
+%%% a JSON object is not an answer ({@link malformed/1}).
 -module(apr_rung_worker).
 -behaviour(gen_server).
 
@@ -104,9 +105,22 @@ dial(#{wire := native} = Backend, Tier, Provider, Payload, Projected, Transport)
             translated(Backend#{path := Path}, Tier, Provider, Modality, Model, Native,
                        Projected, Transport)
     end;
+%% An OpenAI-wire rung is dialed at the address {@link apr_backends:dispatch_url/1} names, and
+%% only there. For the keyless local tiers that address is the operator's or it does not exist:
+%% no default is inherited from anywhere, so a local rung that reached here without one is an
+%% attempt with `dialed => false' rather than a dial at whatever is listening on the box
+%% (`router.py::http_transport'). Unreachable through resolution, which never yields such a
+%% rung — it is the same rule held a second time, where a transport could otherwise fill the
+%% gap in.
 dial(Backend, Tier, Provider, Payload, Projected, Transport) ->
-    answered(Transport(Backend, dial_payload(Backend, Payload)), Backend, Tier, Provider,
-             Projected).
+    case apr_backends:dispatch_url(Backend) of
+        {error, Reason} ->
+            {failed, #{tier => Tier, provider => Provider, ok => false, dialed => false,
+                       reason => Reason, projected => Projected}};
+        {ok, _Url} ->
+            answered(Transport(Backend, dial_payload(Backend, Payload)), Backend, Tier, Provider,
+                     Projected)
+    end.
 
 translated(Backend, Tier, Provider, Modality, Model, Native, Projected, Transport) ->
     case answered(Transport(Backend, Native), Backend, Tier, Provider, Projected) of
@@ -124,11 +138,42 @@ translated(Backend, Tier, Provider, Modality, Model, Native, Projected, Transpor
     end.
 
 answered({ok, Response}, Backend, Tier, Provider, Projected) ->
-    {ok, Response, Backend,
-     #{tier => Tier, provider => Provider, ok => true, dialed => true, projected => Projected}};
+    case malformed(Response) of
+        undefined ->
+            {ok, Response, Backend,
+             #{tier => Tier, provider => Provider, ok => true, dialed => true,
+               projected => Projected}};
+        Reason ->
+            {failed, #{tier => Tier, provider => Provider, ok => false, dialed => true,
+                       reason => Reason, projected => Projected}}
+    end;
 answered({error, Reason}, Backend, Tier, Provider, Projected) ->
     {failed, #{tier => Tier, provider => Provider, ok => false, dialed => true,
                reason => redact(to_binary(Reason), Backend), projected => Projected}}.
+
+%% A rung that replies with something other than a JSON OBJECT did not answer. Every
+%% modality's response is read out of an object — `usage' for what a text call billed, `data'
+%% for the artifacts an image or music call returned — so a bare array, string or number would
+%% be settled, relayed and reported as though it were a completion. A local backend is the
+%% likeliest source (a proxy's error page, a half-implemented `/v1' shim in front of a model
+%% server), which is exactly the tier whose address the operator rather than a vendor is
+%% responsible for. Recorded with `dialed => true': it was contacted, so it may well have
+%% billed (`router.py::_malformed', whose wording this shares).
+-spec malformed(term()) -> binary() | undefined.
+malformed({obj, KVs}) when is_list(KVs) -> undefined;
+malformed(Map) when is_map(Map) -> undefined;
+malformed(Value) ->
+    <<"malformed response: expected a JSON object, got ", (json_type(Value))/binary>>.
+
+%% The JSON name for what a rung sent back, so both routers can say the same thing.
+-spec json_type(term()) -> binary().
+json_type(null) -> <<"null">>;
+json_type(true) -> <<"boolean">>;
+json_type(false) -> <<"boolean">>;
+json_type(Value) when is_number(Value) -> <<"number">>;
+json_type(Value) when is_binary(Value) -> <<"string">>;
+json_type(Value) when is_list(Value) -> <<"array">>;
+json_type(_Value) -> <<"a non-JSON value">>.
 
 translator_reason(Reason, Backend) ->
     redact(<<"translator: ", (to_binary(Reason))/binary>>, Backend).

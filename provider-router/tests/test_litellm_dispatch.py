@@ -27,6 +27,8 @@ from fastapi.testclient import TestClient
 from agora_provider_router import litellm_dispatch
 from agora_provider_router.app import app, get_router
 from agora_provider_router.backends import (
+    LOCAL_PROVIDER,
+    LOCAL_PROVIDERS,
     PAID_PROVIDERS,
     PAID_VENDORS,
     Backend,
@@ -35,12 +37,21 @@ from agora_provider_router.backends import (
 )
 from agora_provider_router.cost import BUDGET_HEADER, BUDGET_KEY, project
 from agora_provider_router.ladder import MODALITIES, PLACEHOLDER
-from agora_provider_router.litellm_dispatch import CALLS, ENABLE_ENV, NATIVE_ADAPTERS
+from agora_provider_router.litellm_dispatch import (
+    CALLS,
+    ENABLE_ENV,
+    NATIVE_ADAPTERS,
+    Adapter,
+)
 from agora_provider_router.router import Router, default_transport, http_transport
 from conftest import config_for, recording_transport, run
 
 #: An Anthropic key plus the adapter switched on: the whole configuration a deployer needs.
 BORROWED: dict[str, str] = {"ANTHROPIC_API_KEY": "sk-ant-test", ENABLE_ENV: "1"}
+
+#: An address for the local rung. Not loopback-looking on purpose: a test that passed
+#: because something was listening on the box would be exactly the bug under test.
+OLLAMA = "http://ollama.test:11434/v1"
 
 #: 1000 tokens of text — expensive enough on the paid tier for a ceiling to bite.
 PROMPT: dict[str, Any] = {"messages": [{"role": "user", "content": "hi"}], "max_tokens": 1000}
@@ -204,6 +215,61 @@ class TestTranslation:
         assert completion.tier == PLACEHOLDER
         refused = next(a for a in completion.attempts if a.tier == "paid")
         assert refused.reason is not None and "TypeError" in refused.reason
+
+
+class TestTheLocalRungIsNeverTheLibrarys:
+    """The local tiers keep their own address — the half of the rule this module holds.
+
+    LiteLLM defaults ``ollama`` to ``http://localhost:11434``. Borrowing an adapter must not
+    borrow that: a rung dialed there would exist because of what is listening on the box
+    rather than because an operator configured it. The resolution half of the same rule —
+    no configured base URL, no rung — is in ``test_local_backend.py``.
+    """
+
+    def test_a_configured_local_rung_takes_the_direct_post_at_its_own_address(
+        self, fake_litellm: FakeLiteLLM
+    ) -> None:
+        dialed: list[Backend] = []
+        transport = litellm_dispatch.transport(recording_transport(dialed), timeout=1.0)
+        config = config_for(OLLAMA_BASE_URL=OLLAMA, AGORA_TEXT_LADDER="local", **BORROWED)
+        completion = run(Router(config, transport).complete("text", dict(PROMPT)))
+
+        assert completion.tier == "local"
+        assert [(b.provider, b.base_url) for b in dialed] == [(LOCAL_PROVIDER, OLLAMA)]
+        assert dialed[0].url == f"{OLLAMA}/chat/completions"
+        assert fake_litellm.calls == [], "the local tier is never the library's to address"
+
+    def test_an_unconfigured_local_rung_is_absent_here_too(self, fake_litellm: FakeLiteLLM) -> None:
+        """Adapter on, no address: nothing is dialed, by either transport."""
+        dialed: list[Backend] = []
+        transport = litellm_dispatch.transport(recording_transport(dialed), timeout=1.0)
+        config = config_for(AGORA_TEXT_LADDER="local", **BORROWED)
+        completion = run(Router(config, transport).complete("text", dict(PROMPT)))
+
+        assert completion.tier == PLACEHOLDER
+        assert dialed == []
+        assert fake_litellm.calls == []
+
+    def test_the_adapter_table_claims_no_local_provider(self) -> None:
+        assert not NATIVE_ADAPTERS.keys() & LOCAL_PROVIDERS
+
+    def test_and_could_not_route_one_through_the_library_even_if_it_did(
+        self, fake_litellm: FakeLiteLLM, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The tier is checked before the table, so the library default stays unreachable."""
+        monkeypatch.setitem(NATIVE_ADAPTERS, LOCAL_PROVIDER, Adapter(LOCAL_PROVIDER, ("text",)))
+        dialed: list[Backend] = []
+        transport = litellm_dispatch.transport(recording_transport(dialed), timeout=1.0)
+        backend = Backend(
+            tier="local",
+            provider=LOCAL_PROVIDER,
+            modality="text",
+            model="llama3.2",
+            base_url=OLLAMA,
+        )
+        assert run(transport(backend, {})) == {"id": f"{LOCAL_PROVIDER}-response"}
+        assert [b.provider for b in dialed] == [LOCAL_PROVIDER]
+        assert fake_litellm.calls == []
 
 
 class TestTheCeilingStillRefuses:
