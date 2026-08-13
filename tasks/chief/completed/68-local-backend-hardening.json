@@ -1,0 +1,63 @@
+{
+  "name": null,
+  "project": "agora",
+  "category": "fix",
+  "branchName": "chief/68-local-backend-hardening",
+  "description": "Harden the local-backend (Ollama / mlx-serve) default posture — the ROADMAP wishlist item 'Harden the Ollama localhost default' promoted to a tasklist (docs/spike-litellm-leaf.md N2/N3). The router's local tier deliberately refuses to assume a localhost port: LiteLLM defaults `ollama` to `http://localhost:11434`, which would make 'no local server configured' depend on whatever happens to be listening on the box — the default must be OVERRIDDEN, not inherited, on every dispatch path including the `AGORA_LITELLM=1` adapter. This spike-then-harden pass covers three faces of the local tier: (1) no inherited base-URL default anywhere, (2) an explicit auth/bind posture for local backends (a local rung exists only by explicit configuration and its bind/auth expectations are documented and asserted), (3) failure modes inside the always-completes ladder — a dead/absent/misbehaving local backend falls through to the deterministic terminal tier, never raises, and never lets `unpriced` pass a ceiling (docs/router-hand-built-behaviours.md §2.3: re-prove the guards on any touched dispatch path). The router's external contract is dual-implemented: any behavior change lands in BOTH `provider-router/` (Python, spec of record) and `provider-router-erl/` (Erlang, canonical) or in neither, with the conformance corpus regenerated (`capture_python_surface.py`) if the surface moves. Gates: `make check-provider-router`, `make check-router-erl`, `make check`.",
+  "parked": false,
+  "dependsOn": [],
+  "touches": [
+    "provider-router",
+    "provider-router-erl",
+    "docs"
+  ],
+  "iters": 7,
+  "warmup": [
+    "sed -n '85,100p' docs/spike-litellm-leaf.md",
+    "grep -rn '11434\\|localhost' provider-router/src provider-router-erl/src | head -20",
+    "grep -rn 'resolve_tier\\|api_base' provider-router/src/agora_provider_router/*.py | head -20",
+    "sed -n '1,40p' docs/router-hand-built-behaviours.md"
+  ],
+  "verify": [
+    "make check"
+  ],
+  "userStories": [
+    {
+      "id": "US-1",
+      "title": "No dispatch path inherits the localhost:11434 default",
+      "description": "Audit every path that can dial a local backend — the native tier resolution and the `AGORA_LITELLM=1` LiteLLM adapter — and assert none inherits LiteLLM's (or any library's) implicit `http://localhost:11434` default: a local rung exists if and only if an explicit base URL is configured, so 'no local server configured' is a statement about configuration, never about what is listening on the box.",
+      "acceptanceCriteria": [
+        "A test proves the LiteLLM adapter path passes an explicitly-configured `api_base` for the ollama/local rung and refuses to dispatch (treats the rung as absent) when none is configured — the library default is demonstrably not reachable from any agora code path.",
+        "The same explicit-config-only rule is asserted on the native (non-LiteLLM) tier resolution in BOTH routers — Python and Erlang tests each pin it — and the two remain byte-identical on the external surface (`apr_conformance_SUITE` green; corpus regenerated only if the surface legitimately moved).",
+        "`make check-provider-router` and `make check-router-erl` green."
+      ],
+      "passes": true,
+      "notes": "The local rung never reaches LiteLLM at all (the adapter checks the tier before the vendor table), so the explicit address it is dialed at is the direct POST's rather than a LiteLLM `api_base`; the criterion's intent — the library default unreachable from any agora path — is pinned either way."
+    },
+    {
+      "id": "US-2",
+      "title": "Explicit auth + bind posture for local backends",
+      "description": "Define and assert the security posture of the local rung: local backends like Ollama ship unauthenticated and bound for local use, so the router must treat them accordingly — document the expected bind posture (loopback unless the operator states otherwise), make any non-loopback local base URL an explicit, visible operator choice, and pass through auth material when the operator configures it.",
+      "acceptanceCriteria": [
+        "The router accepts an optional auth credential for the local rung and sends it when configured (an authenticated Ollama/mlx-serve deployment works); with none configured it sends no fabricated auth — covered by tests on the spec-of-record router and mirrored where the Erlang router dispatches.",
+        "A non-loopback local base URL is accepted only as explicit configuration and is surfaced (logged/marked) as a remote-local choice rather than silently treated the same as loopback; a test pins the distinction.",
+        "`docs/` gains a short local-backend-posture note (bind expectations, auth options, why the default is never inherited) referenced from the spike doc's N2/N3 section; `make check` green."
+      ],
+      "passes": true,
+      "notes": "`bind` is a conditional field: only a local rung carries one, so the conformance corpus (which configures no local backend) did not move. The Erlang router has no live HTTP transport, so its mirror of the auth rule is `dispatch_headers/1` plus the credential now reaching the backend an injected transport is handed."
+    },
+    {
+      "id": "US-3",
+      "title": "Local-backend failure modes leave the always-completes ladder intact",
+      "description": "Re-prove the ladder's guards across local-backend failure: absent config, connection refused, timeout, and garbage responses on the local rung must all fall through to the deterministic zero-spend terminal tier — `Router.complete` never raises on runtime state, and a failure can never cause an `unpriced` call to slip past a ceiling (router-hand-built-behaviours.md §2.3).",
+      "acceptanceCriteria": [
+        "Tests drive the ladder with a local rung that is (a) unconfigured, (b) refusing connections, (c) timing out, and (d) returning malformed output — each completes at the terminal tier with no exception surfaced to the caller, in both routers.",
+        "The `unpriced`-never-passes-a-ceiling and `resolve_all`-never-raises guards are re-asserted on every dispatch path this tasklist touched, per the §2.3 rule that any change to a dispatch path re-proves the guards.",
+        "`make check` green; if the external surface changed, the conformance corpus was regenerated via `capture_python_surface.py` and `apr_conformance_SUITE` passes against it."
+      ],
+      "passes": true,
+      "notes": "A non-object answer was a real crash on the Python side (`settle` reads `.get` off the response outside the transport's try), so the story's fix is a guard rather than only a test: `router.py::_malformed` / `apr_rung_worker:malformed/1`, same wording in both. The Erlang half's refused/timeout/malformed cases arrive as an injected transport — the canonical router has no live HTTP dial yet — which is the same failure the ladder sees. `make check` also needed the stale vendored koine finetune-job snapshot refreshed (red on main since koine cd98c41); the refresh is additive and every gate is green."
+    }
+  ],
+  "mergedToMain": "08d0ef2"
+}
