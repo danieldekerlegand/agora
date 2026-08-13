@@ -3,7 +3,7 @@
   "project": "agora",
   "category": "feature",
   "branchName": "chief/60-studio-ui-backbone",
-  "description": "Stand up Agora Studio's UI shell/backbone: a new source-first TypeScript + React 19 + Vite workspace (`studio/`) alongside the conformance `console/`, ships with NO preconfigured apps/services/connections. Studio is an observer, never a hub \u2014 traffic never flows through it (ADR-0001). The cast is learned at runtime (capability, never caller \u2014 the same rule the whole tree obeys per CLAUDE.md): participants come ONLY from the user's own configuration (rosetta is the internal dogfood per rosetta's roadmap, and is never bundled here), never a hard-wired roster or a project-name literal. This is the backbone the topology graph (61), connection monitoring (62), message viewer (63), analytics (64), spec viewer (65), and example setups (66) all build on. Scope: a new `studio/` npm workspace mirroring `console/`'s layout/conventions (`exports` \u2192 `src/index.ts`, nothing emitted, tests as `*.test.ts(x)` next to their subject, React+Vite deps), added to the root `workspaces` array with a `check-studio` Makefile target wired into `check-ts`/`make check`. agora gates on `make check`.",
+  "description": "Stand up Agora Studio's UI shell/backbone: a new source-first TypeScript + React 19 + Vite workspace (`studio/`) alongside the conformance `console/`, ships with NO preconfigured apps/services/connections. Studio is an observer, never a hub — traffic never flows through it (ADR-0001). The cast is learned at runtime (capability, never caller — the same rule the whole tree obeys per CLAUDE.md): participants come ONLY from the user's own configuration (rosetta is the internal dogfood per rosetta's roadmap, and is never bundled here), never a hard-wired roster or a project-name literal. This is the backbone the topology graph (61), connection monitoring (62), message viewer (63), analytics (64), spec viewer (65), and example setups (66) all build on. Scope: a new `studio/` npm workspace mirroring `console/`'s layout/conventions (`exports` → `src/index.ts`, nothing emitted, tests as `*.test.ts(x)` next to their subject, React+Vite deps), added to the root `workspaces` array with a `check-studio` Makefile target wired into `check-ts`/`make check`. agora gates on `make check`.",
   "parked": false,
   "dependsOn": [],
   "touches": [
@@ -37,9 +37,9 @@
     {
       "id": "US-2",
       "title": "An empty-by-default backbone with no preconfigured participants",
-      "description": "The shell renders with NO bundled apps/services/connections and no project-name literal anywhere in the tree \u2014 an empty backbone that shows a clear empty state until a user's config supplies a cast.",
+      "description": "The shell renders with NO bundled apps/services/connections and no project-name literal anywhere in the tree — an empty backbone that shows a clear empty state until a user's config supplies a cast.",
       "acceptanceCriteria": [
-        "With no configuration provided, Studio renders an explicit empty state (zero nodes, zero connections) and carries NO hard-wired roster and no project-name literal (grep-clean per CLAUDE.md's capability-never-caller rule \u2014 any project name present is marked sample/attributed, never a runtime default)",
+        "With no configuration provided, Studio renders an explicit empty state (zero nodes, zero connections) and carries NO hard-wired roster and no project-name literal (grep-clean per CLAUDE.md's capability-never-caller rule — any project name present is marked sample/attributed, never a runtime default)",
         "A test asserts the backbone lists zero participants when given empty/absent config, and that participants are sourced only from data passed in at runtime (never imported statically)",
         "The shell is observer-only: it holds no code path that relays or proxies traffic between participants (ADR-0001); `make check` green"
       ],
@@ -52,11 +52,12 @@
       "description": "Read the user's own participant configuration and derive the cast from it, so the same backbone is empty for a fresh install and populated for a configured one (rosetta is the internal dogfood, referenced by shape, never bundled).",
       "acceptanceCriteria": [
         "Studio ingests a user-supplied config describing participants/connections and derives the on-screen cast from it at runtime; the config format is self-describing and lives with the user (per the ecosystem's config-lives-in-the-project rule), not baked into `studio/`",
-        "A test drives ingestion with a synthetic, non-project-specific config and asserts the cast reflects it exactly (add/remove a participant \u2192 the backbone reflects it), while an empty config still yields the empty state from US-2",
+        "A test drives ingestion with a synthetic, non-project-specific config and asserts the cast reflects it exactly (add/remove a participant → the backbone reflects it), while an empty config still yields the empty state from US-2",
         "`make check` green; Studio stays source-first (no build emit introduced)"
       ],
       "passes": true,
       "notes": ""
     }
-  ]
+  ],
+  "mergedToMain": "e9ac708"
 }
