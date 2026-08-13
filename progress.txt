@@ -823,3 +823,53 @@ Full Erlang gate green (compile + dialyzer + eunit 103 + ct 51/7 skipped); `make
 - US-2 seams already in place: `TopologyNode.address.endpoints` carries the mcp/a2a split the edge
   types need (`transportOf` in `clients/sdk/src/kcb.ts` names it without re-deriving), and node
   identity is a plain string field, so the resolver merge is a fold over `nodesOf`'s output.
+---
+## 61-studio-topology-graph — US-2: edges are connections, and identity is the resolver's ruling
+- `studio/src/topology.ts` grew the second half of the graph: `TopologyEdge` (a `Connection`
+  plus `scope`, and the registry's own port facts `capability`/`plane`/`crossPlane`), `edgesOf`,
+  `pathEdges`, `resolveNodes`, `topologyOf` and `discoverTopology` (find → resolve → plan → draw
+  in one call). `TopologyNode` gained `discovered`, `aliases`, `alsoAt`. 16 new tests (58 in the
+  area), exports added to `src/index.ts`, README gained an "edges are connections" section.
+- **Every distinction is somebody else's answer.** internal/external is read off the discovery
+  index on each pass (both ends indexed → internal), cross-plane is whatever `registry.path`
+  computed, sameness is what `resolve` ruled. Studio classifies nothing itself, so a peer joining
+  the index flips its edges internal on the next pass with no code edited — that is the same
+  churn-safety US-1 got from holding no roster, extended to the edges.
+- **The merge is a union-find over `same_as`, never over `based_on`** (identity.md §4.3). The
+  group keeps its first-sighted address (discovery's cost ranking survives), collects the others
+  into `alsoAt`, is `reachable` if ANY of them is dialable, and exposes the collapsed identities
+  as `aliases` — which is what lets `edgesOf` re-point a link named against a merged-away address
+  and then drop it if both ends turn out to be one entity.
+- **A resolver that cannot answer must not be able to delete a participant.** `resolveNodes`
+  catches per-node (`AuthorityUnreachableError` for an `ent` id with nothing cached) and leaves
+  that node exactly as discovery gave it. Same for no resolver at all: nothing merges.
+- The tests drive a REAL `createAuthorityResolver` with its HTTP surface stubbed, the way US-1
+  drives a real `createRegistry` — the claim under test is that Studio reads those surfaces, and
+  a fake resolver object would test only Studio's own arithmetic.
+- Gate: `make check` exit 0.
+
+### Learnings for future iterations
+- **`createAuthorityResolver` only dials for `ent`-kind ids** (`needsAuthority` in
+  `resolver/src/authority.ts`); every other KINP kind self-resolves in-process. A merge fixture
+  therefore needs `…:ent:…` identities — `agent`-kind manifests will never reach the authority
+  stub, however it answers.
+- The authority's resolve response is read by `readResolution`: `same_as`/`same_as_closure`,
+  `based_on`, and `links`/`assertions`/`claims`/`equivalences` entries shaped
+  `{relation, subject, object}`. It keeps the REQUESTED id as `id` — it never renames an entity —
+  so a consumer that wants one canonical node per entity picks the representative itself (here:
+  the first-sighted member, so discovery's ranking survives the merge).
+- **`satisfies()` requires both ends of a hop to share a plane**, so a plane crossing lives
+  INSIDE a capability (`input.plane !== output.plane`), never between two hops. An edge therefore
+  carries the handoff plane and flags the far end as the crossing; deriving "cross-plane" from a
+  pair of manifests instead of from `registry.path` would have been the assumption the story
+  forbids.
+- `exactOptionalPropertyTypes` bites at every seam that forwards an optional through: passing
+  `options.observed` (typed `X | null | undefined`) into a field typed `X | null` is an error.
+  Forward with `?? null` rather than widening the target's type.
+- The area's guards (`backbone.test.ts`) still hold and are worth re-reading before adding to
+  `studio/src`: no quoted KINP identity literal in authored source (doc comments included), no
+  `fetch(`/`WebSocket(`/…, no export matching `/relay|proxy|invoke|forward|dispatch|^call|^send|
+  ^dial|^request/i`, and non-function exports pinned to exactly `EMPTY_BACKBONE`.
+- **US-3 seam:** `discoverTopology(query)` is the whole graph in one await and remembers nothing
+  between calls, so the render story's churn test is "call it again after the index changed" —
+  no cache to invalidate and no stale node to evict.

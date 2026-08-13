@@ -44,7 +44,7 @@
         "Node identity is resolved through the KINP `resolver/` (`resolver/src/main.ts` resolve, via `@agora/resolver`), so addresses that resolve to the same entity collapse to one node; a test asserts this merge and the internal/external edge distinction",
         "`make check` green; no traffic is relayed through Studio to build the graph (addresses/telemetry only, ADR-0001)"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
