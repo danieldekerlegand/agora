@@ -30,7 +30,7 @@
         "The router serves working MCP and A2A endpoints (answering the KCB \u00a74 verbs the manifest will advertise), proven by a test that dials each transport directly and gets a valid response.",
         "The endpoints are observer-safe (no relay/proxy of traffic between other peers, ADR-0001); `make check-provider-router` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

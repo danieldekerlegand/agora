@@ -689,3 +689,47 @@ so the row updates (and the Erlang lockstep) belong there.
   the provider-qualified key up first. Cross-checking the entry's own `litellm_provider` against
   agora's provider name is tempting and wrong: one vendor's models are filed under several
   LiteLLM providers, so the check rejects correct rates more often than wrong ones.
+---
+## agora:54 US-1 — Serve MCP + A2A endpoints on the provider-router
+- New `provider-router/src/agora_provider_router/`: `invoke.py` (the shared translation +
+  the shared JSON-RPC envelope), `mcp.py` (`/mcp`, stateless Streamable HTTP: initialize /
+  ping / tools/list / tools/call), `a2a.py` (`/a2a`, one `message/send` → one completed
+  Task). `app.py` mounts all three routes (POST /mcp, GET /mcp → 405, POST /a2a) and reads
+  their bodies itself. Tests: `test_mcp.py` (26), `test_a2a.py` (23), all dialing over HTTP.
+- **Nothing new is advertised yet.** The manifest is untouched, so US-2 is still free to add
+  the `mcp`/`a2a` keys and re-pin the set; serving what you do not advertise is safe, the
+  reverse is the sin. The conformance corpus is likewise untouched (no existing response
+  bytes changed) — `test_python_surface_corpus.py` stayed green without regeneration.
+- The transports are written against the console's own clients (`console/src/kcs/mcp-wire.ts`,
+  `a2a-wire.ts`) — they are the peers this surface is judged by, so their exact shapes
+  (camelCase A2A keys, `kind`-tagged parts, the `initialize → tools/list → tools/call`
+  handshake, the ceiling in the header the manifest advertises) are the contract.
+- Anti-relay is enforced, not just documented: no tool declares `url`/`endpoint`/`base_url`,
+  an argument naming a peer dials nothing (asserted against `recording_transport`), and an
+  A2A message whose `toAgent` names somebody else is REFUSED with the reason rather than
+  forwarded. A router that quietly forwarded would be the hub ADR-0001 forbids.
+- `make check-provider-router` and `make check` both exit 0 (the Erlang gate clean-skips —
+  no rebar3 on this host, so US-3's ct run cannot be executed here either).
+
+### Learnings for future iterations
+- **A transport's ids must be derived, never drawn.** `crypto.randomUUID`-style task and
+  message ids would make two identical requests differ byte for byte, and the Erlang
+  conformance corpus (`apr_conformance_SUITE`) holds both routers to *bytes*. Everything
+  here is `sha256(modality + payload)[:16]` — the same discipline `placeholder.py` already
+  used for its own fingerprints, now `invoke.identifier`.
+- **An artifact digest must be over the bytes.** The placeholder's own `digest` field
+  fingerprints the *request*, not the response — passing it off as a content id would have
+  been a lie a consumer could not verify. `artifacts_of` decodes and re-hashes.
+- **A2A carries no capability field.** The console's wire sends the capability name only in
+  its observation log, not on the wire, so the server has to read it from message metadata
+  (or a data part) and default to `text`. The selector is popped out of the request before
+  dispatch — it is agora's own extension, like `budget_units`, and forwarding it upstream
+  would send a vendor a key it never declared.
+- **Read the JSON-RPC body by hand, not through the framework.** `Annotated[dict, Body(...)]`
+  turns a malformed request into FastAPI's 422 validation shape, which is the server's
+  contract rather than the router's; a JSON-RPC caller must get a JSON-RPC refusal. `app.py`
+  parses the raw body and answers -32700/-32600 with the 400 the transport expects, keeping
+  method-level refusals on 200 where JSON-RPC puts them.
+- Both surfaces share `invoke.py`'s envelope helpers on purpose: when `a2a.py` first imported
+  `result`/`error` from `mcp.py` the dependency was backwards (A2A does not depend on MCP) —
+  and the shared module is also what stops one transport spelling a refusal two ways.
