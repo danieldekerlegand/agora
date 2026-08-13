@@ -23,11 +23,17 @@ in-tier-vs-cross-boundary decision the caller supplies.
 
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
+from typing import Any
 
 from .egress import LOCAL_ONLY, is_local_only
 from .lineage import ArtifactBundle, ModelEntity
 from .validate import Problem
+
+#: How many runs' registrations are retained by :class:`Registrations`, oldest dropped first.
+RETAINED_REGISTRATIONS = 32
 
 
 class RegistrationRejected(Exception):
@@ -46,6 +52,14 @@ class Registered:
     assets: tuple[str, ...]
     #: Whether it was registered across a trust boundary (a cross-project / cloud registry).
     across_boundary: bool
+
+    def describe(self) -> dict[str, Any]:
+        """The index entry as a caller reads it back (§8)."""
+        return {
+            "model": self.model,
+            "assets": list(self.assets),
+            "across_boundary": self.across_boundary,
+        }
 
 
 def _refuse(subject: str, egress_id: str) -> RegistrationRejected:
@@ -85,3 +99,33 @@ def register_bundle(bundle: ArtifactBundle, *, across_boundary: bool) -> Registe
         assets=bundle.weight_ids,
         across_boundary=across_boundary,
     )
+
+
+class Registrations:
+    """What this provider has registered, keyed by the run's ``job`` id (§8).
+
+    Registration is a *state change*, not a pure verdict: an orchestrator that registered a run's
+    model asks for that entry back later (did this run's output make it into the index, and on
+    which side of the boundary?). One per process, thread-safe because the registering request and
+    the reading one are different requests on different threads, and bounded like the run journal —
+    this is a provider-local read model of what was pushed to the discovery registry (KFT §8), not
+    the index itself.
+    """
+
+    def __init__(self, retain: int = RETAINED_REGISTRATIONS) -> None:
+        self._retain = retain
+        self._by_job: OrderedDict[str, Registered] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def record(self, job: str, registered: Registered) -> None:
+        """Record ``job``'s accepted registration, evicting the oldest entry past retention."""
+        with self._lock:
+            self._by_job.pop(job, None)
+            self._by_job[job] = registered
+            while len(self._by_job) > self._retain:
+                self._by_job.popitem(last=False)
+
+    def get(self, job: str) -> Registered | None:
+        """``job``'s registration, or ``None`` when this run's model was never registered."""
+        with self._lock:
+            return self._by_job.get(job)

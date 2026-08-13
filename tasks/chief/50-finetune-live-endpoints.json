@@ -33,7 +33,7 @@
         "`/invoke` streams real KFT \u00a76 telemetry (one idempotent, content-addressed event per step, terminal event carrying the minted model + asset ids) rather than returning a stub/404 \u2014 driven by the recorded-run adapter where no GPU is present (never a fabricated loss curve).",
         "A subscriber (KCB \u00a74 subscribe) receives the ordered event sequence to the terminal event; a test asserts monotonic ordering and idempotent redelivery; `make check-trainer` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -44,7 +44,7 @@
         "The \u00a75.3 export endpoint returns the real export matrix (KMI assets carrying `media:derived_from`/`media:variant_of` lineage) and the \u00a78 registration surface registers the minted model entity, both replacing prior 404s.",
         "Registration enforces the \u00a75.4/FT-A output-egress rule \u2014 a `local-only`-inheriting model is refused cross-boundary registration (`egress-output`), an in-tier one admits \u2014 proven by a test; `make check-trainer` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -55,7 +55,7 @@
         "A test-scoped KCB finetune client discovers the trainer, invokes a schema-valid job, subscribes to the live \u00a76 stream to the terminal event, and carries an `invoke:finetune` grant token with a `X-Agora-Budget-Units` ceiling (\u00a77) \u2014 end to end against the live endpoints, no stub.",
         "The test documents itself as the agora-side stand-in for the orchestrator's production client (`cuneiform:90-finetune-client`), which dials the specialized lugh provider (`lugh:30-kft-provider-manifest`) + this trainer at runtime; `make check` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
