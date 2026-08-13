@@ -20,10 +20,14 @@ Two deliberate choices:
   zero-cost preference a lie on exactly the deployments where it matters most. The number is
   priced against a fixed *nominal* request per modality (:data:`NOMINAL`), stated in
   ``basis``, so two providers' figures are comparable.
-* **No endpoint is advertised that is not served.** KCB §2's example carries ``mcp`` and
-  ``a2a`` addresses; this router serves neither yet, so it publishes neither. An address in
-  a manifest is a promise the registry will hand to peers who then dial it directly
-  (ADR-0001 decision 3) — a dead one is worse than an absent one.
+* **No endpoint is advertised that is not served.** An address in a manifest is a promise
+  the registry will hand to peers who then dial it directly (ADR-0001 decision 3) — a dead
+  one is worse than an absent one. So the ``mcp`` and ``a2a`` addresses KCB §2's example
+  carries appeared here only once :mod:`~agora_provider_router.mcp` and
+  :mod:`~agora_provider_router.a2a` answered them, and they are spelled from those modules'
+  own path constants rather than re-typed: the advertisement cannot drift off the surface it
+  describes without the import failing. The card's ``url`` — A2A's own field for the service
+  endpoint — is that same served address.
 """
 
 from __future__ import annotations
@@ -32,9 +36,11 @@ from collections.abc import Iterable
 from typing import Any
 
 from . import KCB_VERSION, ROUTER_IDENTITY, __version__
+from .a2a import A2A_PATH, A2A_PROTOCOL_VERSION
 from .backends import ENDPOINTS
 from .cost import BUDGET_HEADER, BUDGET_KEY, project
 from .ladder import MODALITIES
+from .mcp import MCP_PATH
 from .placeholder import MEDIA_TYPES
 from .router import Router
 
@@ -107,13 +113,17 @@ def capability_manifest(router: Router) -> dict[str, Any]:
 
     Post-0.3.0 wire shape (capability-bus.md §2/§6): the full manifest body is the ``params``
     of the single :data:`KCB_MANIFEST_EXTENSION_URI` extension under the card's
-    ``capabilities.extensions[]``. ``name`` is the router's KINP agent id. No ``url`` (A2A
-    service endpoint) is advertised because the router serves none yet — the same "no endpoint
-    that is not served" rule that keeps ``a2a``/``mcp`` out of the body's ``endpoints``. Never
-    raises.
+    ``capabilities.extensions[]``. ``name`` is the router's KINP agent id and ``url`` its A2A
+    service endpoint — the address :mod:`~agora_provider_router.a2a` answers, so a peer that
+    reads only the plain A2A card (never unpacking the KCB extension) can still dial it.
+    ``preferredTransport`` states which A2A transport that address speaks, since a bare ``url``
+    would otherwise leave a client to assume one. Never raises.
     """
     return {
         "name": ROUTER_IDENTITY,
+        "url": f"{_base(router)}{A2A_PATH}",
+        "preferredTransport": "JSONRPC",
+        "protocolVersion": A2A_PROTOCOL_VERSION,
         "capabilities": {
             "extensions": [
                 {
@@ -130,7 +140,7 @@ def capability_manifest(router: Router) -> dict[str, Any]:
 
 def manifest_body(router: Router) -> dict[str, Any]:
     """The KCB manifest body — the extension ``params`` (capability-bus.md §2). Never raises."""
-    base = (router.config.env.get(BASE_URL_ENV) or DEFAULT_BASE_URL).rstrip("/")
+    base = _base(router)
     capabilities = [_capability(router, modality, base) for modality in MODALITIES]
     return {
         "kcb_version": KCB_VERSION,
@@ -138,6 +148,11 @@ def manifest_body(router: Router) -> dict[str, Any]:
         "version": __version__,
         "endpoints": {
             "openai": f"{base}/v1",
+            # The two KCB §4 transports, at the paths their own modules serve. A peer picks
+            # whichever it already speaks and dials this router directly — no relay stands
+            # between them (ADR-0001 decision 3).
+            "mcp": f"{base}{MCP_PATH}",
+            "a2a": f"{base}{A2A_PATH}",
             "doctor": f"{base}/doctor",
             "manifest": f"{base}{MANIFEST_PATH}",
         },
@@ -157,6 +172,11 @@ def manifest_body(router: Router) -> dict[str, Any]:
             },
         },
     }
+
+
+def _base(router: Router) -> str:
+    """The public address every published one is built from — card and body agree by sharing it."""
+    return (router.config.env.get(BASE_URL_ENV) or DEFAULT_BASE_URL).rstrip("/")
 
 
 def _capability(router: Router, modality: str, base: str) -> dict[str, Any]:

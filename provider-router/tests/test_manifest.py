@@ -5,16 +5,22 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
+import httpx
 import pytest
+from fastapi.testclient import TestClient
 
 from agora_provider_router import KCB_VERSION, ROUTER_IDENTITY
+from agora_provider_router.a2a import A2A_PATH, A2A_PROTOCOL_VERSION
+from agora_provider_router.app import app, get_router
 from agora_provider_router.ladder import MODALITIES
 from agora_provider_router.manifest import (
     BASE_URL_ENV,
     KCB_MANIFEST_EXTENSION_URI,
     capability_manifest,
 )
+from agora_provider_router.mcp import MCP_PATH
 from conftest import router_for
 
 
@@ -64,8 +70,25 @@ class TestShape:
         )
 
     def test_it_advertises_no_endpoint_it_does_not_serve(self) -> None:
-        """A manifest address is a promise a peer will dial directly (ADR-0001 decision 3)."""
-        assert set(manifest_for()["endpoints"]) == {"openai", "doctor", "manifest"}
+        """A manifest address is a promise a peer will dial directly (ADR-0001 decision 3).
+
+        ``mcp`` and ``a2a`` joined this set in the same change that stood the two surfaces up;
+        :class:`TestEveryAdvertisedAddressAnswers` is what keeps the pin honest, since a key
+        can be added here without anything answering it.
+        """
+        assert set(manifest_for()["endpoints"]) == {
+            "openai",
+            "mcp",
+            "a2a",
+            "doctor",
+            "manifest",
+        }
+
+    def test_the_transport_endpoints_are_the_paths_their_modules_serve(self) -> None:
+        """Spelled from the surfaces' own constants, so the two cannot drift apart."""
+        manifest = manifest_for(**{BASE_URL_ENV: "https://router.example"})
+        assert manifest["endpoints"]["mcp"] == f"https://router.example{MCP_PATH}"
+        assert manifest["endpoints"]["a2a"] == f"https://router.example{A2A_PATH}"
 
     def test_auth_declares_the_grant_shape_and_the_spend_ceiling(self) -> None:
         auth = manifest_for()["auth"]
@@ -93,8 +116,88 @@ class TestCard:
         assert [c["name"] for c in params["capabilities"]] == [f"generate.{m}" for m in MODALITIES]
 
     def test_the_card_advertises_no_a2a_endpoint_it_does_not_serve(self) -> None:
-        """The router serves no A2A surface yet, so it publishes no card ``url`` (ADR-0001 d.3)."""
-        assert "url" not in card_for()
+        """The card's ``url`` is the A2A surface the router actually answers (ADR-0001 d.3).
+
+        A reader that never unpacks the KCB extension still gets a dialable address — and it
+        gets no address the router does not serve, which is the same rule read from the card
+        side. The transport is stated rather than assumed.
+        """
+        card = card_for(**{BASE_URL_ENV: "https://router.example"})
+        assert card["url"] == f"https://router.example{A2A_PATH}"
+        assert card["preferredTransport"] == "JSONRPC"
+        assert card["protocolVersion"] == A2A_PROTOCOL_VERSION
+
+    def test_the_card_url_and_the_body_a2a_endpoint_are_the_one_address(self) -> None:
+        """Two spellings of the same promise; a peer must not have to choose between them."""
+        card = card_for(**{BASE_URL_ENV: "https://router.example"})
+        assert card["url"] == kcb_params(card)["endpoints"]["a2a"]
+
+
+class TestEveryAdvertisedAddressAnswers:
+    """The advertisement is only worth what a peer gets when it dials it.
+
+    Pinning the endpoint *key set* (:meth:`TestShape.test_it_advertises_no_endpoint_it_does_not
+    _serve`) says which promises are made; this dials every one of them against the real app and
+    says they are kept. Together they are the invariant ADR-0001 decision 3 rests on: the
+    registry hands out addresses, so a dead one is a peer's failed connection, not ours.
+    """
+
+    def dial_url(self, url: str, request: dict[str, Any] | None = None) -> httpx.Response:
+        """Dial an advertised URL's path against the real app, as a peer would dial the URL."""
+        path = urlsplit(url).path
+        # A lambda, not ``router_for`` itself: FastAPI reads a dependency's signature, and
+        # ``**env`` would be taken for query parameters (a 422 before the route is ever run).
+        app.dependency_overrides[get_router] = lambda: router_for()
+        try:
+            client = TestClient(app)
+            answered: httpx.Response = (
+                client.get(path) if request is None else client.post(path, json=request)
+            )
+            return answered
+        finally:
+            app.dependency_overrides.pop(get_router, None)
+
+    def dial(self, name: str, request: dict[str, Any] | None = None) -> httpx.Response:
+        """Take the advertised address for ``name`` and dial it."""
+        return self.dial_url(manifest_for()["endpoints"][name], request)
+
+    def test_the_mcp_address_answers_the_mcp_handshake(self) -> None:
+        response = self.dial("mcp", {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+        assert response.status_code == 200
+        tools = response.json()["result"]["tools"]
+        assert {t["name"] for t in tools} == {f"generate.{m}" for m in MODALITIES}
+
+    def test_the_a2a_address_answers_a_message_send(self) -> None:
+        response = self.dial(
+            "a2a",
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "message/send",
+                "params": {
+                    "message": {
+                        "role": "user",
+                        "messageId": "m-1",
+                        "parts": [{"kind": "text", "text": "what is the agora commons?"}],
+                    }
+                },
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["result"]["status"]["state"] == "completed"
+
+    def test_the_read_only_addresses_answer_too(self) -> None:
+        for name in ("doctor", "manifest"):
+            assert self.dial(name).status_code == 200
+
+    def test_the_openai_address_hosts_the_capability_endpoints(self) -> None:
+        """``endpoints.openai`` is a base, not a route — what a caller dials is under it."""
+        manifest = manifest_for()
+        for entry in manifest["capabilities"]:
+            assert entry["endpoint"].startswith(manifest["endpoints"]["openai"] + "/")
+        text = capability(manifest, "generate.text")["endpoint"]
+        answered = self.dial_url(text, {"model": "placeholder-text", "messages": [], "n": 1})
+        assert answered.status_code == 200
 
 
 class TestPorts:
