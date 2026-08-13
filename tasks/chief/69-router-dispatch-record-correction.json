@@ -36,7 +36,7 @@
         "The port-not-NIF rationale is preserved and cited rather than restated from scratch: an OS process cannot take down the node, so the always-completes ladder stays a structural property; `apr_translate.erl`'s own module doc is the source.",
         "docs/prior-art.md's provider-router section is corrected to match \u2014 its 'measured against LiteLLM' paragraph must not leave the impression that the borrowed adapters are the router's dispatch path of record."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
