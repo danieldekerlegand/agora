@@ -1,0 +1,22 @@
+{
+  "name": "@agora/grants",
+  "license": "Apache-2.0",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KCB §5 capability-grant issuer — mints, signs and attenuates the grants the relying parties already enforce.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@agora/schemas": "*"
+  },
+  "devDependencies": {
+    "@agora/registry": "*"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}
