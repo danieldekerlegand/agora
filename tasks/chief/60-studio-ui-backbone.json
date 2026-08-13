@@ -43,7 +43,7 @@
         "A test asserts the backbone lists zero participants when given empty/absent config, and that participants are sourced only from data passed in at runtime (never imported statically)",
         "The shell is observer-only: it holds no code path that relays or proxies traffic between participants (ADR-0001); `make check` green"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
