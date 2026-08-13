@@ -62,7 +62,7 @@
         "ROADMAP.md's Phase B is re-ordered and re-scoped so the canonical Rust `wire` codec (`chief/52`) is the vendor-breadth path of record and the LiteLLM adapter row (`chief/51`) is explicitly scoped to the superseded Python router \u2014 with a stated note that `51` is chasing parity the canonical path already has, so it exists only to keep the byte-for-byte corpus meaningful, if at all.",
         "Phase B's prose no longer describes widening 'the one thing the router punts on' as a LiteLLM story, and a `chief/70`-style row for evaluating req_llm is added to Phase B or the Ongoing block."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
