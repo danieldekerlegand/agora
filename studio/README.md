@@ -45,7 +45,7 @@ nobody, or no config at all, is the empty state above.
 |---|---|
 | `src/App.tsx` | the shell: header, the stage a view mounts into, the contract footer |
 | `src/config.ts` | ingestion: a user's config in, a backbone (plus what could not be read) out |
-| `src/topology.ts` | the graph's nodes: a KCB discovery answer (`find`, cost-ranked) projected into drawable participants + the address each is dialable at |
+| `src/topology.ts` | the graph: a KCB discovery answer (`find`, cost-ranked) and the registry's planned routes projected into drawable nodes + typed edges, with node identity settled by the KINP resolver |
 | `src/backbone.ts` | the runtime picture — participants, connections, and the normalizer over whatever the caller handed in (defaults to empty) |
 | `src/Stage.tsx` | what the stage shows for a backbone: the empty first-run state, else the observed cast |
 | `src/index.ts` | the package surface (source-first — nothing is emitted) |
@@ -60,6 +60,28 @@ address, in the order discovery ranked them. Studio never fetches a registry: th
 find surface in (an in-process `CapabilityRegistry`, or a client onto a remote one), the same way
 it hands in config text. A registry that knows nobody yields no nodes, and a participant that has
 left the index is simply absent from the next answer — there is no remembered cast to go stale.
+
+## The edges are connections, and every distinction is somebody else's answer
+
+An edge is one MCP/A2A connection between two participants, and it is typed by which side of
+the discovery index it ends on: **internal** when the registry answered with both ends,
+**external** when one end is not in the index — an outside peer somebody here talks to. That is
+read off discovery on every pass, not assigned: a peer that joins the index turns its edges
+internal on the next answer with nothing here edited, and one that leaves goes the other way.
+Edges also come from the registry's **capability-path search** (`path`, KCB §3 composition) —
+one edge per handoff, carrying the plane the two ends agreed on and marking the hop where the
+route crosses planes. Studio draws that plan; it dials none of it.
+
+Node identity is the **KINP resolver's** ruling, not Studio's: each discovered identity goes to
+`resolve`, and a `same_as` closure collapses two addresses of one entity into one node — both
+addresses kept, reachable if either is, and every edge re-pointed at whoever the node turned out
+to be. Lineage (`based_on`) is never joined; merging a thing with what it was modeled on is the
+contamination identity.md §4.3 exists to prevent. With no resolver, or with one that cannot
+answer, nothing merges and nothing is lost — degraded, never broken.
+
+`discoverTopology` is the whole graph in one call (find → resolve → plan → draw). Nothing is
+remembered between calls, which is what makes churn cheap: run it again and the answer is
+whatever is true now.
 
 ## Gate
 

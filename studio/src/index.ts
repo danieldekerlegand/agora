@@ -19,9 +19,20 @@ export {
 } from './config.ts';
 export {
   discoverNodes,
+  discoverTopology,
+  edgesOf,
   nodesOf,
+  pathEdges,
+  resolveNodes,
+  topologyOf,
   type Discovery,
+  type EdgeScope,
+  type IdentityResolver,
+  type Topology,
+  type TopologyEdge,
+  type TopologyInput,
   type TopologyNode,
+  type TopologyQuery,
 } from './topology.ts';
 export {
   backboneOf,
