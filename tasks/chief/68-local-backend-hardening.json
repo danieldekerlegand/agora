@@ -43,8 +43,8 @@
         "A non-loopback local base URL is accepted only as explicit configuration and is surfaced (logged/marked) as a remote-local choice rather than silently treated the same as loopback; a test pins the distinction.",
         "`docs/` gains a short local-backend-posture note (bind expectations, auth options, why the default is never inherited) referenced from the spike doc's N2/N3 section; `make check` green."
       ],
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "`bind` is a conditional field: only a local rung carries one, so the conformance corpus (which configures no local backend) did not move. The Erlang router has no live HTTP transport, so its mirror of the auth rule is `dispatch_headers/1` plus the credential now reaching the backend an injected transport is handed."
     },
     {
       "id": "US-3",
