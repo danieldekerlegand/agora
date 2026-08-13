@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { IssuedGrant } from './grant.ts';
 import { createSigningKey } from './keys.ts';
+import { UNCAPPED_POLICY } from './policy.ts';
 import { verifyGrantSignature } from './verify.ts';
 import {
   DEFAULT_GRANTS_HOST,
@@ -61,6 +62,26 @@ describe('launching from the environment', () => {
   it('refuses a lifetime or an overlap that is not a duration', () => {
     expect(() => grantsLaunchFromEnv({ AGORA_GRANTS_LIFETIME: '0' })).toThrow(/LIFETIME/);
     expect(() => grantsLaunchFromEnv({ AGORA_GRANTS_OVERLAP: 'a while' })).toThrow(/OVERLAP/);
+  });
+
+  it('reads the operator ceiling policy, and declares none when the host set none', () => {
+    expect(grantsLaunchFromEnv({}).ceilings).toEqual(UNCAPPED_POLICY);
+    expect(
+      grantsLaunchFromEnv({
+        AGORA_GRANTS_CEILINGS: '{"mode":"refuse","caps":[{"scope":"finetune","max_units":50}]}',
+      }).ceilings,
+    ).toEqual({ mode: 'refuse', caps: [{ scope: 'finetune', max_units: 50 }] });
+  });
+
+  it('refuses a ceiling policy it cannot read rather than booting without one', () => {
+    // A cap that does not parse is a cap that is not applied, and a policy nobody notices is
+    // missing is the exact failure caps exist to close.
+    expect(() => grantsLaunchFromEnv({ AGORA_GRANTS_CEILINGS: 'no caps please' })).toThrow(
+      /AGORA_GRANTS_CEILINGS/,
+    );
+    expect(() => grantsLaunchFromEnv({ AGORA_GRANTS_CEILINGS: '{"caps":[{"scope":"*"}]}' })).toThrow(
+      /max_units/,
+    );
   });
 
   it('refuses a port that is not a port', () => {

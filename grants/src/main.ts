@@ -7,6 +7,7 @@
  *   AGORA_GRANTS_PREVIOUS_KEY_ID  the key being rotated OUT, kept verifying through the overlap
  *   AGORA_GRANTS_PREVIOUS_KEY     that key's private PEM (only its public half is ever used)
  *   AGORA_GRANTS_OVERLAP      how long the outgoing key keeps verifying, in seconds (default: 86400)
+ *   AGORA_GRANTS_CEILINGS     the operator's spend caps as JSON (default: no caps declared)
  *   AGORA_GRANTS_HOST/_PORT   bind address (default 127.0.0.1:8791)
  *
  * With no `AGORA_GRANTS_KEY` the process generates an ephemeral key pair at boot. That is right
@@ -31,6 +32,7 @@ import {
   type RetiringKey,
   type SigningKey,
 } from './keys.ts';
+import { parseCeilingPolicy, UNCAPPED_POLICY, type CeilingPolicy } from './policy.ts';
 import { createGrantServer, type GrantService } from './server.ts';
 
 /** The environment slice the entry point reads — a plain mapping, so a test can pass its own. */
@@ -49,6 +51,8 @@ export interface GrantsLaunch {
   previousKeys: readonly RetiringKey[];
   /** How long a minted grant counts for. */
   lifetimeMs: number;
+  /** The operator's spend caps, applied to every mint and every derivation. */
+  ceilings: CeilingPolicy;
   host: string;
   port: number;
 }
@@ -63,6 +67,7 @@ export function grantsLaunchFromEnv(env: GrantsEnv = {}, at = new Date().toISOSt
     ephemeralKey: !supplied,
     previousKeys: previousFromEnv(env, Date.parse(at) + overlapMs),
     lifetimeMs: parseSeconds(env.AGORA_GRANTS_LIFETIME, DEFAULT_GRANT_LIFETIME_MS, 'AGORA_GRANTS_LIFETIME'),
+    ceilings: ceilingsFromEnv(env),
     host: env.AGORA_GRANTS_HOST?.trim() || DEFAULT_GRANTS_HOST,
     port: parsePort(env.AGORA_GRANTS_PORT, DEFAULT_GRANTS_PORT, 'AGORA_GRANTS_PORT'),
   };
@@ -82,6 +87,27 @@ function previousFromEnv(env: GrantsEnv, notAfterMs: number): readonly RetiringK
   return [{ key: signingKeyFrom(keyId, pem), not_after: isoAt(notAfterMs) }];
 }
 
+/**
+ * The operator's ceiling policy, as JSON: `{"mode":"clamp","caps":[{"scope":"*","max_units":100}]}`.
+ *
+ * Unset means no caps declared, which is not the same as a cap of zero: a host that has said
+ * nothing about spend has not authorized a limit either, and inventing one here would refuse
+ * work the operator never asked to have refused. Saying it *badly*, though, is a boot failure
+ * rather than a silently ignored setting — a cap that does not parse is a cap that is not
+ * applied, and a policy nobody notices is missing is the whole failure mode caps exist to close.
+ */
+function ceilingsFromEnv(env: GrantsEnv): CeilingPolicy {
+  const raw = env.AGORA_GRANTS_CEILINGS?.trim();
+  if (raw === undefined || raw === '') return UNCAPPED_POLICY;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('AGORA_GRANTS_CEILINGS must be a JSON ceiling policy');
+  }
+  return parseCeilingPolicy(parsed);
+}
+
 /** A bound, running issuer. */
 export interface StartedGrantIssuer {
   service: GrantService;
@@ -97,6 +123,7 @@ export async function startGrantIssuer(env: GrantsEnv = {}): Promise<StartedGran
       key: launch.key,
       previousKeys: launch.previousKeys,
       lifetimeMs: launch.lifetimeMs,
+      ceilings: launch.ceilings,
     }),
   );
   const address = await service.listen(launch.port, launch.host);

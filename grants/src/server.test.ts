@@ -5,6 +5,7 @@ import { createGrantIssuer } from './issuer.ts';
 import { createSigningKey, publicKeyFrom, type PublishedKey } from './keys.ts';
 import { createGrantVerifier } from './verify.ts';
 import { verifyGrantSignature } from './verify.ts';
+import { grantIssuerManifest, AGENT_CARD_PATH, KCB_MANIFEST_PATH } from './manifest.ts';
 import {
   createGrantServer,
   describeGrantIssuer,
@@ -120,17 +121,94 @@ describe('GET /keys through a rotation', () => {
   });
 });
 
+describe('POST /grants/derive', () => {
+  it('narrows a presented parent into a child a relying party reads the same way', async () => {
+    const { body: parent } = await post({
+      grantee: 'example:agent:principal',
+      scope: 'subscribe:world/*',
+      budget_units: 100,
+    });
+    const res = await fetch(`${base}/grants/derive`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        parent,
+        grantee: 'example:agent:next-hop',
+        scope: 'world/consensus-reality',
+        budget_units: 25,
+      }),
+    });
+    expect(res.status).toBe(201);
+    const child = (await res.json()) as IssuedGrant;
+    expect(child).toMatchObject({ verb: 'subscribe', scope: 'world/consensus-reality', budget_units: 25 });
+    expect(verifyGrantSignature(child, key.publicKey)).toBe(true);
+    expect(permits(parseGrant(child), 'subscribe', 'world/consensus-reality')).toBe(true);
+  });
+
+  it('answers a widening derivation with the 403 the parent already implies', async () => {
+    const { body: parent } = await post({ grantee: 'example:agent:principal', scope: 'fetch:asset' });
+    const res = await fetch(`${base}/grants/derive`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ parent, scope: '*' }),
+    });
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: 'GrantError' });
+  });
+});
+
+describe('the well-known documents a registry crawls', () => {
+  it('serves the KCB manifest and the AgentCard carrying it', async () => {
+    const manifest = await (await fetch(`${base}${KCB_MANIFEST_PATH}`)).json();
+    expect(manifest).toEqual(grantIssuerManifest(base));
+
+    const card = (await (await fetch(`${base}${AGENT_CARD_PATH}`)).json()) as {
+      capabilities?: { extensions?: unknown[] };
+    };
+    expect(card.capabilities?.extensions).toHaveLength(1);
+    // Discovery is an address, never a route through anybody: what the crawl indexes is where
+    // to dial this issuer, and the mint happens between the caller and it (ADR-0001 dec. 3).
+    expect(describeGrantIssuer()).toMatchObject({ proxiesTraffic: false });
+  });
+});
+
 describe('GET /describe', () => {
   it('states what the issuer is and what it will not do', async () => {
     const res = await fetch(`${base}/describe`);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(describeGrantIssuer());
+    expect(await res.json()).toEqual(describeGrantIssuer(service.issuer));
     expect(describeGrantIssuer()).toMatchObject({ retainsGrants: false, proxiesTraffic: false });
   });
 
   it('answers 404 for anything else — there is no relay surface here', async () => {
     const res = await fetch(`${base}/invoke`);
     expect(res.status).toBe(404);
+  });
+
+  it('states the operator ceiling policy it will apply, and that it only ever narrows', async () => {
+    const capped = createGrantServer(
+      createGrantIssuer({
+        key,
+        ceilings: { mode: 'refuse', caps: [{ scope: 'finetune', max_units: 50 }] },
+      }),
+    );
+    const address = await capped.listen();
+    try {
+      const described = await (await fetch(`http://${address.host}:${address.port}/describe`)).json();
+      expect(described).toMatchObject({
+        attenuatesOnly: true,
+        ceilings: { mode: 'refuse', caps: [{ scope: 'finetune', max_units: 50 }] },
+      });
+      // A caller that can read the cap does not have to discover it by being refused.
+      const res = await fetch(`http://${address.host}:${address.port}/grants`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ grantee: 'example:agent:p', scope: 'invoke:finetune' }),
+      });
+      expect(res.status).toBe(403);
+    } finally {
+      await capped.close();
+    }
   });
 
   it('offers no route that controls the keys — rotation is an operator action', async () => {

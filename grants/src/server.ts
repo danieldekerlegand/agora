@@ -1,9 +1,11 @@
 /**
  * The issuer as an HTTP service — the surface a control-plane host actually mints against.
  *
- * Three routes and no more: `GET /describe` (what this is, and what it will not do),
- * `POST /grants` (one request, one signed grant) and `GET /keys` (the public material a relying
- * party verifies with, so verification never has to dial back per request).
+ * `GET /describe` (what this is, and what it will not do), `POST /grants` (one request, one
+ * signed grant), `POST /grants/derive` (one presented parent, one narrower child) and
+ * `GET /keys` (the public material a relying party verifies with, so verification never has to
+ * dial back per request) — plus the two well-known documents that make the issuer discoverable
+ * like any other participant (`manifest.ts`).
  *
  * There is deliberately no fourth route for rotation. Minting is open to whoever the host puts
  * in front of this surface; deciding *which keys verify* is not the same authority, and putting
@@ -27,6 +29,13 @@ import { SPEC_VERSIONS } from '@agora/schemas';
 
 import { GRANT_VERBS, GrantError } from './grant.ts';
 import { GRANT_ISSUER_IDENTITY, type GrantIssuer } from './issuer.ts';
+import {
+  AGENT_CARD_PATH,
+  grantIssuerCard,
+  grantIssuerManifest,
+  KCB_MANIFEST_PATH,
+} from './manifest.ts';
+import type { CeilingPolicy } from './policy.ts';
 
 /** How long `GET /keys` may be cached. A poller refreshing this often sees a rotation long
  * before the overlap window it opens could close. */
@@ -64,10 +73,16 @@ export interface IssuerDescription {
   /** Always false: key control is an operator action, not a route. A surface that mints for
    * anyone who asks must not also let anyone who asks decide which keys verify. */
   rotatesOverHttp: false;
+  /** Always true: a grant derived from a presented parent may only narrow it (§5's chain rule). */
+  attenuatesOnly: true;
+  /** The operator's spend caps, as they will be applied — a caller can read what it may ask for
+   * before asking. Policy is not a secret: a cap discovered by being refused is a worse
+   * experience and no more private, since the refusal names the cap anyway. */
+  ceilings?: CeilingPolicy;
   routes: readonly string[];
 }
 
-export function describeGrantIssuer(): IssuerDescription {
+export function describeGrantIssuer(issuer?: GrantIssuer): IssuerDescription {
   return {
     identity: GRANT_ISSUER_IDENTITY,
     kcbVersion: SPEC_VERSIONS.kcb,
@@ -76,7 +91,16 @@ export function describeGrantIssuer(): IssuerDescription {
     proxiesTraffic: false,
     grantsExpire: true,
     rotatesOverHttp: false,
-    routes: ['GET /describe', 'POST /grants', 'GET /keys'],
+    attenuatesOnly: true,
+    ...(issuer === undefined ? {} : { ceilings: issuer.ceilings }),
+    routes: [
+      'GET /describe',
+      'POST /grants',
+      'POST /grants/derive',
+      'GET /keys',
+      `GET ${AGENT_CARD_PATH}`,
+      `GET ${KCB_MANIFEST_PATH}`,
+    ],
   };
 }
 
@@ -111,7 +135,17 @@ async function handle(req: IncomingMessage, res: ServerResponse, issuer: GrantIs
     const path = url.pathname;
 
     if (method === 'GET' && (path === '/' || path === '/describe')) {
-      return sendJson(res, 200, describeGrantIssuer());
+      return sendJson(res, 200, describeGrantIssuer(issuer));
+    }
+    if (method === 'GET' && (path === AGENT_CARD_PATH || path === KCB_MANIFEST_PATH)) {
+      // Discovery, not traffic: a registry crawls these and hands peers back the address it
+      // read here — the mint itself happens between the caller and this surface, directly.
+      const baseUrl = `http://${req.headers.host ?? 'grants.local'}`;
+      return sendJson(
+        res,
+        200,
+        path === AGENT_CARD_PATH ? grantIssuerCard(baseUrl) : grantIssuerManifest(baseUrl),
+      );
     }
     if (method === 'GET' && path === '/keys') {
       // The stable verification endpoint: `{keys: [{key_id, alg, public_key, not_after?}]}`, the
@@ -123,6 +157,9 @@ async function handle(req: IncomingMessage, res: ServerResponse, issuer: GrantIs
     }
     if (method === 'POST' && path === '/grants') {
       return sendJson(res, 201, issuer.issue(await readJson(req)));
+    }
+    if (method === 'POST' && path === '/grants/derive') {
+      return sendJson(res, 201, issuer.derive(await readJson(req)));
     }
 
     sendJson(res, 404, { error: 'NotFound', message: `no route for ${method} ${path}` });

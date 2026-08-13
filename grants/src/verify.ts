@@ -29,7 +29,7 @@
  * An expiry is a refusal and not an error on purpose: "your grant expired at T, get another" is
  * a sentence the caller can act on, and a 500 is not.
  */
-import { verify, type KeyObject } from 'node:crypto';
+import { createHash, verify, type KeyObject } from 'node:crypto';
 
 import {
   GrantError,
@@ -51,12 +51,14 @@ export function canonicalGrantBytes(grant: {
   readonly budget_units?: number | undefined;
   readonly grantee: string;
   readonly expires_at: string;
+  readonly derived_from?: string | undefined;
   readonly signature: { readonly key_id: string; readonly alg: string };
 }): Buffer {
   return Buffer.from(
     canonicalJson({
       alg: grant.signature.alg,
       budget_units: grant.budget_units,
+      derived_from: grant.derived_from,
       expires_at: grant.expires_at,
       grantee: grant.grantee,
       key_id: grant.signature.key_id,
@@ -65,6 +67,17 @@ export function canonicalGrantBytes(grant: {
     }),
     'utf8',
   );
+}
+
+/**
+ * A grant's fingerprint: `sha256` over the bytes its signature covers, base64url.
+ *
+ * What a derived grant names its parent by (`derived_from`). It identifies the parent to anyone
+ * holding it — an auditor reconciling a chain, an operator reading two logs — while telling
+ * somebody who does not hold it nothing they could spend.
+ */
+export function grantFingerprint(grant: IssuedGrant): string {
+  return createHash('sha256').update(canonicalGrantBytes(grant)).digest('base64url');
 }
 
 /** Whether `grant`'s signature verifies under `key`. Shape errors are `false`, not throws — a
@@ -79,8 +92,9 @@ export function verifyGrantSignature(grant: IssuedGrant, key: KeyObject): boolea
 
 /**
  * Read a presented grant back into {@link IssuedGrant} — the §5 claims via `parseGrant`, plus
- * the three an issued one carries. Every refusal here is a `422`: the caller sent something
- * that is not a grant, which is a different failure from holding one that does not authorize.
+ * the ones an issued grant carries: grantee, expiry, an optional parent fingerprint, and the
+ * signature. Every refusal here is a `422`: the caller sent something that is not a grant, which
+ * is a different failure from holding one that does not authorize.
  */
 export function parseIssuedGrant(input: unknown): IssuedGrant {
   const grant = parseGrant(input);
@@ -99,10 +113,15 @@ export function parseIssuedGrant(input: unknown): IssuedGrant {
     throw new GrantError(422, 'an issued grant carries an ISO-8601 "expires_at"');
   }
   instant(expires_at);
+  const derived_from = record.derived_from;
+  if (derived_from !== undefined && (typeof derived_from !== 'string' || derived_from === '')) {
+    throw new GrantError(422, 'an issued grant\'s "derived_from" is a fingerprint of its parent');
+  }
   return {
     ...grant,
     grantee,
     expires_at,
+    ...(derived_from === undefined ? {} : { derived_from }),
     signature: parseGrantSignature(record.signature),
   };
 }

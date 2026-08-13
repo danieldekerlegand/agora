@@ -11,9 +11,9 @@ The split, end to end:
 
 | Who | Does what |
 |---|---|
-| **koine** (`specs/capability-bus.md` §5) | fixes the grant **shape** and the `{key_id, alg}` signing shape. Normative. |
-| **this service** | the reference **issuance runtime**: mints, signs, publishes verification material. |
-| **relying parties** | **enforce**. `provider-router-erl/src/apr_grant.erl` refuses what a grant does not cover; `trainer/src/agora_trainer/grant.py` refuses a run over its ceiling. |
+| **koine** (`specs/capability-bus.md` §5) | fixes the grant **SHAPE** and the `{key_id, alg}` signing shape. Normative, and re-specified nowhere else. |
+| **this service** | the reference **issuance runtime**: mints, signs, rotates, caps and attenuates — one implementation any control-plane host can run instead of writing its own. |
+| **relying parties** | **ENFORCE**. `provider-router-erl/src/apr_grant.erl` refuses what a grant does not cover; `trainer/src/agora_trainer/grant.py` refuses a run over its ceiling. |
 
 Nothing here enforces anything, and nothing there mints anything. The router says it plainly —
 "the router is a relying party, never an issuer" — and this is the other end of the same sentence.
@@ -51,8 +51,11 @@ npm start -w @agora/grants          # 127.0.0.1:8791
 | Route | What it does |
 |---|---|
 | `POST /grants` | mint one grant: `{grantee, scope, budget_units?}` (or `{grantee, verb, scope, …}`) → a signed grant |
+| `POST /grants/derive` | narrow a grant the caller holds: `{parent, scope, budget_units?, grantee?}` → a signed child |
 | `GET /keys` | the public material to verify with, so a relying party polls instead of dialing per request |
-| `GET /describe` | what this is, and what it will not do |
+| `GET /describe` | what this is, what it will not do, and the ceiling policy it applies |
+| `GET /.well-known/agent-card.json` | the A2A card carrying this issuer's KCB manifest |
+| `GET /.well-known/kcb-manifest.json` | that manifest bare, which is what a registry crawl pulls |
 
 Configured entirely from the environment:
 
@@ -63,6 +66,7 @@ Configured entirely from the environment:
 | `AGORA_GRANTS_LIFETIME` | `3600` | how long a minted grant counts for, in seconds |
 | `AGORA_GRANTS_PREVIOUS_KEY_ID` / `_KEY` | — | the key being rotated **out**, kept verifying |
 | `AGORA_GRANTS_OVERLAP` | `86400` | how long that outgoing key keeps verifying, in seconds |
+| `AGORA_GRANTS_CEILINGS` | *(no caps)* | the operator's spend caps, as JSON |
 | `AGORA_GRANTS_HOST` / `_PORT` | `127.0.0.1:8791` | bind address |
 
 ```sh
@@ -150,6 +154,98 @@ The refusals keep the router's vocabulary:
 
 An expiry is a refusal and not an error because "your grant expired at T, get another" is a
 sentence the caller can act on and a `500` is not.
+
+## Ceilings: the policy that only ever narrows
+
+`budget_units` on a grant is the *caller's* ceiling. The ceiling on **what may be asked for** is
+the host's, and that is the operator's ceiling policy — a small set of per-scope caps applied to
+every mint before anything is signed:
+
+```jsonc
+{
+  "mode": "clamp",                                            // or "refuse"
+  "caps": [
+    { "scope": "*", "max_units": 1000 },
+    { "scope": "world/*", "verb": "subscribe", "max_units": 100 },
+    { "scope": "finetune", "verb": "invoke", "max_units": 50 }
+  ]
+}
+```
+
+Three rules, and the first is where the other two come from:
+
+- **An absent ceiling is unbounded**, here as at every relying party — so a request that states
+  no ceiling asks for *more* than any cap, and is answered exactly as an over-cap number is:
+  clamped to the cap, or refused. This is `apr_grant`'s rule — *an authorization input the caller
+  failed to state can never widen what the caller may do* — holding at **issuance** as well as at
+  enforcement. A policy with a cap can never mint an unbounded grant on a scope that cap reaches.
+- **The tightest applicable cap binds**, and a cap applies to any scope the grant could be spent
+  on: a grant for `world/*` is spendable on `world/consensus-reality`, so a cap on that world
+  binds it. Specificity ordering would make one policy mean different things depending on how it
+  was written down; "the smallest wins" fails closed and reads the same in any order.
+- **A cap only narrows.** There is no way to spell a policy that raises a requested ceiling. A
+  policy that could hand out more than was asked for is not a cap.
+
+`mode` is the host's call on the two ways to answer an over-cap request. `clamp` mints at the cap
+— right where a caller asks generously and takes what it is given. `refuse` answers **403** and
+names the cap — right where a caller that would overspend should find out at the mint rather than
+at some later gate, halfway through a chain.
+
+## Attenuation: what a chain hands its next hop
+
+KCB §5 puts a ceiling on a grant for one reason: *"a cross-participant chain (knowledge producer
+→ media producer → paid model) cannot exceed the caller's authorized spend"*. A chain is
+participants calling participants, and a participant that hands its own credential downstream to
+get work done has handed over everything that credential authorizes. Attenuation is the
+alternative — derive a narrower grant for the next hop and hand *that* down:
+
+```sh
+curl -sX POST localhost:8791/grants/derive \
+  -d '{"parent": <the grant you hold>, "grantee":"example:agent:next-hop",
+       "scope":"world/consensus-reality", "budget_units": 25}'
+```
+
+Four dimensions, all one-way:
+
+| Dimension | The child may | Because |
+|---|---|---|
+| `verb` | keep the parent's | a `subscribe` grant is not an `invoke` grant in disguise |
+| `scope` | keep it, or take one the parent covers | `world/*` → `world/x`, never the reverse |
+| `budget_units` | keep it, or take less | §5's chain rule, spelled directly |
+| `expires_at` | end when the parent does, or sooner | a child outliving its parent re-mints authority the parent already lost |
+
+The parent is **verified before a single claim of it is read** — an unverified parent would let a
+caller narrow from a grant it wrote itself — and the same 403/422 grading applies: a widening
+derivation is a `403`, an unreadable request is a `422`. An unstated child ceiling *inherits* the
+parent's rather than becoming unbounded, for the same reason the policy clamps an unstated one:
+the caller who said nothing gets exactly what it held, which is the only reading that cannot
+widen. Both narrowings compose — the child ends at the tighter of the parent's ceiling and the
+operator's cap, however the request was phrased.
+
+A derived grant carries `derived_from`, a fingerprint of its parent, so a chain is attributable
+after the fact. A fingerprint and not the parent itself: a child that embedded its parent would
+hand every downstream hop the very authority attenuation exists to withhold.
+
+## Discovery
+
+The issuer publishes its own KCB manifest (`src/manifest.ts`) — `grant.issue` and `grant.derive`,
+each with its address, both `est_units: 0` — as an AgentCard extension and as the bare body a
+registry crawl pulls (§3). A host finds it the way it finds anything else:
+
+```ts
+registry.find({ capability: 'grant.issue' })[0].capabilities[0].endpoint  // → where to mint
+```
+
+What comes back is an **address**, and the caller mints directly against it
+([ADR-0001](../../koine/decisions/ADR-0001-control-plane-topology.md) decision 3). A credential
+that travelled through the registry would make the registry a party to every authorization on the
+fabric, and this service is not in anybody's data path either: it hands back a grant and forgets
+it.
+
+The manifest advertises **no `grants_required`**, deliberately. §5 leaves identity providers to
+the control-plane host's infra, so what authorizes a *mint* is whatever the host fronts this
+surface with; what authorizes a *derivation* is the presented parent grant itself. Advertising
+`invoke:grant.issue` would claim a grant you would need this very service to obtain.
 
 ## Gate
 

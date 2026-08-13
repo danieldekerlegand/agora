@@ -221,5 +221,15 @@ export interface IssuedGrant extends Grant {
   readonly grantee: string;
   /** ISO-8601 UTC. After this instant the grant verifies as expired, and is refused. */
   readonly expires_at: string;
+  /**
+   * Present on a grant derived from another (`attenuate.ts`): a fingerprint of the parent it
+   * was narrowed from, so a chain is attributable after the fact without carrying the parent
+   * around. Absent on a grant minted from a request.
+   *
+   * It is a *fingerprint* and not the parent itself because the parent is somebody else's
+   * credential: a child that embedded it would hand every downstream hop the very authority
+   * attenuation exists to withhold.
+   */
+  readonly derived_from?: string | undefined;
   readonly signature: GrantSignature;
 }

@@ -45,7 +45,7 @@ function readRepoFile(path: string): string {
 const issuer = createGrantIssuer({ key: createSigningKey('conformance') });
 
 /** A grant of each verb, with and without a ceiling, wildcard scopes included. */
-const MINTED: readonly IssuedGrant[] = [
+const ISSUED: readonly IssuedGrant[] = [
   { scope: 'invoke:finetune', budget_units: 250 },
   { scope: 'invoke:compose' },
   { scope: 'subscribe:world/consensus-reality', budget_units: 0 },
@@ -54,6 +54,21 @@ const MINTED: readonly IssuedGrant[] = [
   { scope: 'discover:*' },
   { scope: 'describe:*' },
 ].map((request) => issuer.issue({ grantee: 'example:agent:principal', ...request }));
+
+/**
+ * …plus one **derived** grant. A chain hands its next hop an attenuated grant rather than its
+ * own credential, so what the next hop presents at some third door is this — carrying a claim
+ * (`derived_from`) neither relying party knows about. It has to parse exactly as a freshly
+ * minted one does, or attenuation would buy safety at the cost of being spendable.
+ */
+const DERIVED: IssuedGrant = issuer.derive({
+  parent: JSON.parse(JSON.stringify(ISSUED[3])) as unknown,
+  grantee: 'example:agent:next-hop',
+  scope: 'world/consensus-reality',
+  budget_units: 5,
+});
+
+const MINTED: readonly IssuedGrant[] = [...ISSUED, DERIVED];
 
 /** The wire form — what a relying party actually receives. */
 const ON_THE_WIRE = MINTED.map((grant) => JSON.parse(JSON.stringify(grant)) as unknown);

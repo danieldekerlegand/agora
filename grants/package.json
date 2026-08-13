@@ -11,6 +11,9 @@
   "dependencies": {
     "@agora/schemas": "*"
   },
+  "devDependencies": {
+    "@agora/registry": "*"
+  },
   "scripts": {
     "start": "node src/main.ts",
     "typecheck": "tsc -p tsconfig.json",
