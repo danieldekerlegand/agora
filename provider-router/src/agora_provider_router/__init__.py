@@ -15,6 +15,9 @@ import it:
 * :mod:`~agora_provider_router.placeholder` — the deterministic terminal tier
 * :mod:`~agora_provider_router.router` — the walk, the budget gate, and always-completes
 * :mod:`~agora_provider_router.manifest` — the KCB capability manifest (KCB §2)
+* :mod:`~agora_provider_router.invoke` — one invocation, translated for either transport
+* :mod:`~agora_provider_router.mcp` — the MCP tool surface (KCB §4 ``invoke``)
+* :mod:`~agora_provider_router.a2a` — the A2A task surface (KCB §4 ``invoke``)
 * :mod:`~agora_provider_router.app` — the OpenAI-compatible surface plus ``/doctor``
 """
 
