@@ -90,7 +90,7 @@ export {
   type Withheld,
 } from './axes.ts';
 export { canonicalJson, isJsonObject, type Json, type JsonObject } from './json.ts';
-export { isPlane, PLANES, type Plane } from './planes.ts';
+export { isPlane, PLANE_SPECS, PLANES, type Plane, type PlaneSpec } from './planes.ts';
 export {
   isKinpId,
   isProvisionalLocal,

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { EGRESS_CLASSES, isPlane, PLANES, RELATION_REGISTRY, SPEC_VERSIONS } from './index.ts';
+import {
+  EGRESS_CLASSES,
+  isPlane,
+  PLANE_SPECS,
+  PLANES,
+  RELATION_REGISTRY,
+  SPEC_VERSIONS,
+} from './index.ts';
 
 describe('@agora/schemas', () => {
   it('pins the koine spec versions the commons implements', () => {
@@ -20,6 +27,11 @@ describe('@agora/schemas', () => {
 
   it('knows the three protocol planes', () => {
     expect([...PLANES]).toEqual(['knowledge', 'media', 'entity']);
+  });
+
+  it('names the koine contract that types a port on each plane (KCB §2.1)', () => {
+    expect(PLANE_SPECS).toEqual({ knowledge: 'kgp', media: 'kmi', entity: 'kinp' });
+    for (const plane of PLANES) expect(PLANE_SPECS[plane]).toBeTruthy();
   });
 
   it('rejects values that are not planes', () => {

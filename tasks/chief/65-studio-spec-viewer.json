@@ -31,7 +31,7 @@
         "A test asserts a participant advertising a subset of contracts renders exactly that subset (and a participant advertising none renders an empty spec view, consistent with the 60 empty backbone)",
         "`make check` green (`npm run lint` + `npm run typecheck` + `vitest` for `studio/`)"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -43,7 +43,7 @@
         "A test asserts a conformant manifest validates and a malformed / wrong-version one is flagged invalid with the schema/version reason surfaced (no fabricated pass)",
         "`make check` green; Studio stays source-first and observer-only"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
