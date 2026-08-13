@@ -115,9 +115,15 @@ describe('the shell holds no cast of its own', () => {
     );
     expect(relaying).toEqual([]);
 
-    const transports = authoredSources().filter(({ text }) =>
-      /\b(fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(/.test(text),
-    );
+    // The transport invariant is that Studio opens no socket *of its own*. It monitors real
+    // connections now (`connection.ts`), so it does dial — but only through a seam the host
+    // handed it, exactly as it is handed the discovery surface. Reaching for a global
+    // transport is what would make it a client with a network of its own, so that is what is
+    // asserted; where those dials are aimed is asserted behaviourally in `connection.test.ts`
+    // (only ever the far end's own published address, carrying nobody else's payload).
+    const acquires =
+      /\b(?:globalThis|window|self)\s*\.\s*(?:fetch|XMLHttpRequest|WebSocket|EventSource)\b|\bnew\s+(?:XMLHttpRequest|WebSocket|EventSource)\s*\(/;
+    const transports = authoredSources().filter(({ text }) => acquires.test(text));
     expect(transports.map(({ path }) => path)).toEqual([]);
   });
 });

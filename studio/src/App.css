@@ -182,3 +182,84 @@
   color: #6a5300;
   font-size: 0.85rem;
 }
+
+/* The connection panel. A health readout, not a control surface: there is no retry button
+   here and there is not going to be one — Studio watches these links, it is not on them. */
+.studio-health {
+  margin-top: 1.25rem;
+  border-top: 1px solid #e6e6e6;
+  padding-top: 0.75rem;
+}
+
+.studio-health h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #555;
+}
+
+.studio-health > ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.studio-connection {
+  padding: 0.15rem 0;
+}
+
+.studio-health .identity,
+.studio-health .transport,
+.studio-health .uptime,
+.studio-health .held,
+.studio-health .latency {
+  color: #666;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.8rem;
+}
+
+.studio-health .status,
+.studio-health .unwatched,
+.studio-health .error-status {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #777;
+}
+
+/* Up is quiet, degraded and down are not, and unknown is neither: nobody looked, which is a
+   reading of the monitor rather than of the connection. */
+.studio-connection-up .status {
+  color: #2f6f3e;
+}
+
+.studio-connection-degraded .status,
+.studio-connection-degraded .error-status {
+  color: #8a6d00;
+}
+
+.studio-connection-down .status,
+.studio-connection-down .error-status {
+  color: #9a2222;
+}
+
+/* What the far end said, in its own words. Newest first. */
+.studio-errors {
+  margin: 0.1rem 0 0.3rem 1rem;
+  padding: 0;
+  list-style: none;
+  color: #6a5300;
+  font-size: 0.8rem;
+}
+
+.studio-errors .error-detail {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.studio-errors .error-count {
+  color: #777;
+  font-variant-numeric: tabular-nums;
+}

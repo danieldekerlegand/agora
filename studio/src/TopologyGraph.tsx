@@ -16,6 +16,7 @@
  * participant and an edge *is* a connection, only with what discovery knows attached.
  */
 import { labelOf } from './backbone.ts';
+import { connectionKey } from './history.ts';
 import type { Topology, TopologyEdge, TopologyNode } from './topology.ts';
 
 export interface TopologyGraphProps {
@@ -50,7 +51,7 @@ export function TopologyGraph({ topology }: TopologyGraphProps) {
         ) : (
           <ul aria-labelledby="studio-connections">
             {edges.map((edge) => (
-              <li key={edgeKey(edge)} className={`studio-edge studio-edge-${edge.scope}`}>
+              <li key={connectionKey(edge)} className={`studio-edge studio-edge-${edge.scope}`}>
                 <EdgeRow edge={edge} />
               </li>
             ))}
@@ -106,9 +107,4 @@ function EdgeRow({ edge }: { edge: TopologyEdge }) {
       {edge.crossPlane ? <span className="cross-plane"> cross-plane</span> : null}
     </>
   );
-}
-
-/** Two ends plus what distinguishes parallel links between them — the same key `edgesOf` dedupes on. */
-function edgeKey(edge: TopologyEdge): string {
-  return `${edge.from}→${edge.to}:${edge.transport ?? ''}:${edge.capability ?? ''}`;
 }

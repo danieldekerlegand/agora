@@ -13,6 +13,7 @@
     "@agora/resolver": "*",
     "@agora/schemas": "*",
     "@agora/sdk": "*",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

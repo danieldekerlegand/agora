@@ -23,6 +23,7 @@ import './App.css';
 import { Stage } from './Stage.tsx';
 import { backboneOf, type Backbone } from './backbone.ts';
 import type { TopologyQuery } from './topology.ts';
+import { useConnections, type ConnectionsOptions } from './useConnections.ts';
 import { useTopology } from './useTopology.ts';
 
 /** The koine contracts a Studio build speaks, in the order the footer lists them. */
@@ -46,9 +47,24 @@ export interface AppProps {
    * standalone bundle) passes nothing and keeps the configured picture.
    */
   discovery?: TopologyQuery | null;
+  /**
+   * How to watch the connections on that graph — the probe, and how long a log to keep. A prop
+   * for the same reason the discovery surface is: the dial belongs to the host, Studio opens
+   * no transport of its own, and it is only ever the far end's own published address that gets
+   * dialed (`connection.ts`). Without one, every connection is reported honestly as unwatched.
+   *
+   * Identity, not deep equality, starts a pass: hand in the same object until the host's own
+   * schedule says to look again.
+   */
+  monitor?: ConnectionsOptions | null;
 }
 
-export function App({ backbone, problems = [], discovery = null }: AppProps = {}) {
+export function App({
+  backbone,
+  problems = [],
+  discovery = null,
+  monitor = null,
+}: AppProps = {}) {
   const fabric = backboneOf(backbone);
 
   // The configured cast is what the host says it watched, so it rides in as the pass's own
@@ -59,6 +75,13 @@ export function App({ backbone, problems = [], discovery = null }: AppProps = {}
     [discovery, backbone],
   );
   const { topology, problem } = useTopology(query);
+
+  // Only what discovery answered with is watched: a configured cast carries no address to
+  // dial, so probing it could say nothing a panel of unwatched rows does not already say.
+  const { connections, problem: unwatchable } = useConnections(
+    monitor ? topology : null,
+    monitor,
+  );
 
   return (
     <div className="studio">
@@ -71,10 +94,15 @@ export function App({ backbone, problems = [], discovery = null }: AppProps = {}
       </header>
 
       <main className="studio-stage" aria-label="studio stage">
-        <Stage backbone={fabric} topology={topology} />
+        <Stage backbone={fabric} topology={topology} connections={connections} />
         {problem ? (
           <p className="studio-alert" role="alert">
             {problem}
+          </p>
+        ) : null}
+        {unwatchable ? (
+          <p className="studio-alert" role="alert">
+            {unwatchable}
           </p>
         ) : null}
         {problems.length > 0 ? (

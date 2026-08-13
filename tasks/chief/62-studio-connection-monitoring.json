@@ -31,7 +31,7 @@
         "A test drives status computation from synthetic reachable and unreachable connections and asserts the correct per-edge status, with an unknown/unprobed connection reported as such rather than assumed healthy",
         "`make check` green (`npm run lint` + `npm run typecheck` + `vitest` for `studio/`); Studio relays no traffic (ADR-0001)"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -43,7 +43,7 @@
         "A rendering test (`*.test.tsx`) asserts a degraded/down connection shows its error surface and a healthy one shows its uptime; the panel is empty (not fabricated) when no connections are configured, consistent with the 60 empty backbone",
         "`make check` green; Studio stays source-first and observer-only"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]

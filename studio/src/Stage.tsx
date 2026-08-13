@@ -6,19 +6,24 @@
  * not an error. Studio bundles no apps, no services and no connections, so an install nobody
  * has configured and nobody has pointed at a registry has genuinely nothing to draw.
  *
- * Anything else is one picture: the topology graph. A configured cast and a discovered one are
- * the same shape — a node is a participant, an edge is a connection — so rather than two views
- * competing to describe the fabric, a backbone with no discovery behind it is projected into a
- * graph of observed nodes and drawn by the same component. Discovery's answer wins when there
- * is one, because it is the live reading; the configured cast is what Studio was *told*.
+ * Anything else is two reads of one fabric: the topology graph — which connections exist — and
+ * the health panel beneath it — whether they work, and for how long they have. A configured
+ * cast and a discovered one are the same shape — a node is a participant, an edge is a
+ * connection — so rather than two views competing to describe the fabric, a backbone with no
+ * discovery behind it is projected into a graph of observed nodes and drawn by the same
+ * component. Discovery's answer wins when there is one, because it is the live reading; the
+ * configured cast is what Studio was *told*.
  *
  * Populated, it is still only a read: labels, identities, advertised capability names, and the
  * links the participants hold with each other. Nothing here dials anything — the capability
  * names are text on a page, not buttons, because Studio watches this fabric rather than
  * driving it (ADR-0001 decision 7).
  */
+import { Connections } from './Connections.tsx';
 import { TopologyGraph } from './TopologyGraph.tsx';
 import type { Backbone } from './backbone.ts';
+import { unwatchedConnections } from './connection.ts';
+import { trackConnections, type ConnectionRecord } from './history.ts';
 import { topologyOf, type Topology } from './topology.ts';
 
 export interface StageProps {
@@ -29,9 +34,15 @@ export interface StageProps {
    * configured backbone: it is what is reachable *now*, re-read on every pass.
    */
   topology?: Topology;
+  /**
+   * How each connection is doing, as the last monitoring pass had it (`useConnections`). A
+   * host that watches nothing passes none, and the panel reports every link as unwatched
+   * rather than assuming it is up.
+   */
+  connections?: readonly ConnectionRecord[];
 }
 
-export function Stage({ backbone, topology }: StageProps) {
+export function Stage({ backbone, topology, connections }: StageProps) {
   const graph = graphOf(backbone, topology);
 
   if (graph.nodes.length === 0 && graph.edges.length === 0) {
@@ -47,7 +58,26 @@ export function Stage({ backbone, topology }: StageProps) {
     );
   }
 
-  return <TopologyGraph topology={graph} />;
+  return (
+    <>
+      <TopologyGraph topology={graph} />
+      <Connections connections={watched(graph, connections)} />
+    </>
+  );
+}
+
+/**
+ * The health to report: what was watched, else the graph's own connections as unwatched.
+ *
+ * A host that handed in no readings has not told Studio its fabric is healthy — it has told it
+ * nothing, and the panel says exactly that, one row per link the graph draws.
+ */
+function watched(
+  graph: Topology,
+  connections?: readonly ConnectionRecord[],
+): readonly ConnectionRecord[] {
+  if (connections?.length) return connections;
+  return trackConnections(null, unwatchedConnections(graph));
 }
 
 /**
