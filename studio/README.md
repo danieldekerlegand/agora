@@ -47,8 +47,12 @@ nobody, or no config at all, is the empty state above.
 | `src/config.ts` | ingestion: a user's config in, a backbone (plus what could not be read) out |
 | `src/topology.ts` | the graph: a KCB discovery answer (`find`, cost-ranked) and the registry's planned routes projected into drawable nodes + typed edges, with node identity settled by the KINP resolver |
 | `src/backbone.ts` | the runtime picture — participants, connections, and the normalizer over whatever the caller handed in (defaults to empty) |
-| `src/Stage.tsx` | what the stage shows: the empty first-run state, else the graph (discovery's answer when there is one, else the configured cast projected into the same shape) |
+| `src/Stage.tsx` | what the stage shows: the empty first-run state, else the graph (discovery's answer when there is one, else the configured cast projected into the same shape) with the connection health panel beneath it |
 | `src/TopologyGraph.tsx` | the graph itself, drawn: nodes with what discovery knows about them, edges with their transport, scope, capability and plane |
+| `src/connection.ts` | per-connection health: where a *peer* dials each link, the probe seam, and the status one observation implies (`up` / `degraded` / `down` / `unknown`) |
+| `src/history.ts` | the connection log — the pure fold that turns a sequence of passes into uptime and a bounded list of recent failures |
+| `src/useConnections.ts` | `useConnections` — one monitoring pass per graph, folded into that log; the health half of the churn seam |
+| `src/Connections.tsx` | the health panel: one row per connection, with its status, its uptime and what the far end said when it broke |
 | `src/useTopology.ts` | `useTopology` — one pass over the lookup surfaces per snapshot, re-run when the host's query moves or it calls `refresh()`; this is the churn seam |
 | `src/index.ts` | the package surface (source-first — nothing is emitted) |
 | `src/main.tsx` | the browser entry point (`npm run dev -w @agora/studio`) — reads the page's embedded config, if it has one |
@@ -85,6 +89,38 @@ answer, nothing merges and nothing is lost — degraded, never broken.
 remembered between calls, which is what makes churn cheap: run it again and the answer is
 whatever is true now.
 
+## Health is observed on the real link, and uptime is counted
+
+Which connections exist is discovery's answer; whether they *work* is only knowable by dialing.
+So `monitorConnections` observes each edge the way a peer on it would — a direct dial of the far
+end's own published address, replaying that transport's **opening leg** by reference to the
+console's wires (A2A: a GET of the peer's Agent Card, `console/src/kcs/a2a-wire.ts`; MCP: a
+JSON-RPC `initialize` at the SDK's pinned protocol version, `mcp-wire.ts`). Nothing is relayed:
+a probe's request goes to one address and its answer comes back to the prober, which is a second
+direct connection *beside* the one being reported on, never a tap on it (ADR-0001 decisions 3 and
+7). The `fetch` is an argument, like every other seam here — Studio opens no transport of its own.
+
+The line is drawn at **answered versus not**: a link that carried a round trip works however
+unhappy the answer, so a refusal or a 5xx (or a JSON-RPC `error` at HTTP 200, which is how MCP
+refuses) is `degraded` and only silence is `down`. A connection nobody probed is `unknown` — a
+reading, never a default. A monitor that reported silence as health would be worse than no
+monitor at all.
+
+`trackConnections` folds the passes into the two things a moment cannot carry: **uptime**, timed
+from the first reading that saw the current status and reset the instant it changes, and the
+**most recent failures**, in the far end's own words, newest first, with a repeat collapsing into
+one row and a count. `<Connections connections={…} />` draws that as text — status, uptime (or
+how long it has been failing), latency, and the errors — with no retry button and no verb of any
+kind, because Studio watches these links and is not on them. A link that leaves the graph takes
+its history with it; there is no stale row to reap.
+
+```tsx
+// The host owns the dial, and the probe only ever dials the far end's published address.
+<App discovery={{ discovery: registry }} monitor={{ probe: httpProbe(fetch) }} />
+```
+
+Without a `monitor`, every connection on the panel reports as unwatched rather than green.
+
 ## Drawing it, and keeping it true
 
 `<TopologyGraph topology={…} />` renders a topology and nothing else — a value in, elements out,
@@ -120,6 +156,6 @@ stage. That is what the standalone bundle does: it has no registry to ask.
 
 ## What lands here next
 
-The roadmap's Phase G, in order: connection monitoring, the animated
+The roadmap's Phase G, in order: the animated
 on-the-wire message viewer, the analytics dashboards, the spec-definition viewer, and runnable
 example setups. Each mounts into the stage this shell provides.

@@ -11,9 +11,15 @@ import { SPEC_VERSIONS } from '@agora/schemas';
 import { STUDIO_CONFIG_FORMAT } from './config.ts';
 
 export { App, type AppProps } from './App.tsx';
+export { Connections, type ConnectionsProps } from './Connections.tsx';
 export { Stage, type StageProps } from './Stage.tsx';
 export { TopologyGraph, type TopologyGraphProps } from './TopologyGraph.tsx';
 export { useTopology, type TopologyReading } from './useTopology.ts';
+export {
+  useConnections,
+  type ConnectionsOptions,
+  type ConnectionsReading,
+} from './useConnections.ts';
 export {
   embeddedConfigText,
   readStudioConfig,
@@ -42,6 +48,7 @@ export {
   httpProbe,
   monitorConnections,
   statusOf,
+  unwatchedConnections,
   type ConnectionHealth,
   type ConnectionProbe,
   type ConnectionStatus,
@@ -55,6 +62,14 @@ export {
   type ProbeRequestInit,
   type ProbeResponse,
 } from './connection.ts';
+export {
+  connectionKey,
+  trackConnections,
+  uptimeOf,
+  type ConnectionError,
+  type ConnectionRecord,
+  type TrackOptions,
+} from './history.ts';
 export {
   backboneOf,
   EMPTY_BACKBONE,

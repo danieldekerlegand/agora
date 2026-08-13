@@ -201,10 +201,10 @@ export async function monitorConnections(
   const { probe } = options;
   const nodes = topology.nodes;
 
+  if (!probe) return unwatchedConnections(topology);
+
   const edges = await Promise.all(
     topology.edges.map(async (edge): Promise<MonitoredEdge> => {
-      if (!probe) return { ...edge, health: { status: 'unknown', detail: UNPROBED } };
-
       const link = directLink(edge, nodes);
       if (!link) return { ...edge, health: { status: 'unknown', detail: NO_ADDRESS } };
 
@@ -220,6 +220,24 @@ export async function monitorConnections(
   );
 
   return { nodes: [...nodes], edges };
+}
+
+/**
+ * The graph with nothing observed about it — every connection reported as unwatched.
+ *
+ * What a host with no probe sees, said synchronously so a view can draw it without a pass:
+ * the connections are real (discovery and the host's own observation put them there), and what
+ * is unknown about them is their health. Same rule as everywhere else in this file — nobody
+ * looked, so nobody may claim they are up.
+ */
+export function unwatchedConnections(topology: Topology): MonitoredTopology {
+  return {
+    nodes: [...topology.nodes],
+    edges: topology.edges.map((edge) => ({
+      ...edge,
+      health: { status: 'unknown' as const, detail: UNPROBED },
+    })),
+  };
 }
 
 /** The slice of a `fetch` answer a probe reads — the console's `HttpResponse`, narrowed. */
