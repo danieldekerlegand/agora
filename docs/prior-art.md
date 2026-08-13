@@ -26,10 +26,23 @@ router is a reference implementation, not a mandate.
 
 **Measured against LiteLLM:** [`spike-litellm-leaf.md`](spike-litellm-leaf.md) takes that
 comparison apart feature by feature, with runnable evidence. Short version: LiteLLM covers the
-mlx-serve and local tiers and owns the vendor adapters, but has no always-completes terminal
-rung, no caller-supplied per-request ceiling that skips a tier without dialing it, and no
-KCB manifest — those three are agora's, and the spike shows why. The adapters it *does* own are
-borrowed rather than reimplemented, behind an opt-in flag:
+mlx-serve and local tiers, but has no always-completes terminal rung, no caller-supplied
+per-request ceiling that skips a tier without dialing it, and no KCB manifest — those three are
+agora's, and the spike shows why.
+
+**Vendor dispatch is agora's own, and LiteLLM is not on the canonical path.** The canonical
+router is Erlang (ADR-0004) and contains no LiteLLM: it reaches all seven vendors whose wire
+format is not OpenAI-shaped — anthropic, gemini, replicate, elevenlabs, runway, luma, minimax —
+through the Rust codec in [`translation/crates/wire`](../translation/crates/wire), driven by
+`provider-router-erl/src/apr_translate.erl` as a **supervised external OS process (a port, not a
+NIF)** so that a fault in wire-format code costs one pipe rather than the node. That codec
+covers **8 `(vendor,modality)` pairs across all seven vendors**.
+
+LiteLLM's own adapters *are* borrowed rather than reimplemented — but only in the **superseded
+Python router**, off by default behind `AGORA_LITELLM=1`, where they make **2 of 7** vendors
+dialable (anthropic and gemini, text). So the borrowed adapters are not this router's dispatch
+path of record; the hand-written Rust codec is, and it is ahead of them 8 pairs to 2. The scope
+correction, and the two reasons that ordering is deliberate rather than incidental, are in
 [`litellm-dispatch-adapter.md`](litellm-dispatch-adapter.md).
 
 ## discovery registry — capability discovery, addresses not proxies
@@ -76,7 +89,7 @@ Reports are content-addressed and archivable.
 
 | Component | Reuses | agora's addition |
 |---|---|---|
-| provider-router | OpenAI API; general LLM-gateway pattern | always-completes zero-spend tier; KCB exposure |
+| provider-router | OpenAI API; general LLM-gateway pattern | always-completes zero-spend tier; pre-dial ceiling refusal; KCB exposure; its **own** native-vendor wire codec (Rust, 7 vendors — not LiteLLM's) |
 | discovery registry | A2A Agent Card discovery | cross-plane path-finding; cost-ranked routing; addresses-not-proxies |
 | resolver | W3C Entity Reconciliation API | identity-firewall-aware merge; review policy |
 | translation engine | koine serialization projections | one core, multiple front-ends |

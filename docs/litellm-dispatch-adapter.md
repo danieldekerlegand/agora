@@ -8,20 +8,39 @@ for this story was *GO, NARROWED*. **Code:**
 > ## ⚠️ Scope correction — 2026-08-11
 >
 > **This adapter is scoped to the superseded Python router only. The canonical router contains
-> no LiteLLM at all.** `grep -ril litellm provider-router-erl/` returns nothing.
+> no LiteLLM at all** — no dependency in `rebar.config`, no import, no dispatch path. The name
+> survives under `provider-router-erl/` in four files and comments only — `apr_cost.erl`,
+> `apr_backends.erl`, `apr_conformance_SUITE.erl`, `apr_local_backend_tests.erl` — every
+> occurrence an attributed reference to the *Python* side or to this document. No code, no
+> configuration and no test assertion stands behind any of them.
 >
 > The canonical Erlang router (ADR-0004) dials **all seven** native-wire vendors — anthropic,
 > gemini, replicate, elevenlabs, runway, luma, minimax — through the **Rust port program**
-> `translation/crates/wire`, built by `provider-router-erl/build-translator.sh` and driven by
-> `apr_translate.erl` as a supervised external OS process. A **port, not a NIF**, deliberately:
-> a panic or segfault in third-party wire-format code costs one pipe and one restart instead of
-> the node, so *always-completes* stays a structural property of the design rather than a claim
-> about someone else's code.
+> [`translation/crates/wire`](../translation/crates/wire), built by
+> [`provider-router-erl/build-translator.sh`](../provider-router-erl/build-translator.sh) and
+> driven by [`apr_translate.erl`](../provider-router-erl/src/apr_translate.erl) as a supervised
+> external OS process.
+>
+> **A port, not a NIF, and that is the point.** That rationale is not re-argued here; it is
+> quoted from where it is enforced, the module doc of `apr_translate.erl`:
+>
+> > The router's invariant is that no rung can take down the node. A NIF runs inside the BEAM's
+> > address space, where a panic or a segfault in third-party wire-format code would be exactly
+> > the failure the sacred ladder exists to make impossible; "fail-safe" would be a claim about
+> > the Rust rather than a property of the design. An OS process cannot do that. Here the worst
+> > case costs one pipe: the port dies, `handle_info/2` clears it, this call answers
+> > `{error, _}`, the rung worker records an undialed attempt and the walk continues to a
+> > cheaper — ultimately zero-cost — rung. Always-completes and ZERO-SPEND hold with the
+> > translator absent, crashed, hung or wrong.
+>
+> Read that module doc, not this paragraph, if the two ever drift: *always-completes* is a
+> structural property of an OS-process boundary, not a claim about someone else's code.
 >
 > That makes the coverage picture the **opposite** of what the rest of this document implies:
-> the Rust codec covers **8 `(vendor,modality)` pairs across all seven vendors**, where this
-> adapter makes **2 of 7** dialable. The canonical path is ahead of the borrowed one, not behind
-> it, and the vendor-breadth path of record is `chief/52-wire-codec-vendor-breadth`.
+> the Rust codec covers **8 `(vendor,modality)` pairs across all seven native-wire vendors**,
+> where this adapter makes **2 of 7 vendors** dialable (anthropic and gemini, text only). The
+> canonical path is **ahead** of the borrowed one — 8 pairs to 2 — not behind it, and the
+> vendor-breadth path of record is `chief/52-wire-codec-vendor-breadth`.
 >
 > **The code is right; the record was wrong.** Two independent reasons to keep it that way:
 > LiteLLM cannot embed in the BEAM without a Python sidecar on the hot path or a NIF, and either
