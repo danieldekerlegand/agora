@@ -61,3 +61,60 @@
 .studio-footer .version {
   font-variant-numeric: tabular-nums;
 }
+
+/* The first-run state. Deliberately quiet: nothing is wrong, there is simply nothing yet. */
+.studio-empty {
+  max-width: 52ch;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.studio-empty h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222;
+}
+
+.studio-counts {
+  margin: 0 0 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-cast section {
+  margin-bottom: 1.25rem;
+}
+
+.studio-cast h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #555;
+}
+
+.studio-cast ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.studio-cast li {
+  padding: 0.15rem 0;
+}
+
+.studio-cast .identity,
+.studio-cast .capabilities,
+.studio-cast .transport {
+  color: #666;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.8rem;
+}
+
+.studio-none {
+  margin: 0;
+  color: #777;
+  font-size: 0.85rem;
+}

@@ -17,11 +17,23 @@
 import { SPEC_VERSIONS } from '@agora/schemas';
 
 import './App.css';
+import { Stage } from './Stage.tsx';
+import { backboneOf, type Backbone } from './backbone.ts';
 
 /** The koine contracts a Studio build speaks, in the order the footer lists them. */
 const CONTRACTS = Object.entries(SPEC_VERSIONS);
 
-export function App() {
+export interface AppProps {
+  /**
+   * The fabric to draw. A prop, and only ever a prop: the cast arrives at runtime from the
+   * user's own configuration, so there is nothing to default it *to* except nothing.
+   */
+  backbone?: Backbone;
+}
+
+export function App({ backbone }: AppProps = {}) {
+  const fabric = backboneOf(backbone);
+
   return (
     <div className="studio">
       <header className="studio-header">
@@ -32,7 +44,9 @@ export function App() {
         </p>
       </header>
 
-      <main className="studio-stage" aria-label="studio stage" />
+      <main className="studio-stage" aria-label="studio stage">
+        <Stage backbone={fabric} />
+      </main>
 
       <footer className="studio-footer">
         <h2>koine contracts</h2>
