@@ -1,0 +1,24 @@
+{
+  "name": "@agora/example-local-inference",
+  "license": "Apache-2.0",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Thin local-inference example participants — sample apps and services that publish a KCB manifest and answer over A2A/MCP.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@agora/sdk": "*"
+  },
+  "devDependencies": {
+    "@agora/schemas": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

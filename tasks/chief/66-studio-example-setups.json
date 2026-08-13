@@ -31,7 +31,7 @@
         "The SDK is never imported by these examples in reverse: `clients/sdk/`'s `index.test.ts` SDK_API drift test still passes (examples consume the SDK, the SDK does not consume them), and the examples stay runnable the way `participant-starter/` is (Node strip-only loader compatible \u2014 no TS parameter properties/enums)",
         "`make check` green (including `check-clients`/`check-examples` and the `studio/` gate)"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -43,7 +43,7 @@
         "A test asserts loading an example config yields the expected nodes/edges in Studio, and that the examples are sample data only \u2014 Studio still starts empty with no config (the 60 backbone ships with no preconfigured participants)",
         "`make check` green; Studio stays source-first, observer-only, and free of any hard-wired participant literal (project names in examples are marked sample data per CLAUDE.md)"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]

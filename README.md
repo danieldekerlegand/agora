@@ -117,6 +117,11 @@ AgentCard carrying its KCB manifest and answers on the wire:
 
 - **[The participant starter](examples/participant-starter/README.md)**
 
+For something already running to point a console or Studio at, there is a small **sample** cast of
+thin participants — an app and three services, each barely more than a local inference call:
+
+- **[Thin local-inference examples](examples/local-inference/README.md)**
+
 ## Components
 
 Each component is an independent service you can run on its own.
@@ -154,6 +159,7 @@ since everything is reached over the wire, never imported across a language boun
 | `schemas/` | TypeScript | `make check-schemas` |
 | `clients/sdk/` | TypeScript | `make check-clients` — the published client SDK (`make build` emits its `dist/`) |
 | `examples/participant-starter/` | TypeScript | `make check-examples` — the copy-and-run participant starter |
+| `examples/local-inference/` | TypeScript | `make check-examples` — the thin sample cast (an app + three services) |
 | `translation/` | Rust (cargo) | `make check-translation` — build + clippy + test |
 
 There are two provider-router areas: the **Erlang app is the canonical one you deploy**, and the

@@ -93,6 +93,63 @@ describe('the cast is exactly the config, and moves with it', () => {
   });
 });
 
+describe('a config can say where a peer publishes, and what it published', () => {
+  // The three optional fields are what make a described fabric watchable rather than merely
+  // drawn: an address to observe the link at, and the peer's own documents to read. All three
+  // are the host's copies of somebody else's bytes — carried, never fetched and never ruled on.
+  const MANIFEST = { kcb_version: '0.2.0', identity: 'example:agent:alpha' };
+  const CARD = { name: 'example:agent:alpha', description: 'a sample peer' };
+  const PUBLISHED = {
+    ...ALPHA,
+    endpoints: { a2a: 'http://alpha.example/card', manifest: 'http://alpha.example/manifest' },
+    manifest: MANIFEST,
+    card: CARD,
+  };
+
+  it('keeps the endpoint map as the config wrote it', () => {
+    const { backbone, problems } = readStudioConfig(config({ participants: [PUBLISHED] }));
+
+    expect(problems).toEqual([]);
+    expect(backbone.participants[0]?.endpoints).toEqual({
+      a2a: 'http://alpha.example/card',
+      manifest: 'http://alpha.example/manifest',
+    });
+  });
+
+  it('carries the manifest verbatim and hands the card back keyed by identity', () => {
+    const { backbone, cards } = readStudioConfig(config({ participants: [PUBLISHED, BETA] }));
+
+    expect(backbone.participants[0]?.manifest).toEqual(MANIFEST);
+    expect(cards).toEqual({ 'example:agent:alpha': CARD });
+    // A participant the config wrote no documents for has none — nothing is filled in.
+    expect(backbone.participants[1]?.manifest).toBeUndefined();
+  });
+
+  it('has no cards at all when no config, or no card in one, said so', () => {
+    expect(readStudioConfig(undefined).cards).toEqual({});
+    expect(readStudioConfig('{ not json').cards).toEqual({});
+    expect(readStudioConfig(config({ participants: [ALPHA] })).cards).toEqual({});
+  });
+
+  it('drops an endpoint that is not an address, and keeps the rest of the map', () => {
+    const { backbone, problems } = readStudioConfig(
+      config({
+        participants: [
+          { ...ALPHA, endpoints: { a2a: 'http://alpha.example/card', mcp: 42 } },
+          { identity: 'example:agent:gamma', endpoints: 'http://gamma.example' },
+        ],
+      }),
+    );
+
+    expect(backbone.participants[0]?.endpoints).toEqual({ a2a: 'http://alpha.example/card' });
+    expect(backbone.participants[1]?.endpoints).toBeUndefined();
+    expect(problems).toEqual([
+      'participants[0].endpoints.mcp is not an address',
+      'participants[1].endpoints is not an object',
+    ]);
+  });
+});
+
 describe('an unreadable config costs the user an entry and an explanation, never a crash', () => {
   it('refuses a format it does not know rather than guessing at it', () => {
     for (const unknown of [

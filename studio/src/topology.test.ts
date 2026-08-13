@@ -298,6 +298,56 @@ describe('an edge is typed by which side of the discovery index it ends on', () 
   });
 });
 
+describe('a participant somebody described carries what they wrote down about it', () => {
+  // The config seam's own shape (`config.ts`): a described peer may come with the address it
+  // publishes and the manifest the describer read for it. Neither makes it discovered — nobody
+  // indexed it — and both are what make a described fabric watchable rather than merely drawn.
+  const manifest = { kcb_version: '0.2.0', identity: OUTSIDE };
+  const described = {
+    participants: [
+      { identity: OUTSIDE, label: 'an outside peer', endpoints: { mcp: 'http://peer/mcp' }, manifest },
+      { identity: 'example:agent:unaddressed', label: 'named, and nothing more' },
+    ],
+    connections: [{ from: OUTSIDE, to: 'example:agent:unaddressed' }],
+  };
+
+  it('keeps the address it was described at, and is reachable because of it', () => {
+    const { nodes } = topologyOf({ observed: described });
+    const peer = nodes.find((node) => node.identity === OUTSIDE);
+
+    expect(peer?.address).toEqual({ identity: OUTSIDE, endpoints: { mcp: 'http://peer/mcp' } });
+    expect(peer?.reachable).toBe(true);
+    // Described is not discovered: the weaker source is exactly what this flag reports.
+    expect(peer?.discovered).toBe(false);
+  });
+
+  it('carries the manifest it was described with, and none it was not', () => {
+    const { nodes } = topologyOf({ observed: described });
+
+    expect(nodes.find((node) => node.identity === OUTSIDE)?.advertised).toEqual(manifest);
+    expect(nodes.find((node) => node.identity !== OUTSIDE)?.advertised).toBeUndefined();
+  });
+
+  it('names the transport of a described link from the address the far end publishes', () => {
+    const { edges } = topologyOf({
+      observed: { ...described, connections: [{ from: 'example:agent:unaddressed', to: OUTSIDE }] },
+    });
+
+    expect(edges).toEqual([
+      { from: 'example:agent:unaddressed', to: OUTSIDE, scope: 'external', transport: 'mcp' },
+    ]);
+  });
+
+  it('is still a participant when it was described by name alone', () => {
+    const { nodes } = topologyOf({ observed: described });
+    const unaddressed = nodes.find((node) => node.identity === 'example:agent:unaddressed');
+
+    expect(unaddressed?.address.endpoints).toEqual({});
+    expect(unaddressed?.reachable).toBe(false);
+    expect(nodes).toHaveLength(2);
+  });
+});
+
 describe('a cross-plane route is the registry path-finding, drawn', () => {
   const route = {
     from: { plane: 'media', mediaType: 'audio/midi' },

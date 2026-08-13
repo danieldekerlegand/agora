@@ -15,7 +15,14 @@
  * {
  *   "format": "agora.studio.config/v1",
  *   "participants": [
- *     { "identity": "<kinp identity>", "label": "<what to show>", "capabilities": ["<name>"] }
+ *     {
+ *       "identity": "<kinp identity>",
+ *       "label": "<what to show>",
+ *       "capabilities": ["<name>"],
+ *       "endpoints": { "a2a": "<url>", "mcp": "<url>" },
+ *       "manifest": { "<the KCB manifest body you read for it>": "…" },
+ *       "card": { "<the AgentCard you read at its own address>": "…" }
+ *     }
  *   ],
  *   "connections": [{ "from": "<identity>", "to": "<identity>", "transport": "a2a" }]
  * }
@@ -25,6 +32,13 @@
  * describes nobody is not an error — it yields the same empty backbone a fresh install draws.
  * Nothing is ever thrown: whatever could not be understood comes back as a `problems` line, so
  * a typo costs the user that one entry and an explanation rather than a blank screen.
+ *
+ * The last three fields are what make a described fabric *watchable* rather than merely drawn:
+ * `endpoints` is where a peer dials, so the health panel can observe the real link; `manifest`
+ * and `card` are the participant's own documents, so the spec viewer has something to read. All
+ * three arrive the way everything here does — the host read them and wrote them down, and Studio
+ * fetched none of them (ADR-0001 decisions 3 and 7). They are the user's copies of somebody
+ * else's documents and are carried unvalidated: the viewer's checker says what they are.
  */
 import { isJsonObject, type Json } from '@agora/schemas';
 
@@ -46,22 +60,33 @@ export const STUDIO_CONFIG_FORMAT = 'agora.studio.config/v1';
 export interface StudioConfigReading {
   /** The cast to draw. {@link EMPTY_BACKBONE} when there was no config, or none this build reads. */
   backbone: Backbone;
+  /**
+   * The AgentCards the config carried, by identity — the `cards` prop, ready to hand to `<App>`.
+   * Empty when the config carried none, which is the ordinary case: a card is a document the
+   * host read at the participant's own address, and a config that names nobody's card leaves
+   * the spec viewer showing whatever else it was handed.
+   */
+  cards: Readonly<Record<string, unknown>>;
   /** The format the config declared, when this build recognized it. `null` when it did not. */
   format: string | null;
   /** Every part that was not understood, in the order it was found. Never an exception. */
   problems: readonly string[];
 }
 
+/** No cards at all — shared, and frozen, because a reading never mutates its own answer. */
+const NO_CARDS: Readonly<Record<string, unknown>> = Object.freeze({});
+
 /** No config at all — the fresh-install case, which is a state and not a failure. */
 const NOTHING: StudioConfigReading = Object.freeze({
   backbone: EMPTY_BACKBONE,
+  cards: NO_CARDS,
   format: null,
   problems: Object.freeze([]),
 });
 
 /** A config this build cannot read at all: nothing to draw, and the reason why. */
 function refuse(problem: string): StudioConfigReading {
-  return { backbone: EMPTY_BACKBONE, format: null, problems: [problem] };
+  return { backbone: EMPTY_BACKBONE, cards: NO_CARDS, format: null, problems: [problem] };
 }
 
 /** One field that should have been an array of entries, or `[]` plus a line saying it was not. */
@@ -78,6 +103,37 @@ function entriesAt(config: Record<string, Json>, field: string, problems: string
 /** A trimmed non-empty string, or `undefined` — the only thing this reader accepts as a name. */
 function text(value: Json | undefined): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
+
+/**
+ * One participant's endpoint map: the URLs it publishes, keyed by transport (KCB §2).
+ *
+ * Open-ended on purpose, because a provider publishes the endpoints it actually serves and only
+ * those — the map's keys are the provider's, not this reader's. An entry that is not a URL-ish
+ * string costs the user that entry and a line saying so; the rest of the address survives.
+ */
+function endpointsAt(
+  entry: Record<string, Json>,
+  where: string,
+  problems: string[],
+): Record<string, string> | undefined {
+  const value = entry.endpoints;
+  if (value === undefined || value === null) return undefined;
+  if (!isJsonObject(value)) {
+    problems.push(`${where}.endpoints is not an object`);
+    return undefined;
+  }
+
+  const endpoints: Record<string, string> = {};
+  for (const [transport, url] of Object.entries(value)) {
+    const address = text(url);
+    if (address === undefined) {
+      problems.push(`${where}.endpoints.${transport} is not an address`);
+      continue;
+    }
+    endpoints[transport] = address;
+  }
+  return Object.keys(endpoints).length ? endpoints : undefined;
 }
 
 /**
@@ -110,6 +166,7 @@ export function readStudioConfig(source?: unknown): StudioConfigReading {
 
   const problems: string[] = [];
   const participants: Participant[] = [];
+  const cards: Record<string, unknown> = {};
   const known = new Set<string>();
 
   entriesAt(value, 'participants', problems).forEach((entry, index) => {
@@ -147,6 +204,15 @@ export function readStudioConfig(source?: unknown): StudioConfigReading {
         if (capabilities.length) participant.capabilities = capabilities;
       }
     }
+
+    const endpoints = endpointsAt(entry, where, problems);
+    if (endpoints) participant.endpoints = endpoints;
+    // The two documents ride through untouched: they are the participant's bytes as the host
+    // copied them down, and reading them here would be this module ruling on a document it is
+    // only carrying. `null` is a document as much as an object is — the checker says so.
+    if (entry.manifest !== undefined) participant.manifest = entry.manifest;
+    if (entry.card !== undefined) cards[identity] = entry.card;
+
     participants.push(participant);
   });
 
@@ -174,7 +240,12 @@ export function readStudioConfig(source?: unknown): StudioConfigReading {
     connections.push(connection);
   });
 
-  return { backbone: backboneOf({ participants, connections }), format, problems };
+  return {
+    backbone: backboneOf({ participants, connections }),
+    cards: Object.keys(cards).length ? cards : NO_CARDS,
+    format,
+    problems,
+  };
 }
 
 /** The id of the `<script type="application/json">` block a host page embeds its config in. */

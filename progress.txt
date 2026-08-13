@@ -916,3 +916,43 @@ Full Erlang gate green (compile + dialyzer + eunit 103 + ct 51/7 skipped); `make
 - Keeping the rendered vocabulary as `participants` / `connections` (the accessible list names the
   60 tests query) let the graph replace the plain cast list without touching a single existing
   test — a node IS a participant, so the rename would have been churn for its own sake.
+---
+## 66 US-1 — Thin local-inference example participants over the published SDK
+- New area `examples/local-inference/` (`@agora/example-local-inference`, in the `examples/*`
+  workspace glob already): `wire.ts` (the A2A/MCP plumbing, written once), four thin apps —
+  `notes.ts` / `keywords.ts` / `sentiment.ts` / `embeddings.ts` — plus `apps.ts` (the cast list +
+  `startApps`/`closeApps`), `index.ts`, `README.md`, and two suites (`wire.test.ts` drives every
+  example over the wire; `apps.test.ts` covers the inference, the cast invariants and the two
+  promises below). `make check-examples` now gates BOTH example packages (`ts-area` takes a
+  space-separated PKG list). README/CLAUDE.md layout tables updated.
+- Each participant serves the bare KCB manifest always (the §3 crawl target), the AgentCard only
+  when it published an `a2a` endpoint, and answers on the transports the manifest names: A2A
+  `message/send` at `/a2a`, and MCP `initialize`/`tools/list`/`tools/call` at `/mcp` with the
+  capability's own name as the tool name — which is what `console/src/kcs/mcp-wire.ts`'s
+  `selectTool` dials by default, so an example and the conformance console interoperate untouched.
+- Dependencies point ONE way and are asserted: `dependencies` is exactly `@agora/sdk`,
+  `devDependencies` exactly `@agora/schemas` (the tests' judge), and nothing in agora imports the
+  examples. `clients/sdk`'s SDK_API drift test stays green.
+
+### Learnings for future iterations
+- **A KINP identity's middle segment is a fixed vocabulary** — `ent|claim|asset|world|agent|src`
+  (`schemas/src/identity.ts`). `example:app:notes` and `example:service:keywords` are NOT KINP ids
+  and `parseManifestBody` rejects them; sample peers are `example:agent:<name>`. The app-vs-service
+  distinction belongs in the label, never in the kind segment.
+- **Node 22.22 strips TypeScript with no flag and no warning**, and it strips a workspace
+  dependency's `.ts` too because the symlink resolves out of `node_modules` to its real path. So
+  "runnable as written" is testable: spawn `node src/notes.ts` with `PORT=0`, read the announced
+  URL off stdout, fetch its manifest. Collect stderr into the exit-path error rather than
+  rejecting on it — an `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` there is the diagnosis when an example
+  outgrows the strip-only loader.
+- **`ts-area` accepts several packages**: `PKG="@agora/a @agora/b"` (it is `$(addprefix -w ,$(PKG))`),
+  so one area target can gate a directory of sibling packages.
+- ⚠️ **Two `make check` failures are PRE-EXISTING and out of this tasklist's scope** — both are
+  drift against the *sibling* `../koine` checkout, which has moved KFT to 0.4.0 while agora pins
+  0.3.0: `schemas/src/koine-schema-drift.test.ts` (vendored `finetune-job.schema.json` stale) and
+  `trainer/tests/test_schema_drift.py` (same file, second ecosystem). Nothing in this branch
+  touches `schemas/` or `trainer/`. That repin is `chief/70-spec-pin-repin-and-drift-gate`
+  (ROADMAP Phase B2) — refreshing the snapshot here would mean adopting KFT 0.4.0's new
+  `base_model_descriptor`/`dataset.descriptor` fields and bumping the pin in three languages.
+  Everything this story touches is green: `make check-examples`, `make check-clients`,
+  `make check-studio`, and every other package under `make check-ts`.

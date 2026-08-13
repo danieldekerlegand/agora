@@ -1,0 +1,323 @@
+{
+  "format": "agora.studio.config/v1",
+  "name": "whole-cast",
+  "note": "Sample data: a made-up cast of thin local-inference examples, not a roster. agora ships with no participants — describe your own fabric in a config with this shape.",
+  "participants": [
+    {
+      "identity": "example:agent:notes-app",
+      "label": "Notes (sample app)",
+      "capabilities": [
+        "notes.compose"
+      ],
+      "endpoints": {
+        "manifest": "http://127.0.0.1:8791/.well-known/kcb-manifest.json",
+        "a2a": "http://127.0.0.1:8791/.well-known/agent-card.json"
+      },
+      "manifest": {
+        "kcb_version": "0.2.0",
+        "identity": "example:agent:notes-app",
+        "endpoints": {
+          "manifest": "http://127.0.0.1:8791/.well-known/kcb-manifest.json",
+          "a2a": "http://127.0.0.1:8791/.well-known/agent-card.json"
+        },
+        "capabilities": [
+          {
+            "name": "notes.compose",
+            "inputs": [
+              {
+                "plane": "knowledge",
+                "shape": "text"
+              }
+            ],
+            "outputs": [
+              {
+                "plane": "knowledge",
+                "shape": "text"
+              }
+            ],
+            "cost": {
+              "est_units": 0
+            }
+          }
+        ]
+      },
+      "card": {
+        "name": "example:agent:notes-app",
+        "description": "Turn a transcript into bulleted notes, on this machine.",
+        "url": "http://127.0.0.1:8791/a2a",
+        "capabilities": {
+          "extensions": [
+            {
+              "uri": "https://koine.dev/kcb/manifest/0.3",
+              "description": "Koine capability-bus manifest",
+              "required": false,
+              "params": {
+                "kcb_version": "0.2.0",
+                "identity": "example:agent:notes-app",
+                "endpoints": {
+                  "manifest": "http://127.0.0.1:8791/.well-known/kcb-manifest.json",
+                  "a2a": "http://127.0.0.1:8791/.well-known/agent-card.json"
+                },
+                "capabilities": [
+                  {
+                    "name": "notes.compose",
+                    "inputs": [
+                      {
+                        "plane": "knowledge",
+                        "shape": "text"
+                      }
+                    ],
+                    "outputs": [
+                      {
+                        "plane": "knowledge",
+                        "shape": "text"
+                      }
+                    ],
+                    "cost": {
+                      "est_units": 0
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "identity": "example:agent:keywords",
+      "label": "Keywords (sample service)",
+      "capabilities": [
+        "extract.keywords"
+      ],
+      "endpoints": {
+        "manifest": "http://127.0.0.1:8792/.well-known/kcb-manifest.json",
+        "a2a": "http://127.0.0.1:8792/.well-known/agent-card.json"
+      },
+      "manifest": {
+        "kcb_version": "0.2.0",
+        "identity": "example:agent:keywords",
+        "endpoints": {
+          "manifest": "http://127.0.0.1:8792/.well-known/kcb-manifest.json",
+          "a2a": "http://127.0.0.1:8792/.well-known/agent-card.json"
+        },
+        "capabilities": [
+          {
+            "name": "extract.keywords",
+            "inputs": [
+              {
+                "plane": "knowledge",
+                "shape": "text"
+              }
+            ],
+            "outputs": [
+              {
+                "plane": "knowledge",
+                "shape": "text"
+              }
+            ],
+            "cost": {
+              "est_units": 0
+            }
+          }
+        ]
+      },
+      "card": {
+        "name": "example:agent:keywords",
+        "description": "Pull the terms a piece of text is about, on this machine.",
+        "url": "http://127.0.0.1:8792/a2a",
+        "capabilities": {
+          "extensions": [
+            {
+              "uri": "https://koine.dev/kcb/manifest/0.3",
+              "description": "Koine capability-bus manifest",
+              "required": false,
+              "params": {
+                "kcb_version": "0.2.0",
+                "identity": "example:agent:keywords",
+                "endpoints": {
+                  "manifest": "http://127.0.0.1:8792/.well-known/kcb-manifest.json",
+                  "a2a": "http://127.0.0.1:8792/.well-known/agent-card.json"
+                },
+                "capabilities": [
+                  {
+                    "name": "extract.keywords",
+                    "inputs": [
+                      {
+                        "plane": "knowledge",
+                        "shape": "text"
+                      }
+                    ],
+                    "outputs": [
+                      {
+                        "plane": "knowledge",
+                        "shape": "text"
+                      }
+                    ],
+                    "cost": {
+                      "est_units": 0
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "identity": "example:agent:sentiment",
+      "label": "Sentiment (sample service)",
+      "capabilities": [
+        "classify.sentiment"
+      ],
+      "endpoints": {
+        "manifest": "http://127.0.0.1:8793/.well-known/kcb-manifest.json",
+        "mcp": "http://127.0.0.1:8793/mcp"
+      },
+      "manifest": {
+        "kcb_version": "0.2.0",
+        "identity": "example:agent:sentiment",
+        "endpoints": {
+          "manifest": "http://127.0.0.1:8793/.well-known/kcb-manifest.json",
+          "mcp": "http://127.0.0.1:8793/mcp"
+        },
+        "capabilities": [
+          {
+            "name": "classify.sentiment",
+            "inputs": [
+              {
+                "plane": "knowledge",
+                "shape": "text"
+              }
+            ],
+            "outputs": [
+              {
+                "plane": "knowledge",
+                "shape": "text"
+              }
+            ],
+            "cost": {
+              "est_units": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "identity": "example:agent:embeddings",
+      "label": "Embeddings (sample service)",
+      "capabilities": [
+        "embed.text"
+      ],
+      "endpoints": {
+        "manifest": "http://127.0.0.1:8794/.well-known/kcb-manifest.json",
+        "a2a": "http://127.0.0.1:8794/.well-known/agent-card.json",
+        "mcp": "http://127.0.0.1:8794/mcp"
+      },
+      "manifest": {
+        "kcb_version": "0.2.0",
+        "identity": "example:agent:embeddings",
+        "endpoints": {
+          "manifest": "http://127.0.0.1:8794/.well-known/kcb-manifest.json",
+          "a2a": "http://127.0.0.1:8794/.well-known/agent-card.json",
+          "mcp": "http://127.0.0.1:8794/mcp"
+        },
+        "capabilities": [
+          {
+            "name": "embed.text",
+            "inputs": [
+              {
+                "plane": "knowledge",
+                "shape": "text"
+              }
+            ],
+            "outputs": [
+              {
+                "plane": "knowledge",
+                "shape": "vector"
+              }
+            ],
+            "cost": {
+              "est_units": 0
+            }
+          }
+        ]
+      },
+      "card": {
+        "name": "example:agent:embeddings",
+        "description": "Turn text into a vector, on this machine.",
+        "url": "http://127.0.0.1:8794/a2a",
+        "capabilities": {
+          "extensions": [
+            {
+              "uri": "https://koine.dev/kcb/manifest/0.3",
+              "description": "Koine capability-bus manifest",
+              "required": false,
+              "params": {
+                "kcb_version": "0.2.0",
+                "identity": "example:agent:embeddings",
+                "endpoints": {
+                  "manifest": "http://127.0.0.1:8794/.well-known/kcb-manifest.json",
+                  "a2a": "http://127.0.0.1:8794/.well-known/agent-card.json",
+                  "mcp": "http://127.0.0.1:8794/mcp"
+                },
+                "capabilities": [
+                  {
+                    "name": "embed.text",
+                    "inputs": [
+                      {
+                        "plane": "knowledge",
+                        "shape": "text"
+                      }
+                    ],
+                    "outputs": [
+                      {
+                        "plane": "knowledge",
+                        "shape": "vector"
+                      }
+                    ],
+                    "cost": {
+                      "est_units": 0
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "identity": "example:agent:outside-peer",
+      "label": "An outside peer (sample)",
+      "capabilities": []
+    }
+  ],
+  "connections": [
+    {
+      "from": "example:agent:notes-app",
+      "to": "example:agent:keywords",
+      "transport": "a2a"
+    },
+    {
+      "from": "example:agent:notes-app",
+      "to": "example:agent:sentiment",
+      "transport": "mcp"
+    },
+    {
+      "from": "example:agent:notes-app",
+      "to": "example:agent:embeddings",
+      "transport": "a2a"
+    },
+    {
+      "from": "example:agent:keywords",
+      "to": "example:agent:embeddings",
+      "transport": "mcp"
+    },
+    {
+      "from": "example:agent:notes-app",
+      "to": "example:agent:outside-peer"
+    }
+  ]
+}

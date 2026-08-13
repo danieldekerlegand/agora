@@ -63,8 +63,10 @@ export interface TopologyNode extends Participant {
    * this seam would be the view vouching for a document it never validated. Whoever renders
    * it says what it is (`specs.ts`), and says so by validating rather than by asserting.
    *
-   * Absent for a participant that was only ever observed: the host saw traffic with it and
-   * was handed nothing it published.
+   * For an observed participant it is the copy whoever described the fabric wrote down, which
+   * is the same kind of thing — somebody else's cache of the provider's own document, and never
+   * the provider speaking. Absent when nobody handed one over at all: the host saw traffic with
+   * a peer and was given nothing it published.
    */
   advertised?: unknown;
 }
@@ -406,9 +408,15 @@ export interface TopologyInput {
  *
  * An observed participant discovery has never heard of is still on the picture — it is the
  * outside end of an external connection, and leaving it off would leave the connection
- * undrawable. It is marked `discovered: false` and carries no address, because Studio was told
- * about it rather than handed a manifest for it; that is precisely the difference the
- * internal/external split on each edge reports.
+ * undrawable. It is marked `discovered: false`, because Studio was told about it rather than
+ * handed a manifest for it by the index; that is precisely the difference the internal/external
+ * split on each edge reports.
+ *
+ * Told about it *and* told where it publishes is a second, weaker source than the index, and it
+ * is carried as what it is: an observed participant whose describer wrote down an address keeps
+ * that address, so the link to it can be watched on the real wire rather than reported as
+ * unwatchable, and one whose describer wrote down its manifest carries that too. Neither makes
+ * it discovered — nobody indexed it — and a participant described without either still draws.
  *
  * Discovery's ranking survives into the node order, and the observed extras follow it.
  */
@@ -430,13 +438,21 @@ export function topologyOf(input?: TopologyInput | null): Topology {
     const identity = canonical.get(watched) ?? watched;
     if (placed.has(identity)) continue;
     placed.add(identity);
-    nodes.push({
-      ...participant,
+
+    // The address and the manifest are the same two facts a discovery answer carries, from a
+    // weaker source — so they land in the same two fields rather than beside them, and the
+    // node's own `discovered: false` is what says where they came from.
+    const { endpoints, manifest, ...rest } = participant;
+    const address: ProviderAddress = { identity, endpoints: { ...endpoints } };
+    const node: TopologyNode = {
+      ...rest,
       identity,
-      address: { identity, endpoints: {} },
-      reachable: false,
+      address,
+      reachable: isDialable(address),
       discovered: false,
-    });
+    };
+    if (manifest !== undefined) node.advertised = manifest;
+    nodes.push(node);
   }
 
   const links: Link[] = [
