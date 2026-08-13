@@ -45,7 +45,14 @@ dependencies = [
 # The borrowed vendor adapters (US-2). Optional on purpose: 86 declared dependencies and
 # ~166 MB buy two native-wire vendors this router could not otherwise dial, which is a
 # deployment's call. Nothing imports it unless AGORA_LITELLM is set — see
-# `src/agora_provider_router/litellm_dispatch.py`.
+# `src/agora_provider_router/litellm_dispatch.py`. Scoped to THIS (superseded) router: the
+# canonical Erlang one dials all seven native-wire vendors through the Rust `wire` port program
+# and contains no LiteLLM at all — `../docs/litellm-dispatch-adapter.md`.
+#
+# The floor is load-bearing, not incidental: LiteLLM 1.82.7 and 1.82.8 were backdoored on PyPI
+# in March 2026, and >=1.95 is what makes them unresolvable for an optional dependency that sits
+# on a request hot path. Do not lower it. `tests/test_litellm_dispatch.py`
+# (TestTheFlooredExtraExcludesTheBackdooredReleases) reads this line back and fails if anyone does.
 litellm = ["litellm>=1.95"]
 dev = [
     "pytest>=8.0",

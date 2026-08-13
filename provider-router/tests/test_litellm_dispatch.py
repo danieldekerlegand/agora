@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import importlib
 import sys
+import tomllib
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -375,3 +377,51 @@ class TestAgainstTheRealLibrary:
         assert completion.response["object"] == "chat.completion"
         assert completion.response["choices"][0]["message"]["content"] == "borrowed"
         assert completion.actual.estimate is False, "usage came back off the real response"
+
+
+#: The two LiteLLM releases backdoored on PyPI in March 2026. An optional dependency that sits
+#: on a request hot path may not be installable at a version with a known implant, so the extra's
+#: floor is what makes them unresolvable — see `docs/litellm-dispatch-adapter.md` §"Why this stays
+#: a Python-side borrow".
+BACKDOORED: tuple[tuple[int, ...], ...] = ((1, 82, 7), (1, 82, 8))
+
+#: Where the extra is declared. Read rather than imported: the constraint under test is packaging
+#: metadata, and an installed distribution would tell us what a resolver already chose.
+PYPROJECT = Path(__file__).resolve().parents[1] / "pyproject.toml"
+
+
+def _release(version: str) -> tuple[int, ...]:
+    """``"1.95"`` -> ``(1, 95)``. Enough of PEP 440 to order a floor against a bad release."""
+    return tuple(int(part) for part in version.strip().split(".") if part.isdigit())
+
+
+class TestTheFlooredExtraExcludesTheBackdooredReleases:
+    """The supply-chain argument as a check rather than a comment.
+
+    ``>=1.95`` already puts both compromised releases out of reach; what this pins down is that
+    the floor stays *deliberate*. Lower it past 1.82.7 for any reason — a bisect, a downstream
+    conflict, a copy-paste — and this fails rather than quietly making the implant installable.
+    """
+
+    def test_the_extra_is_still_declared(self) -> None:
+        extras = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["project"][
+            "optional-dependencies"
+        ]
+        assert extras["litellm"] == ["litellm>=1.95"], (
+            "the [litellm] extra changed shape — re-check the floor against BACKDOORED before "
+            "loosening this assertion"
+        )
+
+    @pytest.mark.parametrize("bad", BACKDOORED, ids=lambda v: ".".join(str(p) for p in v))
+    def test_no_backdoored_release_satisfies_the_constraint(self, bad: tuple[int, ...]) -> None:
+        extras = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["project"][
+            "optional-dependencies"
+        ]
+        requirement = next(r for r in extras["litellm"] if r.startswith("litellm"))
+        clauses = [clause.strip() for clause in requirement[len("litellm") :].split(",")]
+        floors = [_release(c[2:]) for c in clauses if c.startswith(">=")]
+        excluded = {_release(c[2:]) for c in clauses if c.startswith("!=")}
+        assert any(floor > bad for floor in floors) or bad in excluded, (
+            f"{requirement!r} would let the optional extra resolve to "
+            f"{'.'.join(str(p) for p in bad)}, which was backdoored on PyPI in March 2026"
+        )

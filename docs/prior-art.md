@@ -41,8 +41,16 @@ covers **8 `(vendor,modality)` pairs across all seven vendors**.
 LiteLLM's own adapters *are* borrowed rather than reimplemented — but only in the **superseded
 Python router**, off by default behind `AGORA_LITELLM=1`, where they make **2 of 7** vendors
 dialable (anthropic and gemini, text). So the borrowed adapters are not this router's dispatch
-path of record; the hand-written Rust codec is, and it is ahead of them 8 pairs to 2. The scope
-correction, and the two reasons that ordering is deliberate rather than incidental, are in
+path of record; the hand-written Rust codec is, and it is ahead of them 8 pairs to 2.
+
+That ordering is deliberate, for two reasons that are independent of each other. LiteLLM cannot
+reach the canonical path without a NIF (an embedded interpreter in the BEAM's address space, where
+a fault becomes the node's) or a Python sidecar (safe for the node, but it either duplicates the
+Rust codec at greater weight or moves the pre-dial refusal below the transport boundary, into
+cost accounting that reads an unpriced model as *free*). And LiteLLM **1.82.7 and 1.82.8 were
+backdoored on PyPI in March 2026** — which is why the optional Python-side extra is floored at
+`>=1.95`, off unless `AGORA_LITELLM=1`, and why the floor is asserted by a test rather than left
+to a comment. Both arguments, and the pin, are in
 [`litellm-dispatch-adapter.md`](litellm-dispatch-adapter.md).
 
 ## discovery registry — capability discovery, addresses not proxies
