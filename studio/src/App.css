@@ -118,3 +118,28 @@
   color: #777;
   font-size: 0.85rem;
 }
+
+/* Config the reader could not place. Informational, not alarming: the rest of the stage drew. */
+.studio-problems {
+  margin-top: 1.5rem;
+  max-width: 60ch;
+  border-top: 1px solid #e6e6e6;
+  padding-top: 0.75rem;
+  color: #6a5300;
+  font-size: 0.85rem;
+}
+
+.studio-problems h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.studio-problems ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.8rem;
+}

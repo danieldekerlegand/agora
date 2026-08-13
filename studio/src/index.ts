@@ -8,8 +8,15 @@
  */
 import { SPEC_VERSIONS } from '@agora/schemas';
 
+import { STUDIO_CONFIG_FORMAT } from './config.ts';
+
 export { App, type AppProps } from './App.tsx';
 export { Stage, type StageProps } from './Stage.tsx';
+export {
+  embeddedConfigText,
+  readStudioConfig,
+  type StudioConfigReading,
+} from './config.ts';
 export {
   backboneOf,
   EMPTY_BACKBONE,
@@ -27,6 +34,8 @@ export interface StudioDescription {
   relaysPayloads: false;
   /** Always 0. Whatever is on screen came in at runtime; nothing ships in the bundle. */
   bundledParticipants: 0;
+  /** The config format this build reads. The config itself lives with the user, never here. */
+  configFormat: string;
 }
 
 /**
@@ -39,5 +48,6 @@ export function describeStudio(): StudioDescription {
     kcbVersion: SPEC_VERSIONS.kcb,
     relaysPayloads: false,
     bundledParticipants: 0,
+    configFormat: STUDIO_CONFIG_FORMAT,
   };
 }

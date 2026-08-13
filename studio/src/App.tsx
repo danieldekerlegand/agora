@@ -29,9 +29,14 @@ export interface AppProps {
    * user's own configuration, so there is nothing to default it *to* except nothing.
    */
   backbone?: Backbone;
+  /**
+   * Whatever the user's config said that could not be read (`readStudioConfig().problems`).
+   * Shown rather than swallowed: a dropped entry the user cannot see is a bug they cannot fix.
+   */
+  problems?: readonly string[];
 }
 
-export function App({ backbone }: AppProps = {}) {
+export function App({ backbone, problems = [] }: AppProps = {}) {
   const fabric = backboneOf(backbone);
 
   return (
@@ -46,6 +51,16 @@ export function App({ backbone }: AppProps = {}) {
 
       <main className="studio-stage" aria-label="studio stage">
         <Stage backbone={fabric} />
+        {problems.length > 0 ? (
+          <section className="studio-problems" aria-label="config problems">
+            <h2>some of your config was not read</h2>
+            <ul>
+              {problems.map((problem) => (
+                <li key={problem}>{problem}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
       </main>
 
       <footer className="studio-footer">
