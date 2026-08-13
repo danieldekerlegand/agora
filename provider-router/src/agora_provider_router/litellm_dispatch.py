@@ -16,6 +16,11 @@ ones become real rungs.
 one OpenAI POST already (:func:`~agora_provider_router.router.http_transport`) and gain
 nothing from a second abstraction — routing them through LiteLLM would only add a translation
 that can disagree with the endpoint table in :data:`~agora_provider_router.backends.ENDPOINTS`.
+For the two local tiers that is not merely a preference but a rule this module enforces
+(:data:`~agora_provider_router.ladder.LOCAL_TIERS`, below): LiteLLM's ``ollama`` provider
+carries an implicit ``http://localhost:11434``, and a rung dialed there would exist because
+of what is listening on the box rather than because an operator configured it. A local rung
+takes the direct POST, at the address the operator set and at no other.
 And nothing here touches the ladder order, the pre-dial ceiling (``Attempt.dialed``), the
 terminal placeholder, ``cost.py``'s ``unpriced`` rule / ``budget_units`` denomination, or the
 AgentCard. A rung refused on price is refused *before* this module is reached, so turning the
@@ -64,6 +69,8 @@ import importlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+
+from .ladder import LOCAL_TIERS
 
 if TYPE_CHECKING:  # pragma: no cover — imported for types only, so there is no import cycle
     from .backends import Backend
@@ -146,7 +153,11 @@ def transport(fallback: Transport, *, timeout: float) -> Transport:
     """
 
     async def dispatch(backend: Backend, payload: dict[str, Any]) -> dict[str, Any]:
-        if backend.provider not in NATIVE_ADAPTERS:
+        # The tier is checked before the table, not after it: a local rung stays on the
+        # direct POST — whose address is the operator's, or nothing — even if some future
+        # edit gave one of its providers an entry in `NATIVE_ADAPTERS`. What the library
+        # would default the address to is never a question agora asks.
+        if backend.tier in LOCAL_TIERS or backend.provider not in NATIVE_ADAPTERS:
             return await fallback(backend, payload)
         return await _via_litellm(backend, payload, timeout=timeout)
 

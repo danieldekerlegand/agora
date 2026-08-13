@@ -15,9 +15,9 @@
 -module(apr_backends).
 
 -export([paid_providers/1, endpoints/1, mlx_provider/0, local_provider/0,
-         paid_vendors/0, native_providers/0,
+         local_providers/0, paid_vendors/0, native_providers/0,
          placeholder_backend/1, resolve_tier/3, resolve_tier/4,
-         backend_url/1, backend_describe/1, resolution_describe/1]).
+         backend_url/1, dispatch_url/1, backend_describe/1, resolution_describe/1]).
 
 -type modality() :: atom().
 -type tier() :: paid | mlx | local | placeholder.
@@ -56,6 +56,18 @@ mlx_provider() -> <<"mlx-serve">>.
 
 -spec local_provider() -> binary().
 local_provider() -> <<"ollama">>.
+
+%% @doc The providers of the keyless local tiers (`backends.py::LOCAL_PROVIDERS').
+%%
+%% Their address is the operator's and nobody else's: a client library will happily supply one
+%% (LiteLLM defaults `ollama' to `http://localhost:11434'), and inheriting it would make "no
+%% local server configured" a statement about whatever happens to be listening on the box
+%% rather than about the configuration. The rule is held twice — {@link resolve_tier/3} never
+%% yields such a rung, and {@link dispatch_url/1} refuses to name an address for one that
+%% somehow reached a transport anyway. See `docs/spike-litellm-leaf.md' N2/N3, where that
+%% default was caught.
+-spec local_providers() -> [binary()].
+local_providers() -> [mlx_provider(), local_provider()].
 
 %% @doc The paid vendors, keyed by name (`backends.py::PAID_VENDORS').
 -spec paid_vendors() -> #{binary() => map()}.
@@ -181,7 +193,7 @@ resolve_keyless(Tier, Provider, Models, Modality, Config) ->
             end,
     BaseUrl = maps:get(base_url, Settings),
     ModalityBin = atom_to_binary(Modality, utf8),
-    HasBaseUrl = BaseUrl =/= undefined andalso BaseUrl =/= <<>>,
+    HasBaseUrl = has_base_url(BaseUrl),
     Usable = apr_config:usable(Settings),
     if
         Model =:= undefined ->
@@ -243,6 +255,31 @@ backend_url(#{path := Path} = Backend) when is_binary(Path) ->
     <<(base(Backend))/binary, Path/binary>>;
 backend_url(#{modality := Modality} = Backend) ->
     <<(base(Backend))/binary, (endpoints(Modality))/binary>>.
+
+%% @doc The address a rung is dialed at, or why it has none (`backends.py::dispatch_url').
+%%
+%% Only the keyless local tiers are held to it: a paid rung's address is its vendor's, which
+%% is public vocabulary, where a local one is a fact about an operator's machine. An error is
+%% not a failed request — to {@link apr_rung_worker} it is one more rung that did not answer,
+%% recorded `dialed => false' because nothing was contacted.
+-spec dispatch_url(backend()) -> {ok, binary()} | {error, binary()}.
+dispatch_url(#{provider := Provider, base_url := BaseUrl} = Backend) ->
+    IsLocal = lists:member(Provider, local_providers()),
+    case IsLocal andalso not has_base_url(BaseUrl) of
+        true -> {error, no_address_reason(Provider)};
+        false -> {ok, backend_url(Backend)}
+    end.
+
+%% Built with `/utf8' rather than `unicode:characters_to_binary/1' so the result is a binary
+%% by construction: this string reaches a reason field typed `binary()'.
+no_address_reason(Provider) ->
+    Head = <<" has no configured base URL \x{2014} a local tier is never dialed at "/utf8>>,
+    Tail = <<"a default address, only at one an operator set">>,
+    <<Provider/binary, Head/binary, Tail/binary>>.
+
+has_base_url(undefined) -> false;
+has_base_url(<<>>) -> false;
+has_base_url(_BaseUrl) -> true.
 
 base(Backend) ->
     strip_trailing_slash(coalesce(maps:get(base_url, Backend), <<>>)).

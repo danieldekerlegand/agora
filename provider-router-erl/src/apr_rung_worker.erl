@@ -104,9 +104,22 @@ dial(#{wire := native} = Backend, Tier, Provider, Payload, Projected, Transport)
             translated(Backend#{path := Path}, Tier, Provider, Modality, Model, Native,
                        Projected, Transport)
     end;
+%% An OpenAI-wire rung is dialed at the address {@link apr_backends:dispatch_url/1} names, and
+%% only there. For the keyless local tiers that address is the operator's or it does not exist:
+%% no default is inherited from anywhere, so a local rung that reached here without one is an
+%% attempt with `dialed => false' rather than a dial at whatever is listening on the box
+%% (`router.py::http_transport'). Unreachable through resolution, which never yields such a
+%% rung — it is the same rule held a second time, where a transport could otherwise fill the
+%% gap in.
 dial(Backend, Tier, Provider, Payload, Projected, Transport) ->
-    answered(Transport(Backend, dial_payload(Backend, Payload)), Backend, Tier, Provider,
-             Projected).
+    case apr_backends:dispatch_url(Backend) of
+        {error, Reason} ->
+            {failed, #{tier => Tier, provider => Provider, ok => false, dialed => false,
+                       reason => Reason, projected => Projected}};
+        {ok, _Url} ->
+            answered(Transport(Backend, dial_payload(Backend, Payload)), Backend, Tier, Provider,
+                     Projected)
+    end.
 
 translated(Backend, Tier, Provider, Modality, Model, Native, Projected, Transport) ->
     case answered(Transport(Backend, Native), Backend, Tier, Provider, Projected) of

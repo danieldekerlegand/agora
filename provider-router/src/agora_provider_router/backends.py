@@ -122,6 +122,15 @@ OLLAMA_MODELS: dict[str, str] = {"text": "llama3.2"}
 MLX_PROVIDER = "mlx-serve"
 LOCAL_PROVIDER = "ollama"
 
+#: The providers of those tiers, as a set. Their address is the operator's and nobody
+#: else's: a client library will happily supply one (LiteLLM defaults ``ollama`` to
+#: ``http://localhost:11434``), and inheriting it would make "no local server configured"
+#: a statement about whatever happens to be listening on the box rather than about the
+#: configuration. Every agora dispatch path overrides that default by refusing to dial
+#: without an explicit one — see :func:`dispatch_url`, and ``docs/spike-litellm-leaf.md``
+#: N2/N3, where that default was caught.
+LOCAL_PROVIDERS: frozenset[str] = frozenset({MLX_PROVIDER, LOCAL_PROVIDER})
+
 
 @dataclass(frozen=True)
 class Backend:
@@ -165,6 +174,33 @@ class TierResolution:
         if self.reason:
             entry["reason"] = self.reason
         return entry
+
+
+class UnconfiguredLocalAddress(RuntimeError):
+    """A local rung reached a transport without an operator-configured base URL.
+
+    :func:`resolve_tier` never yields such a rung, so this is the same rule held a second
+    time at the dispatch boundary — the half that a *transport* has to obey, so that no
+    library one is layered under can substitute an address nobody configured. Raised
+    rather than dialed: to :meth:`~agora_provider_router.router.Router.complete` that is
+    one more rung that did not answer, and the walk continues to the next one.
+    """
+
+
+def dispatch_url(backend: Backend) -> str:
+    """The address ``backend`` is dialed at — never one nobody configured.
+
+    Only the keyless local tiers are held to it: a paid rung dialed through a borrowed
+    adapter legitimately carries no address of its own, because the adapter knows the
+    vendor's (:mod:`agora_provider_router.litellm_dispatch`), and a vendor address is
+    public vocabulary where a local one is a fact about an operator's machine.
+    """
+    if backend.provider in LOCAL_PROVIDERS and not backend.base_url:
+        raise UnconfiguredLocalAddress(
+            f"{backend.provider} has no configured base URL — a local tier is never dialed "
+            "at a default address, only at one an operator set"
+        )
+    return backend.url
 
 
 def placeholder_backend(modality: str) -> Backend:

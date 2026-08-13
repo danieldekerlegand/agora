@@ -32,7 +32,14 @@ from typing import Any
 
 import httpx
 
-from .backends import Backend, Rank, TierResolution, placeholder_backend, resolve_tier
+from .backends import (
+    Backend,
+    Rank,
+    TierResolution,
+    dispatch_url,
+    placeholder_backend,
+    resolve_tier,
+)
 from .config import RouterConfig
 from .cost import Cost, project, refusal, settle, take_ceiling, within
 from .ladder import MODALITIES, PLACEHOLDER, safe_resolve
@@ -121,12 +128,19 @@ class Completion:
 
 
 async def http_transport(backend: Backend, payload: dict[str, Any]) -> dict[str, Any]:
-    """The real transport: POST the OpenAI-shaped payload at the backend's endpoint."""
+    """The real transport: POST the OpenAI-shaped payload at the backend's endpoint.
+
+    The endpoint comes from :func:`~agora_provider_router.backends.dispatch_url`, which
+    refuses an address nobody configured rather than reaching for a default one — a local
+    rung that got this far without an operator's base URL raises here, and raising is just
+    "the next rung, please".
+    """
+    url = dispatch_url(backend)
     headers = {"content-type": "application/json"}
     if backend.api_key is not None:
         headers["authorization"] = f"Bearer {backend.api_key.get_secret_value()}"
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-        response = await client.post(backend.url, json=payload, headers=headers)
+        response = await client.post(url, json=payload, headers=headers)
         response.raise_for_status()
         decoded: dict[str, Any] = response.json()
         return decoded
