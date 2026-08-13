@@ -98,6 +98,37 @@ full artifact bundle rides out of band from the id-only §6 wire shape — so wh
 A run this process never `invoke`d is a `404`; one that has not reached its terminal event is a
 `409` (the §5 outputs are minted at completion, FT-C), never an empty matrix.
 
+### The four-verb dance — the client that proves those endpoints (agora:50 US-3)
+
+An endpoint is only *live* if something reaches it knowing nothing but one address. `tests/`
+carries that caller: `finetune_client.py`, a **test-scoped** KCB `finetune` client
+(`tests/test_finetune_client.py` drives it), which runs the dance a real consumer runs —
+
+1. **discover** — handed only the A2A agent card, it reads the KCB manifest, then the *capability's
+   own* `endpoint` for the job's modality and the `subscribe` / `exports` / `register` addresses
+   out of what the provider published (KCB §3). No route is a constant, so the test fails if the
+   manifest and the served surface ever drift apart;
+2. **subscribe** — it starts watching the job id **before** dispatching it and tolerates the honest
+   `unknown-run` 404 until the run opens. That is the orchestrator's real ordering, and it is what
+   makes the retry — not a lucky race — the thing under test: the §6 stream is addressable *by
+   job*, not merely readable on the invoking connection;
+3. **invoke** — a schema-valid job, carrying an `invoke:finetune` grant (KCB §5) whose
+   `budget_units` ceiling rides `X-Agora-Budget-Units` on this verb *only* (it is the verb that
+   spends); a starved ceiling is refused before the run starts (FT-E) with the provider's own
+   report, and the subscriber is released rather than stranded;
+4. **collect** — the §5.3 matrix and, when the caller says which side of the boundary it is
+   indexing on, the §8 registration — where a `local-only`-inheriting model is refused
+   `across_boundary` (`egress-output`, §5.4/FT-A) and admitted in-tier.
+
+The two copies of the stream — the invoking connection's and the subscriber's — are asserted
+**identical**, monotonic, and uniquely content-addressed, which is the §6 idempotency claim
+stated as a test rather than a docstring.
+
+It stays in `tests/` by decision: agora publishes the capability, and the client that consumes it
+belongs to whoever runs the control plane (ADR-0001). The production client is another repo's —
+recorded in the table under [Scope boundary](#scope-boundary--what-is-not-built-here) — and this
+is the agora-side stand-in that keeps these endpoints honest between deployments.
+
 ## Egress-gated placement & spend gating (US-3)
 
 Admission does more than check the payload — before any compute is committed it computes the
@@ -186,10 +217,10 @@ The table below is a **historical record** of how that boundary fell for the eco
 extracted from — named there because koine's program map (`../koine/tasks/chief/README.md`,
 Tranche D) is where the live version lives, not because agora knows these callers:
 
-| Follow-up | Repo | Role | `dependsOn` (numbered stems) |
+| Follow-up | Repo | Role | Outcome |
 |---|---|---|---|
-| `90-finetune-provider` | **pinakes** | Pinakes's own **specialized** `finetune` provider — its `ml/` TRL+PEFT (SLM + neurosymbolic + Mac-MPS) path exposed as a **distinct capability on the bus**, NOT an adapter inside agora; inherently `local-only`. | `koine:20-kft-finetune-profile`, `pinakes:41-publish-kcb-manifest` |
-| `90-finetune-client` | **orchestrator** | The KCB **client** replacing `Runner::Stub` — discover → invoke → **subscribe** to the real §6 stream, un-404-ing export (§5.3) and the registry (§8), issuing `invoke:finetune` grants (§7). | `koine:20-kft-finetune-profile` (dials `agora:90` + `pinakes:90` at runtime) |
+| `30-kft-provider-manifest` | a participant's model repo (`lugh`) | That participant's own **specialized** `finetune` provider — its local TRL+PEFT (SLM + Mac-MPS) path published as a **distinct capability on the bus**, NOT an adapter inside agora; inherently `local-only`. | **Merged.** It landed there rather than in the repo the row originally named (`pinakes:90-finetune-provider` was never authored; the retarget is recorded in that ecosystem's own `102-retarget-finetune-provider-to-lugh`). |
+| `90-finetune-client` | that ecosystem's **orchestrator** (`cuneiform`) | The KCB **client** replacing the stub runner — discover → invoke → **subscribe** to the real §6 stream, reading export (§5.3) and registering (§8), issuing `invoke:finetune` grants (§7). | **Merged** (`Runner::Kcb` replaced `Runner::Stub`). It dials the specialized provider above **and** this trainer at runtime, letting the registry disambiguate (FT-K). `tests/test_finetune_client.py` is the agora-side stand-in for it. |
 
 ## The KFT dataset bridge — a producer's training exhaust, by reference (`40:US-2`)
 
