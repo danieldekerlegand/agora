@@ -18,6 +18,12 @@ export {
   type StudioConfigReading,
 } from './config.ts';
 export {
+  discoverNodes,
+  nodesOf,
+  type Discovery,
+  type TopologyNode,
+} from './topology.ts';
+export {
   backboneOf,
   EMPTY_BACKBONE,
   isEmpty,

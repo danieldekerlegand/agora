@@ -45,10 +45,21 @@ nobody, or no config at all, is the empty state above.
 |---|---|
 | `src/App.tsx` | the shell: header, the stage a view mounts into, the contract footer |
 | `src/config.ts` | ingestion: a user's config in, a backbone (plus what could not be read) out |
+| `src/topology.ts` | the graph's nodes: a KCB discovery answer (`find`, cost-ranked) projected into drawable participants + the address each is dialable at |
 | `src/backbone.ts` | the runtime picture — participants, connections, and the normalizer over whatever the caller handed in (defaults to empty) |
 | `src/Stage.tsx` | what the stage shows for a backbone: the empty first-run state, else the observed cast |
 | `src/index.ts` | the package surface (source-first — nothing is emitted) |
 | `src/main.tsx` | the browser entry point (`npm run dev -w @agora/studio`) — reads the page's embedded config, if it has one |
+
+## The graph is discovered, not configured
+
+The config above is what a user *asserts*; the topology graph is what is actually **there**. Its
+nodes come from the KCB discovery registry — `find` answers with addresses, ranked cheapest-first
+(KCB §3) — and `nodesOf` / `discoverNodes` project that answer into nodes, one per discovered
+address, in the order discovery ranked them. Studio never fetches a registry: the host hands the
+find surface in (an in-process `CapabilityRegistry`, or a client onto a remote one), the same way
+it hands in config text. A registry that knows nobody yields no nodes, and a participant that has
+left the index is simply absent from the next answer — there is no remembered cast to go stale.
 
 ## Gate
 
