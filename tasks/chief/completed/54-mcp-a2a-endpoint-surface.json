@@ -3,7 +3,7 @@
   "project": "agora",
   "category": "feature",
   "branchName": "chief/54-mcp-a2a-endpoint-surface",
-  "description": "Phase C (KCB endpoint surface). Today the provider-router advertises NO `mcp`/`a2a` keys 'until they exist' \u2014 an advertised address is a promise a peer will dial directly (ADR-0001 \u00a73), so `test_manifest.py` pins the endpoint key set to exactly `{openai, doctor, manifest}` (provider-router/tests + trainer/tests), and `test_it_advertises_no_endpoint_it_does_not_serve`/`test_the_card_advertises_no_a2a_endpoint_it_does_not_serve` guard it. Stand up the MCP + A2A server endpoints on the router AND advertise them in the KCB manifest + AgentCard in the SAME change, re-pinning the key set \u2014 so the server and the advertisement can never drift apart. Lands in both routers (Python spec-of-record + Erlang canonical) so the byte-for-byte corpus stays green. agora gates on `make check`; the routers gate on `make check-provider-router` + `make check-router-erl` (clean-skips where rebar3 is absent).",
+  "description": "Phase C (KCB endpoint surface). Today the provider-router advertises NO `mcp`/`a2a` keys 'until they exist' — an advertised address is a promise a peer will dial directly (ADR-0001 §3), so `test_manifest.py` pins the endpoint key set to exactly `{openai, doctor, manifest}` (provider-router/tests + trainer/tests), and `test_it_advertises_no_endpoint_it_does_not_serve`/`test_the_card_advertises_no_a2a_endpoint_it_does_not_serve` guard it. Stand up the MCP + A2A server endpoints on the router AND advertise them in the KCB manifest + AgentCard in the SAME change, re-pinning the key set — so the server and the advertisement can never drift apart. Lands in both routers (Python spec-of-record + Erlang canonical) so the byte-for-byte corpus stays green. agora gates on `make check`; the routers gate on `make check-provider-router` + `make check-router-erl` (clean-skips where rebar3 is absent).",
   "parked": false,
   "dependsOn": [],
   "touches": [
@@ -27,7 +27,7 @@
       "title": "Serve MCP + A2A endpoints on the provider-router",
       "description": "Stand up the MCP and A2A server endpoints on the router so it answers those transports directly (ADR-0001: peers dial the address, no proxy). These are new served surfaces alongside the existing `openai`/`doctor`/`manifest` endpoints.",
       "acceptanceCriteria": [
-        "The router serves working MCP and A2A endpoints (answering the KCB \u00a74 verbs the manifest will advertise), proven by a test that dials each transport directly and gets a valid response.",
+        "The router serves working MCP and A2A endpoints (answering the KCB §4 verbs the manifest will advertise), proven by a test that dials each transport directly and gets a valid response.",
         "The endpoints are observer-safe (no relay/proxy of traffic between other peers, ADR-0001); `make check-provider-router` green."
       ],
       "passes": true,
@@ -36,9 +36,9 @@
     {
       "id": "US-2",
       "title": "Advertise them in the manifest atomically and re-pin the key set",
-      "description": "In the SAME change that serves the endpoints, add the `mcp`/`a2a` keys to the KCB manifest and AgentCard, and update `test_manifest.py`'s pinned endpoint set from `{openai, doctor, manifest}` to include them \u2014 so an advertised address is always a served one (never a promise the peer cannot dial).",
+      "description": "In the SAME change that serves the endpoints, add the `mcp`/`a2a` keys to the KCB manifest and AgentCard, and update `test_manifest.py`'s pinned endpoint set from `{openai, doctor, manifest}` to include them — so an advertised address is always a served one (never a promise the peer cannot dial).",
       "acceptanceCriteria": [
-        "The KCB manifest `endpoints` and the AgentCard advertise `mcp`/`a2a`, and `test_manifest.py`'s `test_it_advertises_no_endpoint_it_does_not_serve` + `test_the_card_advertises_no_a2a_endpoint_it_does_not_serve` are re-pinned to the new key set \u2014 the server and the advertisement land together, never apart.",
+        "The KCB manifest `endpoints` and the AgentCard advertise `mcp`/`a2a`, and `test_manifest.py`'s `test_it_advertises_no_endpoint_it_does_not_serve` + `test_the_card_advertises_no_a2a_endpoint_it_does_not_serve` are re-pinned to the new key set — the server and the advertisement land together, never apart.",
         "The manifest schema in `schemas/` validates the new endpoint keys; `make check-schemas` + `make check-provider-router` green."
       ],
       "passes": true,
@@ -55,5 +55,6 @@
       "passes": true,
       "notes": ""
     }
-  ]
+  ],
+  "mergedToMain": "33c9b33"
 }
