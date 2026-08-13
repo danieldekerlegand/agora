@@ -57,6 +57,13 @@ export interface AppProps {
    * schedule says to look again.
    */
   monitor?: ConnectionsOptions | null;
+  /**
+   * The AgentCards the host read at the participants' own well-known addresses, by identity —
+   * what the spec viewer renders beside whatever discovery indexed. A prop for the reason
+   * every document seam here is one: Studio opens no transport, so a host that fetched cards
+   * hands them in, and a host that fetched none shows the indexed manifests and nothing more.
+   */
+  cards?: Readonly<Record<string, unknown>>;
 }
 
 export function App({
@@ -64,6 +71,7 @@ export function App({
   problems = [],
   discovery = null,
   monitor = null,
+  cards = {},
 }: AppProps = {}) {
   const fabric = backboneOf(backbone);
 
@@ -94,7 +102,7 @@ export function App({
       </header>
 
       <main className="studio-stage" aria-label="studio stage">
-        <Stage backbone={fabric} topology={topology} connections={connections} />
+        <Stage backbone={fabric} topology={topology} connections={connections} cards={cards} />
         {problem ? (
           <p className="studio-alert" role="alert">
             {problem}

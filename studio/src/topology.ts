@@ -54,6 +54,19 @@ export interface TopologyNode extends Participant {
   aliases?: readonly string[];
   /** The other addresses those identities were discovered at — kept, never merged into one. */
   alsoAt?: readonly ProviderAddress[];
+  /**
+   * What the participant published about itself, exactly as discovery indexed it: the KCB
+   * manifest body, verbatim.
+   *
+   * Typed `unknown` on purpose. The index is a *cache* of somebody else's document (KCB §3),
+   * and Studio only carried it here — calling it a read-and-checked `CapabilityManifest` at
+   * this seam would be the view vouching for a document it never validated. Whoever renders
+   * it says what it is (`specs.ts`), and says so by validating rather than by asserting.
+   *
+   * Absent for a participant that was only ever observed: the host saw traffic with it and
+   * was handed nothing it published.
+   */
+  advertised?: unknown;
 }
 
 /**
@@ -149,6 +162,11 @@ export function nodesOf(matches?: readonly Match[] | null): TopologyNode[] {
       reachable: isDialable(address),
       discovered: true,
     };
+    // The manifest rides along because discovery already answered with it — the registration
+    // is the provider's own document, frozen (KCB §3). Carrying it costs no second lookup and
+    // is the only honest source for what a participant advertises.
+    const advertised: unknown = match.registration?.manifest;
+    if (advertised !== undefined) node.advertised = advertised;
 
     const capabilities = (match.capabilities ?? [])
       .map((capability) => capability?.name?.trim())

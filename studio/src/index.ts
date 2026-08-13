@@ -12,6 +12,7 @@ import { STUDIO_CONFIG_FORMAT } from './config.ts';
 
 export { App, type AppProps } from './App.tsx';
 export { Connections, type ConnectionsProps } from './Connections.tsx';
+export { SpecViewer, type SpecViewerProps } from './SpecViewer.tsx';
 export { Stage, type StageProps } from './Stage.tsx';
 export { TopologyGraph, type TopologyGraphProps } from './TopologyGraph.tsx';
 export { useTopology, type TopologyReading } from './useTopology.ts';
@@ -70,6 +71,19 @@ export {
   type ConnectionRecord,
   type TrackOptions,
 } from './history.ts';
+export {
+  advertisementOf,
+  isEmptyView,
+  pinnedVersion,
+  specViewOf,
+  type Advertisement,
+  type ArtifactKind,
+  type ArtifactSource,
+  type SpecAdvertisement,
+  type SpecArtifact,
+  type SpecName,
+  type SpecView,
+} from './specs.ts';
 export {
   backboneOf,
   EMPTY_BACKBONE,

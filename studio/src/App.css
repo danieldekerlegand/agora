@@ -263,3 +263,77 @@
   color: #777;
   font-variant-numeric: tabular-nums;
 }
+
+/* The spec viewer. A reading room: a picker to choose whose claim to read, the contracts that
+   claim names, and the documents themselves. The picker is the only control on the stage, and
+   it moves the view rather than the fabric — there is no verb here that reaches a participant. */
+.studio-specs {
+  margin-top: 1.25rem;
+  border-top: 1px solid #e6e6e6;
+  padding-top: 0.75rem;
+}
+
+.studio-specs h2,
+.studio-specs h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #555;
+}
+
+.studio-specs h3 {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.studio-specs ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+}
+
+.studio-spec-pick {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #555;
+}
+
+.studio-specs .spec {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.studio-specs .declared,
+.studio-specs .pinned,
+.studio-specs .kind,
+.studio-specs .source {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+/* Where a claim was read. Quiet, but never dropped: an advertisement without its citation is
+   an assertion, and this viewer makes none. */
+.studio-specs .evidence,
+.studio-specs .at {
+  color: #777;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+}
+
+/* The document as its author published it — author's key order, no re-formatting beyond indent. */
+.studio-specs .document {
+  margin: 0.2rem 0 0.6rem;
+  padding: 0.5rem;
+  overflow-x: auto;
+  max-height: 20rem;
+  background: #f7f7f7;
+  color: #333;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+}

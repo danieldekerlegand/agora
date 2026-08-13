@@ -6,8 +6,9 @@
  * not an error. Studio bundles no apps, no services and no connections, so an install nobody
  * has configured and nobody has pointed at a registry has genuinely nothing to draw.
  *
- * Anything else is two reads of one fabric: the topology graph — which connections exist — and
- * the health panel beneath it — whether they work, and for how long they have. A configured
+ * Anything else is three reads of one fabric: the topology graph — which connections exist —
+ * the health panel beneath it — whether they work, and for how long they have — and the spec
+ * viewer under both — what each participant claims to be, in its own published words. A configured
  * cast and a discovered one are the same shape — a node is a participant, an edge is a
  * connection — so rather than two views competing to describe the fabric, a backbone with no
  * discovery behind it is projected into a graph of observed nodes and drawn by the same
@@ -20,6 +21,7 @@
  * driving it (ADR-0001 decision 7).
  */
 import { Connections } from './Connections.tsx';
+import { SpecViewer } from './SpecViewer.tsx';
 import { TopologyGraph } from './TopologyGraph.tsx';
 import type { Backbone } from './backbone.ts';
 import { unwatchedConnections } from './connection.ts';
@@ -40,9 +42,14 @@ export interface StageProps {
    * rather than assuming it is up.
    */
   connections?: readonly ConnectionRecord[];
+  /**
+   * The AgentCards the host read from the participants themselves, by identity — what the spec
+   * viewer reads alongside whatever discovery indexed. Studio reads none of its own.
+   */
+  cards?: Readonly<Record<string, unknown>>;
 }
 
-export function Stage({ backbone, topology, connections }: StageProps) {
+export function Stage({ backbone, topology, connections, cards = {} }: StageProps) {
   const graph = graphOf(backbone, topology);
 
   if (graph.nodes.length === 0 && graph.edges.length === 0) {
@@ -62,6 +69,7 @@ export function Stage({ backbone, topology, connections }: StageProps) {
     <>
       <TopologyGraph topology={graph} />
       <Connections connections={watched(graph, connections)} />
+      <SpecViewer topology={graph} cards={cards} />
     </>
   );
 }

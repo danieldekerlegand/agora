@@ -47,12 +47,14 @@ nobody, or no config at all, is the empty state above.
 | `src/config.ts` | ingestion: a user's config in, a backbone (plus what could not be read) out |
 | `src/topology.ts` | the graph: a KCB discovery answer (`find`, cost-ranked) and the registry's planned routes projected into drawable nodes + typed edges, with node identity settled by the KINP resolver |
 | `src/backbone.ts` | the runtime picture — participants, connections, and the normalizer over whatever the caller handed in (defaults to empty) |
-| `src/Stage.tsx` | what the stage shows: the empty first-run state, else the graph (discovery's answer when there is one, else the configured cast projected into the same shape) with the connection health panel beneath it |
+| `src/Stage.tsx` | what the stage shows: the empty first-run state, else the graph (discovery's answer when there is one, else the configured cast projected into the same shape) with the connection health panel and the spec viewer beneath it |
 | `src/TopologyGraph.tsx` | the graph itself, drawn: nodes with what discovery knows about them, edges with their transport, scope, capability and plane |
 | `src/connection.ts` | per-connection health: where a *peer* dials each link, the probe seam, and the status one observation implies (`up` / `degraded` / `down` / `unknown`) |
 | `src/history.ts` | the connection log — the pure fold that turns a sequence of passes into uptime and a bounded list of recent failures |
 | `src/useConnections.ts` | `useConnections` — one monitoring pass per graph, folded into that log; the health half of the churn seam |
 | `src/Connections.tsx` | the health panel: one row per connection, with its status, its uptime and what the far end said when it broke |
+| `src/specs.ts` | the spec reading: which koine contracts a participant advertises, read off its own AgentCard / KCB manifest and cited to the path in it that says so |
+| `src/SpecViewer.tsx` | the spec viewer: pick a participant, see the contracts it advertises and the documents it advertised them in, verbatim |
 | `src/useTopology.ts` | `useTopology` — one pass over the lookup surfaces per snapshot, re-run when the host's query moves or it calls `refresh()`; this is the churn seam |
 | `src/index.ts` | the package surface (source-first — nothing is emitted) |
 | `src/main.tsx` | the browser entry point (`npm run dev -w @agora/studio`) — reads the page's embedded config, if it has one |
@@ -157,5 +159,34 @@ stage. That is what the standalone bundle does: it has no registry to ask.
 ## What lands here next
 
 The roadmap's Phase G, in order: the animated
-on-the-wire message viewer, the analytics dashboards, the spec-definition viewer, and runnable
-example setups. Each mounts into the stage this shell provides.
+on-the-wire message viewer, the analytics dashboards, and runnable example setups. Each mounts
+into the stage this shell provides.
+
+## What a participant says it is
+
+The graph says who is there and the health panel says whether their links work. The spec viewer
+says what each participant **claims**: the koine contracts it advertises, and the documents it
+advertised them in.
+
+Every claim is read off the participant's own publications and cited to the path that produced
+it — `manifest.produces[0].plane` is why KGP is on the list, `manifest.kcb_version` is why KCB
+is. Nothing is inferred and nothing is filled in: a contract no document mentions is simply not
+listed, and a participant nobody published anything for advertises nothing at all.
+
+Two document sources, kept apart because the provider is authoritative and the index is only a
+cache (KCB §3):
+
+- **indexed** — the KCB manifest the discovery answer already carried (`TopologyNode.advertised`).
+  It costs no second lookup, so it is there whenever discovery found the participant.
+- **served** — the A2A AgentCard the *host* read at the participant's own well-known address,
+  handed in as the `cards` prop. Studio dials nobody, here as everywhere else; a host that reads
+  no cards simply shows the indexed side.
+
+```tsx
+<App discovery={{ discovery: registry }} cards={{ 'your:agent:one': cardYouFetched }} />
+```
+
+The version a participant declares and the version this build pins sit side by side rather than
+being reconciled — a peer on a spec this build does not speak is an ordinary state of a real
+fabric, and it is the reader's to judge. This build pins no KMI version at all
+(`schemas/src/versions.ts`), and the viewer shows that blank as a blank.
