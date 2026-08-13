@@ -32,7 +32,7 @@
         "A test drives graph construction from a synthetic registry find result (multiple participants) and asserts one node per discovered address, and zero nodes when discovery returns nothing (churn-safe, per the empty backbone from 60)",
         "`make check` green (`npm run lint` + `npm run typecheck` + `vitest` for `studio/`)"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
