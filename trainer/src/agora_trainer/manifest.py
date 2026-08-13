@@ -24,10 +24,12 @@ Two choices mirror the provider-router's manifest discipline:
   modality* — ``find({produces:{entityType:"text-generation"}})`` — as well as by capability name.
 * **No endpoint is advertised that is not served.** A manifest address is a promise a peer will
   dial directly (ADR-0001 decision 3); a dead one is worse than an absent one. This build serves
-  ``/health``, the A2A agent card, this manifest, and the `finetune` ``/invoke`` task surface,
-  and publishes exactly those. ``invoke`` also rides each capability's own ``endpoint``, which is
-  what ``endpointFor`` hands a caller — so a bridge that discovered this trainer through the
-  registry gets the URL it actually posts a job to, not the agent card.
+  ``/health``, the A2A agent card, this manifest, and the `finetune` ``/invoke`` +
+  ``/subscribe`` task surface, and publishes exactly those. ``invoke`` also rides each
+  capability's own ``endpoint``, which is what ``endpointFor`` hands a caller — so a bridge that
+  discovered this trainer through the registry gets the URL it actually posts a job to, not the
+  agent card. ``subscribe`` is advertised alongside it, because a run's telemetry consumer is
+  rarely the connection that opened the run (KCB §4, KFT §6).
 """
 
 from __future__ import annotations
@@ -44,15 +46,19 @@ from .records import RECORDS_MEDIA_TYPE, RECORDS_SHAPE
 MANIFEST_PATH = "/.well-known/kcb-manifest.json"
 
 #: Where the trainer's A2A agent card is served — the dialable address peers connect to for
-#: the `finetune` invoke / subscribe verbs (KCB §4). The task surface itself lands in US-2/US-6.
+#: the `finetune` invoke / subscribe verbs (KCB §4), both served here.
 AGENT_CARD_PATH = "/.well-known/agent-card.json"
 
 #: The invocable capability name every modality shares (KFT §2). Modality distinguishes them.
 CAPABILITY_NAME = "finetune"
 
-#: The `finetune` invoke / subscribe task surface (KCB §4) — where a caller POSTs a job manifest
-#: and reads back the §6 training-telemetry stream.
+#: The `finetune` invoke task surface (KCB §4) — where a caller POSTs a job manifest and reads
+#: back the §6 training-telemetry stream.
 INVOKE_PATH = "/invoke"
+
+#: The `finetune` subscribe surface (KCB §4) — where any *other* consumer reads the same §6
+#: stream for a run named by its ``job`` id, from the beginning or from a step cursor.
+SUBSCRIBE_PATH = "/subscribe"
 
 #: The KMI weight/export media types the trainer produces (KFT §5.3, koine registry media-types).
 WEIGHTS_MEDIA_TYPES: tuple[str, ...] = (
@@ -170,6 +176,7 @@ def capability_manifest(config: TrainerConfig) -> dict[str, Any]:
         "endpoints": {
             "a2a": f"{base}{AGENT_CARD_PATH}",
             "invoke": f"{base}{INVOKE_PATH}",
+            "subscribe": f"{base}{SUBSCRIBE_PATH}",
             "health": f"{base}/health",
             "manifest": f"{base}{MANIFEST_PATH}",
         },

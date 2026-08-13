@@ -45,6 +45,28 @@ training-telemetry over the same request:
   finetuned-model id + weight/export asset ids. Where no GPU / LLaMA-Factory is present the
   adapter replays a **recorded run** (real per-step logs), never a fabricated loss curve.
 
+### `subscribe` — the same stream, for consumers that did not open the run (agora:50 US-1)
+
+`invoke` hands the §6 stream back to *the connection that started the run*, which is the wrong
+shape for a consumer that isn't that connection: KFT §6 says a consumer **`subscribe`s** (KCB §4),
+and the orchestrator issuing a job, a console watching it, and a client reconnecting after a
+dropped socket are three different readers of one run. `GET /subscribe?job=<activity-id>` is that
+verb, and it is advertised in the manifest (`endpoints.subscribe`) because it is served:
+
+- every event `invoke` emits is written to the run's **journal** (`src/agora_trainer/journal.py`),
+  so a subscriber receives the ordered sequence from step 0 — or from `&from=<step>` — through
+  the terminal event, replaying what already happened and then blocking for the live tail;
+- **redelivery is idempotent by construction**: the journal mints nothing, so a second subscriber
+  (or a reconnect at a cursor) reads the *same* events with the same content-addressed `job + step`
+  ids — which is what lets the stream skip an exactly-once transport (KFT §6, KCB §4);
+- a run that dies without a terminal event **closes** its journal rather than stranding readers,
+  and a `job` this process never ran is an honest `404` (there is no such run to stream), not an
+  empty 200.
+
+Retention is an in-memory, bounded read model — a provider-local fan-out, not a durable event
+store; eviction only ever drops *closed* runs, so a live run is never yanked from its subscribers.
+A deployment that must survive a restart backs the same interface with a persistent log.
+
 ## Egress-gated placement & spend gating (US-3)
 
 Admission does more than check the payload — before any compute is committed it computes the

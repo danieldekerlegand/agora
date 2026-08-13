@@ -139,6 +139,7 @@
           "endpoints": {
             "a2a": "http://127.0.0.1:8001/.well-known/agent-card.json",
             "invoke": "http://127.0.0.1:8001/invoke",
+            "subscribe": "http://127.0.0.1:8001/subscribe",
             "health": "http://127.0.0.1:8001/health",
             "manifest": "http://127.0.0.1:8001/.well-known/kcb-manifest.json"
           }
@@ -163,6 +164,7 @@
             "endpoints": {
               "a2a": "http://127.0.0.1:8001/.well-known/agent-card.json",
               "invoke": "http://127.0.0.1:8001/invoke",
+              "subscribe": "http://127.0.0.1:8001/subscribe",
               "health": "http://127.0.0.1:8001/health",
               "manifest": "http://127.0.0.1:8001/.well-known/kcb-manifest.json"
             },
@@ -615,6 +617,7 @@
             "endpoints": {
               "a2a": "http://127.0.0.1:8001/.well-known/agent-card.json",
               "invoke": "http://127.0.0.1:8001/invoke",
+              "subscribe": "http://127.0.0.1:8001/subscribe",
               "health": "http://127.0.0.1:8001/health",
               "manifest": "http://127.0.0.1:8001/.well-known/kcb-manifest.json"
             }

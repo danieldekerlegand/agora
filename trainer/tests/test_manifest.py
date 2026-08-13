@@ -53,7 +53,13 @@ class TestShape:
 
     def test_it_advertises_no_endpoint_it_does_not_serve(self) -> None:
         """A manifest address is a promise a peer will dial directly (ADR-0001 decision 3)."""
-        assert set(manifest_for()["endpoints"]) == {"a2a", "invoke", "health", "manifest"}
+        assert set(manifest_for()["endpoints"]) == {
+            "a2a",
+            "invoke",
+            "subscribe",
+            "health",
+            "manifest",
+        }
 
     def test_every_capability_carries_the_invoke_endpoint_a_caller_dials(self) -> None:
         """`endpointFor` prefers a capability's own endpoint — so it must be the invoke URL.
