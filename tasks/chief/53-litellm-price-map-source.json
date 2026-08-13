@@ -29,7 +29,7 @@
         "The LiteLLM price map is adopted as a rate source layered under `AGORA_PRICE_TABLE` (an explicit `AGORA_PRICE_TABLE` entry or override still takes precedence), demonstrated by a test where a model priced by the map resolves a non-zero rate and an overridden model uses the override.",
         "The source is optional/opt-in in the same shape as the LiteLLM adapter (no new mandatory dependency on the default path); `make check-provider-router` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
