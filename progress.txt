@@ -733,3 +733,59 @@ so the row updates (and the Erlang lockstep) belong there.
 - Both surfaces share `invoke.py`'s envelope helpers on purpose: when `a2a.py` first imported
   `result`/`error` from `mcp.py` the dependency was backwards (A2A does not depend on MCP) —
   and the shared module is also what stops one transport spelling a refusal two ways.
+
+---
+
+## US-3 — Both routers serve and advertise identically (done)
+
+The Erlang router (canonical, ADR-0004) caught up with the Python spec-of-record: it now
+serves and advertises the same MCP/A2A surface, so the corpus US-2 regenerated — which had
+left `apr_conformance_SUITE` red on the card diff — is green again from both sides.
+
+Files added:
+- `provider-router-erl/src/apr_invoke.erl` — the mirror of `invoke.py`: capability vocabulary,
+  argument→OpenAI translation, derived ids (canonical JSON + sha256), digested artifacts, the
+  shared JSON-RPC envelope.
+- `provider-router-erl/src/apr_mcp.erl`, `apr_a2a.erl` — the two surfaces, verb for verb.
+- `provider-router-erl/src/apr_jsonrpc_handler.erl` — `app.py::_jsonrpc`: one cowboy handler
+  for both, parameterized by `#{surface => apr_mcp | apr_a2a}`; `GET /mcp` is the 405.
+- `provider-router-erl/test/apr_invoke_SUITE.erl` — 9 cases on what the corpus cannot pin.
+
+Files changed: `apr_manifest.erl` (endpoints + card `url`/`preferredTransport`/
+`protocolVersion`), `apr_routes.erl` (both paths, kind `contract`), `apr_routes_tests.erl`
+(path set re-pinned to thirteen + an advertised-address-is-a-registered-path guard),
+`capture_python_surface.py` (+61 exchanges), `python-surface.json`, `provider-router-erl/README.md`,
+`docs/router-hand-built-behaviours.md`.
+
+Full Erlang gate green (compile + dialyzer + eunit 103 + ct 51/7 skipped); `make check` exit 0.
+
+### Learnings for future iterations
+
+- **The Erlang gate is runnable on a rebar3-less host, via Docker.** `docker run --rm -v
+  "$PWD":/w -w /w/provider-router-erl erlang:26 sh -c "rebar3 compile && rebar3 dialyzer &&
+  rebar3 eunit && rebar3 ct"` runs the real gate in ~4 min (the PLT build dominates the first
+  run). Do this for any Erlang story — `make check-router-erl` clean-SKIPS without rebar3, so a
+  green `make check` proves nothing about the router. `rm -rf _build` through the same image
+  afterwards: the files it writes are root-owned. (Homebrew is not an option here — `/opt/homebrew`
+  is not writable by this user — and hex hosts no prebuilt macOS OTP.)
+- **A macro that must stand in a binary PATTERN is a string, not a binary.**
+  `-define(CAPABILITY_PREFIX, "generate.")` lets `<<?CAPABILITY_PREFIX, Rest/binary>>` work as a
+  pattern *and* as a construction; `-define(..., <<"generate.">>)` compiles only in construction.
+- **Do not define `error/3` in an Erlang module** — it collides with the auto-imported BIF.
+  The JSON-RPC envelope helpers are `apr_invoke:rpc_error/3` / `rpc_result/2` for that reason.
+- **`apr_json:put/3` already has Python dict-assignment semantics** (replace in place, else
+  append at the end), which is exactly what `payload_for` and `dict.update` need — the ordered
+  object makes the byte-for-byte port of a dict-order-sensitive function almost mechanical.
+- **What can and cannot go in the corpus.** Anything whose bytes are a function of the request
+  can; anything whose bytes come from the *framework* cannot. Malformed JSON is the line: both
+  routers answer `-32700` at 400, but CPython's `JSONDecodeError` prose is the host's, not the
+  contract's — the same reason the header-borne unreadable ceiling was already excluded.
+- **Keyed corpus exchanges must carry a zero ceiling in whatever spelling the transport
+  offers** (MCP argument, A2A `metadata`, `X-Agora-Budget-Units`), or the capture — and then the
+  ct replay — would dial api.openai.com.
+- **Deliberately deferred:** MCP/A2A generations do not announce on the KCB bus
+  (`apr_events:announce/3`), which only `/v1` does. The generate handler announces *after* the
+  reply so a subscriber is never on the caller's critical path; carrying the completion back out
+  of `apr_mcp:handle/2` to preserve that ordering would bend the two surface modules away from
+  being straight mirrors of `mcp.py`/`a2a.py`. A subscriber therefore sees generations dialed
+  over `/v1` only — worth closing when the bus and the transports are next touched together.

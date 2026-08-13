@@ -52,7 +52,7 @@
         "The Erlang router serves + advertises the identical MCP/A2A endpoint set; re-running `capture_python_surface.py` reproduces the corpus and `apr_conformance_SUITE` stays green.",
         "`make check-router-erl` runs the full gate where rebar3 is present and clean-skips otherwise; `make check` green end to end."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
