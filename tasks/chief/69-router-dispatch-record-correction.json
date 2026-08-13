@@ -49,7 +49,7 @@
         "The consequence is made concrete rather than left as a moral: the `[litellm]` extra's version constraint is checked and pinned to exclude the compromised releases, or the reason it cannot be is recorded.",
         "Nothing in this story changes runtime behaviour, adds or removes a dependency, or regenerates the byte-for-byte conformance corpus; `make check-router-erl` and `make check-provider-router` both stay green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
