@@ -37,6 +37,25 @@ export {
   type TopologyQuery,
 } from './topology.ts';
 export {
+  directLink,
+  healthOf,
+  httpProbe,
+  monitorConnections,
+  statusOf,
+  type ConnectionHealth,
+  type ConnectionProbe,
+  type ConnectionStatus,
+  type DirectLink,
+  type HttpProbeOptions,
+  type MonitoredEdge,
+  type MonitoredTopology,
+  type MonitorOptions,
+  type Observation,
+  type ProbeFetch,
+  type ProbeRequestInit,
+  type ProbeResponse,
+} from './connection.ts';
+export {
   backboneOf,
   EMPTY_BACKBONE,
   isEmpty,
