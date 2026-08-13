@@ -873,3 +873,46 @@ Full Erlang gate green (compile + dialyzer + eunit 103 + ct 51/7 skipped); `make
 - **US-3 seam:** `discoverTopology(query)` is the whole graph in one await and remembers nothing
   between calls, so the render story's churn test is "call it again after the index changed" —
   no cache to invalidate and no stale node to evict.
+
+---
+## 61-studio-topology-graph — US-3: the graph renders, and follows churn
+- New `studio/src/TopologyGraph.tsx` (a `Topology` in, elements out — nodes annotated
+  discovered/observed/unreachable + resolver aliases, edges annotated transport / internal-external
+  scope / capability / plane / cross-plane) and `studio/src/useTopology.ts` (`useTopology(query)`:
+  one `discoverTopology` pass per snapshot, re-run on a new query object or on `refresh()`).
+  `Stage.tsx` now draws ONE picture — a backbone with no discovery behind it goes through
+  `topologyOf({ observed })` and renders through the same component, discovery's answer wins when
+  there is one. `App.tsx` gained a `discovery?: TopologyQuery | null` prop and folds the configured
+  cast in as that pass's `observed`. New `studio/src/TopologyGraph.test.tsx` (11 tests, real
+  registry + real `createAuthorityResolver`), `App.css`, `README.md`. `make check` exit 0
+  (studio 69 tests).
+- **The churn requirement needed no removal logic.** Because a topology is the *value* of one pass
+  and nothing is remembered between passes, a participant leaving the index is simply absent from
+  the next answer. The test proves the update happened in-place by capturing the `main` element
+  before the churn and asserting `toBe` the same element after — that is what "without a page
+  reload" means as an assertion.
+- **A failed pass keeps the last good picture** and reports the problem beside it (`role="alert"`).
+  A lookup that could not be made is NOT a fabric that emptied; blanking the graph would assert a
+  churn event that never happened. A pass that succeeds with nobody in it does empty it.
+- Base integration this iteration: rebased onto `main` @32e62fa (8 commits), one conflict, in
+  `progress.txt` — both sides were appends, so both were kept with a `---` between them.
+
+### Learnings for future iterations
+- **`exactOptionalPropertyTypes: true` is on.** Passing `foo={cond ? value : undefined}` to a
+  `foo?: T` prop is a type error. Either widen the prop to `T | undefined` or — usually better —
+  restructure so the value is always present; here `useTopology` already returns an empty
+  `Topology` rather than `undefined`, and the receiving component's fallback made the ternary
+  unnecessary.
+- **`vitest` runs with `globals: false` in `studio/vite.config.ts`**, so RTL's auto-cleanup never
+  registers. A test that renders more than once must `import { cleanup }` and call it in
+  `afterEach` (the older tests get away with `document.body.innerHTML = ''` because they never
+  `rerender`).
+- `backbone.test.ts`'s greps constrain any new UI file here: no `fetch(`/`WebSocket(` in authored
+  source, no quoted `a:b:c` KINP literal (doc comments and backticks included — write shapes), and
+  `Object.entries(studio)` non-function exports are pinned to exactly `EMPTY_BACKBONE`, so a new
+  module's "empty" constant must stay module-local (`NOTHING` in `useTopology.ts`).
+- The registry exposes `remove(identity)` on `CapabilityRegistry`, which is what makes a
+  *departure* testable against the real discovery surface rather than a stub.
+- Keeping the rendered vocabulary as `participants` / `connections` (the accessible list names the
+  60 tests query) let the graph replace the plain cast list without touching a single existing
+  test — a node IS a participant, so the rename would have been churn for its own sake.
