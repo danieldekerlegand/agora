@@ -40,7 +40,7 @@
         "A test asserts a model neither the price map nor `AGORA_PRICE_TABLE` covers stays `unpriced` (refusable at the ceiling, never priced zero), and that `budget_units` denomination + non-text `measure()` are unchanged (`tests/test_cost.py` shape).",
         "The change lands in both the Python and Erlang cost models in lockstep; `apr_conformance_SUITE` byte-for-byte equality holds; `make check` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
