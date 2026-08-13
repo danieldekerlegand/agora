@@ -72,10 +72,31 @@ table.
 | **`unpriced` never passes a ceiling** | N5 **NOT COVERED** | `litellm.cost_per_token` returns `(0, 0)` for an unmapped model — *free* where it means *unknown*. Inheriting that makes an unknown vendor the cheapest route in the ladder. |
 | **Denomination in KCB `budget_units`**, anchored at 1 unit = US$0.00001 | N5 **NOT COVERED** | A ceiling travels between projects with no shared billing account, so it cannot be USD. A conversion is trivial; a *silent* one is a mispriced ceiling. |
 | **Non-text `measure()`** — seconds of video, characters of speech, `n` images, each erring high on purpose | N5 **NOT COVERED** | LiteLLM prices tokens. |
-| **`AGORA_PRICE_TABLE` / `AGORA_PRICE_<MODALITY>_<PROVIDER>` overrides** over the shipped `prices.toml` | — | The sheet is data with a documented anchor; LiteLLM's map is a candidate *source* of rates to layer underneath, never a replacement for the rules above. |
+| **`AGORA_PRICE_TABLE` / `AGORA_PRICE_<MODALITY>_<PROVIDER>` overrides** over the shipped `prices.toml` | — | The sheet is data with a documented anchor; LiteLLM's map is a *source* of rates layered underneath (below), never a replacement for the rules above. |
 
 Sites: `cost.py` + `prices.toml` / `apr_cost`; asserted by `tests/test_cost.py`,
 `apr_cost_tests`.
+
+**The map landed as a source, under all three (agora:53).** `litellm_prices.py` fills in
+model-exact rates behind `AGORA_PRICE_LITELLM=1`, between a deployer's `AGORA_PRICE_TABLE`
+and the shipped sheet — and the three rows above are what it may not move, so each is
+asserted a second time with the source switched on
+(`tests/test_cost.py::TestTheKeptRulesUnderARateSource`):
+
+* It reads `litellm.model_cost` and **never** `cost_per_token`, so a model the map misses is a
+  missing key rather than a rate of zero — it falls through and ends `unpriced`, which is
+  refusable. The test's stand-in `litellm` raises from `cost_per_token`, so taking that route
+  fails the test that took it.
+* The source answers in **US dollars** and the cost model applies the anchor
+  (`cost.BUDGET_UNITS_PER_USD` / `apr_cost:from_usd/1`). A source that could name its own
+  denomination would be a cost model wearing a source's name.
+* `measure()` takes neither env nor model: a source may move the rate and nothing else.
+
+The canonical router has no LiteLLM (see [the scope correction](litellm-dispatch-adapter.md)),
+so the lockstep is the rules, not the source — and the anchor both cost models denominate a
+ceiling with is now pinned across the language boundary in both directions
+(`apr_conformance_SUITE::the_budget_unit_anchor_is_pinned_to_the_python_cost_model`, and
+`test_cost.py` reading `apr_cost.erl`, which is the half that runs on a rebar3-less host).
 
 ### 2.3 The routing surface
 
