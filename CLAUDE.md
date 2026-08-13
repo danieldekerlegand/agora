@@ -124,7 +124,13 @@ not grow either (see `RegistryFetchError`).
 one `wire.ts` that serves the KCB manifest, the AgentCard and both transports — A2A `message/send`
 and the MCP `initialize`/`tools/list`/`tools/call` handshake, with the capability's own name as the
 tool. Same rules as the starter: the published SDK only, strip-loader-runnable (`node src/notes.ts`,
-asserted by a test that spawns it), and nothing in agora ever imports it.
+asserted by a test that spawns it), and nothing in agora ever imports it. `src/topologies.ts`
+arranges that cast into several **sample** Studio setups and writes each one down as an
+`agora.studio.config/v1` document (`configs/*.studio.json`, regenerated with
+`node src/topologies.ts <name> --print`) — carrying each peer's endpoints and its own served
+documents, so loading one populates Studio's graph, health panel and spec viewer. Studio *loads*
+them through the same `readStudioConfig` path a user's config takes; it never bundles them
+(`studio/src/examples.test.tsx` reads them off disk and re-asserts the empty-with-no-config rule).
 
 The relation registry is koine's data and agora's tooling: `schemas/src/registry-schema.ts`
 validates it, `clients/sdk/src/relation-registry.ts` fetches and indexes it. The only copy here is

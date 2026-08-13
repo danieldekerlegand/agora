@@ -21,6 +21,22 @@ export interface Participant {
   label?: string;
   /** Capability names this participant advertises (KCB §3). Display only — never invoked. */
   capabilities?: readonly string[];
+  /**
+   * Where it publishes, as whoever described this fabric wrote it down — the KCB endpoint map
+   * (`{ a2a, mcp, manifest, … }`, KCB §2). Where a *peer* dials, never a route through Studio:
+   * it is what lets a described connection be watched on the real link (`connection.ts`) rather
+   * than reported as unwatchable. A participant described without one is still a participant.
+   */
+  endpoints?: Readonly<Record<string, string>>;
+  /**
+   * The KCB manifest body the host was handed for it, verbatim.
+   *
+   * `unknown` on purpose, and carried rather than read: whoever renders it says what it is by
+   * validating it (`specs.ts` / `checks.ts`), because a shape asserted at this seam would be
+   * Studio vouching for a document it never checked. Arrives the way everything here does —
+   * handed in, never fetched.
+   */
+  manifest?: unknown;
 }
 
 /** A link between two participants. Observed, not owned: the traffic is theirs, not Studio's. */

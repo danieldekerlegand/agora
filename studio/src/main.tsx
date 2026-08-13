@@ -16,10 +16,13 @@ import { embeddedConfigText, readStudioConfig } from './config.ts';
 const root = document.getElementById('root');
 if (!root) throw new Error('studio: #root missing from index.html');
 
-const { backbone, problems } = readStudioConfig(embeddedConfigText(document));
+// Whatever the config carried: the cast, and the participants' own documents the host copied
+// into it. The documents go straight to the prop the spec viewer already reads them from — a
+// card in a config is a card the host read at the participant's own address and wrote down.
+const { backbone, cards, problems } = readStudioConfig(embeddedConfigText(document));
 
 createRoot(root).render(
   <StrictMode>
-    <App backbone={backbone} problems={problems} />
+    <App backbone={backbone} cards={cards} problems={problems} />
   </StrictMode>,
 );

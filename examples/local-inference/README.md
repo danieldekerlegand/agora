@@ -63,6 +63,41 @@ manifest, so that stays true.
 A peer publishes the endpoints it actually answers on and only those, so the manifest is a true
 statement about the process — an MCP-only peer serves no agent card, and says so with a 404.
 
+## The example setups
+
+Three sample topologies arrange the cast into fabrics you can load into
+[Agora Studio](../../studio/) as-is, so a first look at Studio is a populated one:
+
+| Setup | What it shows |
+|---|---|
+| `notes-desk` | one app and the two services it dials — one over A2A, one over MCP |
+| `embedding-pipeline` | a chain across both transports, ending in a shape that is not prose |
+| `whole-cast` | every example at once, plus a peer nothing here runs — named, with no address |
+
+Start one and it prints the config for the ports it actually bound:
+
+```sh
+node src/topologies.ts                                   # the setups, listed
+node src/topologies.ts notes-desk                        # start that cast, print its config
+node src/topologies.ts notes-desk --print > my-fabric.json   # just the config, default ports
+```
+
+The checked-in [`configs/*.studio.json`](configs/) are that same document for the ports each peer
+binds by default, which is what `node src/notes.ts` and friends do — so
+`node src/topologies.ts whole-cast` and `configs/whole-cast.studio.json` describe the same
+running fabric. Paste one into the `<script type="application/json" id="studio-config">` block of
+the page that serves Studio and the graph, the connection panel and the spec viewer are populated
+by it.
+
+Each config carries, per participant, where it publishes (`endpoints`) and the documents it
+serves (`manifest`, and `card` for the A2A peers) — read off the running processes, so Studio has
+a real address to observe each link at and the participants' own words to render. `topologies.ts`
+generates them and `topologies.test.ts` fails if a file drifts from what it generates or from what
+the processes actually serve; regenerate with the `--print` line above.
+
+These are **sample data**, and each file says so in its own `note`: agora ships no roster
+(`../../CLAUDE.md`), Studio starts empty, and this is a demonstration you load — never a default.
+
 ## Where it depends
 
 On the **published** [`@agora/sdk`](../../clients/sdk/) and nothing else in this repo (the tests

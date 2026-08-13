@@ -26,11 +26,25 @@ unrecognized one is refused rather than guessed at — and draws exactly the fab
 {
   "format": "agora.studio.config/v1",
   "participants": [
-    { "identity": "<kinp identity>", "label": "<what to show>", "capabilities": ["<name>"] }
+    {
+      "identity": "<kinp identity>",
+      "label": "<what to show>",
+      "capabilities": ["<name>"],
+      "endpoints": { "a2a": "<url>", "mcp": "<url>" },
+      "manifest": { "<the KCB manifest body you read for it>": "…" },
+      "card": { "<the AgentCard you read at its own address>": "…" }
+    }
   ],
   "connections": [{ "from": "<identity>", "to": "<identity>", "transport": "a2a" }]
 }
 ```
+
+Identity is the only required field on a participant. The last three are what make a described
+fabric *watchable* rather than merely drawn: `endpoints` is where a **peer** dials, so a host with
+a probe can observe the real link and the health panel reports something; `manifest` and `card`
+are the participant's own documents, so the spec viewer has its own words to render and its
+checker something to rule on. All three are your copies of somebody else's bytes — you read them,
+Studio does not, and it validates them where it shows them rather than trusting the file.
 
 That file **lives with you**, in the project whose fabric it describes; nothing like it ships
 here, and Studio never goes and fetches one. The host hands the contents in — the browser entry
@@ -39,12 +53,25 @@ library callers pass the text (or the parsed object) to `readStudioConfig` thems
 could not be read comes back as `problems` and is shown on the stage; a config that describes
 nobody, or no config at all, is the empty state above.
 
+### Somebody else's fabric, to look at first
+
+`examples/local-inference/configs/*.studio.json` describe a small sample fabric — thin
+local-inference example peers, `example:` scoped, each file marked in its own `note` — so a first
+look at Studio can be a populated one. Start the cast (`node src/topologies.ts whole-cast` in
+[`examples/local-inference/`](../examples/local-inference/)), paste the config into the block
+above, and the graph, the connection panel and the spec viewer all fill from it.
+
+They are **loaded, never bundled**: they live in `examples/`, nothing under `studio/src` imports
+them, and they arrive here as config text like any other. `src/examples.test.tsx` reads them off
+disk the way a host would and checks what this build makes of them — and checks the line that
+keeps them examples, which is that with no config Studio is still empty.
+
 ## Layout
 
 | Module | What it is |
 |---|---|
 | `src/App.tsx` | the shell: header, the stage a view mounts into, the contract footer |
-| `src/config.ts` | ingestion: a user's config in, a backbone (plus what could not be read) out |
+| `src/config.ts` | ingestion: a user's config in, a backbone — plus their copies of the participants' own documents, and whatever could not be read — out |
 | `src/topology.ts` | the graph: a KCB discovery answer (`find`, cost-ranked) and the registry's planned routes projected into drawable nodes + typed edges, with node identity settled by the KINP resolver |
 | `src/backbone.ts` | the runtime picture — participants, connections, and the normalizer over whatever the caller handed in (defaults to empty) |
 | `src/Stage.tsx` | what the stage shows: the empty first-run state, else the graph (discovery's answer when there is one, else the configured cast projected into the same shape) with the connection health panel and the spec viewer beneath it |
@@ -159,9 +186,10 @@ stage. That is what the standalone bundle does: it has no registry to ask.
 
 ## What lands here next
 
-The roadmap's Phase G, in order: the animated
-on-the-wire message viewer, the analytics dashboards, and runnable example setups. Each mounts
-into the stage this shell provides.
+The roadmap's Phase G, in order: the animated on-the-wire message viewer and the analytics
+dashboards, both of which wait on `chief/55`'s ratified telemetry shape. Each mounts into the
+stage this shell provides, and the example setups above populate them the same way they populate
+everything else here — they describe a fabric, and every view reads that description.
 
 ## What a participant says it is
 
