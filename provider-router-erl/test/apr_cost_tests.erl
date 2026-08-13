@@ -1,5 +1,5 @@
-%%% @doc eunit: the migrated agora:50 cost table and the two safety rules, ported from
-%%% `provider-router/tests/test_cost.py'.
+%%% @doc eunit: the migrated agora:50 cost table, the two safety rules and the `budget_units'
+%%% denomination, ported from `provider-router/tests/test_cost.py'.
 %%%
 %%% All pure — no env, no network, no supervision tree. The ceiling's behaviour *on the
 %%% ladder* (a rung refused without being dialed) is the ct suite `apr_budget_SUITE'.
@@ -195,6 +195,31 @@ taking_the_ceiling_strips_it_from_the_payload_test() ->
 taking_an_absent_ceiling_leaves_the_payload_alone_test() ->
     Payload = {obj, [{<<"messages">>, []}]},
     ?assertEqual({Payload, undefined}, apr_cost:take_ceiling(Payload)).
+
+%% --- the denomination: the cost model's, never a rate source's ---------------
+
+the_dollar_anchor_is_stated_both_ways_round_test() ->
+    %% One number, two spellings — the sheet documents `1 unit = US$0.00001', a conversion
+    %% needs its reciprocal, and a drift between them would silently reprice every ceiling.
+    Product = apr_cost:unit_anchor_usd() * apr_cost:budget_units_per_usd(),
+    ?assert(abs(Product - 1.0) < 1.0e-9).
+
+a_dollar_rate_becomes_budget_units_here_test() ->
+    %% `$0.05/second of video = 5000 units/second' — the worked example the module doc and
+    %% `prices.toml' are both written around, and the rate the shipped table already carries.
+    ?assertEqual(5000.0, apr_cost:from_usd(0.05)),
+    ?assertEqual(maps:get(<<"runway">>, apr_cost:rates(video)), apr_cost:from_usd(0.05)),
+    %% $2 per million output tokens, the shape a per-model source answers in.
+    ?assertEqual(0.2, apr_cost:from_usd(2.0e-6)),
+    %% Rounded the nine places Python rounds a converted rate to, not left at 5000.000000000001.
+    ?assertEqual("5000", apr_cost:fmt_g(apr_cost:from_usd(0.05))).
+
+zero_dollars_is_zero_units_and_nothing_else_test() ->
+    %% The conversion prices what it is handed. It is never how a *missing* rate is answered:
+    %% that stays a fall-through, and ends at `unpriced' rather than at a free rung.
+    ?assertEqual(0.0, apr_cost:from_usd(0)),
+    ?assertEqual(0.0, apr_cost:from_usd(0.0)),
+    ?assertEqual({0.0, true}, apr_cost:rate_for(text, <<"some-new-vendor">>, ?NO_ENV)).
 
 %% --- the `g` number spelling ------------------------------------------------
 

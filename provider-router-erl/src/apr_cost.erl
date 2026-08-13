@@ -29,10 +29,25 @@
 %%%   ignored, and an unparseable one is an error ({@link parse_ceiling/1} throws, which the
 %%%   HTTP surface turns into a 422) rather than a silent absence — treating a malformed
 %%%   ceiling as "no ceiling" would authorise unlimited spend on a typo.
+%%%
+%%% Rates may be sourced; the rules may not
+%%% ---------------------------------------
+%%% Rates are data and can come from anywhere maintained — the Python router layers LiteLLM's
+%%% per-model price map in under its deployer-set layers
+%%% (`agora_provider_router/litellm_prices.py', off unless `AGORA_PRICE_LITELLM=1'; the
+%%% canonical router carries no LiteLLM at all, see `docs/litellm-dispatch-adapter.md'). What
+%%% a source may never supply is the three things above it: the `unpriced' rule (a model a
+%%% source does not price is a *missing rate*, which falls through and stays refusable, never
+%%% a rate of zero), the {@link measure/2} sizing of the non-text modalities, and the
+%%% denomination — a source speaks its vendor's currency and {@link from_usd/1} converts,
+%%% here, because a source that could name the denomination would be a cost model wearing a
+%%% source's name. Both routers' cost models therefore spell the conversion identically, and
+%%% `apr_conformance_SUITE' pins this module's anchor to the Python cost model's across the
+%%% language boundary the same way it pins the KCB version — bump one and the other goes red.
 -module(apr_cost).
 
--export([budget_key/0, budget_header/0, unit_anchor_usd/0,
-         unit_of/1, rates/1, free_providers/0, price_env_var/2, rate_for/3,
+-export([budget_key/0, budget_header/0, unit_anchor_usd/0, budget_units_per_usd/0,
+         from_usd/1, unit_of/1, rates/1, free_providers/0, price_env_var/2, rate_for/3,
          measure/2, project/4, settle/5, within/2, refusal/4,
          take_ceiling/1, parse_ceiling/1, describe/1, units/1, fmt_g/1]).
 
@@ -68,6 +83,21 @@ budget_header() -> ?BUDGET_HEADER.
 %% @doc What one budget unit is worth, restated so the shipped numbers stay self-explaining.
 -spec unit_anchor_usd() -> float().
 unit_anchor_usd() -> 0.00001.
+
+%% @doc What one US dollar is worth in budget units — {@link unit_anchor_usd/0} the way a
+%% conversion needs it, and the number `cost.py' pins as `BUDGET_UNITS_PER_USD'.
+-spec budget_units_per_usd() -> float().
+budget_units_per_usd() -> 100000.0.
+
+%% @doc A US-dollar rate in KCB budget units, rounded the nine places Python's `round' takes
+%% it to (`cost.py::rate_for').
+%%
+%% The one place a currency becomes a denomination: a rate source answers in its vendor's
+%% currency and the cost model states what a budget unit is, never the other way round. Zero
+%% dollars converts to zero units and to nothing else — an absent rate is not a number, it is
+%% a fall-through to the layer below and, failing that, `unpriced'.
+-spec from_usd(number()) -> float().
+from_usd(Usd) -> round9(Usd * budget_units_per_usd()).
 
 %% @doc What one unit of `quantity' is, per modality — the thing a rate is charged against.
 -spec unit_of(modality()) -> binary().
@@ -364,6 +394,11 @@ reported_quantity(_Modality, _Response) ->
 %% Python rounds every unit total to 6 decimal places; `0.06 * 1000' is `60.000000000000006'
 %% in both languages, and both must report `60.0'.
 round6(Value) -> erlang:round(Value * 1000000) / 1000000.
+
+%% A converted rate is rounded finer than a total, because it is multiplied by a quantity
+%% afterwards: `cost.py' takes it to 9 places, so `$0.05/second' is `5000.0' and not
+%% `5000.000000000001'.
+round9(Value) -> erlang:round(Value * 1000000000) / 1000000000.
 
 non_negative(Value, Default) when is_boolean(Value) -> Default;
 non_negative(Value, _Default) when is_integer(Value), Value >= 0 -> float(Value);

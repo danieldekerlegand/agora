@@ -30,6 +30,7 @@
          the_keyed_surface_is_byte_identical_to_the_python_router/1,
          the_console_captured_session_is_still_a_capture_of_this_router/1,
          the_kcb_version_is_pinned_to_the_typescript_schemas_package/1,
+         the_budget_unit_anchor_is_pinned_to_the_python_cost_model/1,
          no_read_endpoint_echoes_a_configured_key/1,
          a_failed_rung_redacts_the_key_from_its_reason/1,
          an_absent_sibling_area_is_a_skip_not_a_failure/1]).
@@ -48,6 +49,7 @@ all() ->
      the_keyed_surface_is_byte_identical_to_the_python_router,
      the_console_captured_session_is_still_a_capture_of_this_router,
      the_kcb_version_is_pinned_to_the_typescript_schemas_package,
+     the_budget_unit_anchor_is_pinned_to_the_python_cost_model,
      no_read_endpoint_echoes_a_configured_key,
      a_failed_rung_redacts_the_key_from_its_reason,
      an_absent_sibling_area_is_a_skip_not_a_failure].
@@ -167,6 +169,38 @@ kcb_pin(Source) ->
         re:run(Source, "kcb:\\s*['\"]([^'\"]+)['\"]", [{capture, [1], binary}]),
     Version.
 
+the_budget_unit_anchor_is_pinned_to_the_python_cost_model(_Config) ->
+    %% The `budget_units' denomination is one of the three rules both cost models keep
+    %% hand-built rather than inherit from a pricing library
+    %% (`docs/router-hand-built-behaviours.md' §2.2), and the Python router now applies it to
+    %% a currency-denominated rate source (its optional LiteLLM price map). A ceiling travels
+    %% between the two routers, so it is only the comparable scalar KCB §5 asks for while both
+    %% anchor it identically — pinned here the way the KCB version above is, and from the
+    %% other side by `test_cost.py', which runs where rebar3 is not installed.
+    Cost = "provider-router/src/agora_provider_router/cost.py",
+    case apr_testpaths:repo_file(Cost) of
+        not_found ->
+            {skip, "standalone checkout: " ++ Cost ++ " (the Python cost model) is absent"};
+        {ok, Path} ->
+            {ok, Source} = file:read_file(Path),
+            Pinned = anchor_pin(Source),
+            Reported = apr_cost:budget_units_per_usd(),
+            case Pinned =:= Reported of
+                true -> ok;
+                false -> ct:fail({budget_unit_anchor_drift, {python, Pinned}, {erlang, Reported}})
+            end
+    end.
+
+%% `BUDGET_UNITS_PER_USD = 100_000.0' — Python's digit separators stripped before parsing.
+anchor_pin(Source) ->
+    {match, [Digits]} =
+        re:run(Source, "BUDGET_UNITS_PER_USD\\s*=\\s*([0-9_.]+)", [{capture, [1], binary}]),
+    Cleaned = [C || C <- binary_to_list(Digits), C =/= $_],
+    case string:to_float(Cleaned) of
+        {Value, []} -> Value;
+        _ -> float(list_to_integer(Cleaned))
+    end.
+
 %% --- no secret on any surface -----------------------------------------------
 
 no_read_endpoint_echoes_a_configured_key(Config) ->
@@ -202,8 +236,8 @@ a_failed_rung_redacts_the_key_from_its_reason(_Config) ->
     ok.
 
 an_absent_sibling_area_is_a_skip_not_a_failure(_Config) ->
-    %% The two cross-area assertions above look their file up rather than assuming a path,
-    %% and an extracted `provider-router-erl/' has neither sibling. A lookup that finds
+    %% The three cross-area assertions above look their file up rather than assuming a path,
+    %% and an extracted `provider-router-erl/' has none of the siblings. A lookup that finds
     %% nothing must say so — the caller then skips, which ct reports; what must never happen
     %% is a case that quietly passes because it did nothing.
     not_found = apr_testpaths:repo_file("schemas/src/no-such-versions-file.ts"),

@@ -222,7 +222,7 @@ class Router:
         env = self.config.env
 
         def rank(candidate: Backend) -> float:
-            return project(modality, candidate.provider, payload, env).units
+            return project(modality, candidate.provider, payload, env, model=candidate.model).units
 
         resolutions, _ = self.resolutions(modality, rank if ceiling is not None else None)
         attempts: list[Attempt] = []
@@ -239,7 +239,7 @@ class Router:
                     )
                 )
                 continue
-            projected = project(modality, backend.provider, payload, env)
+            projected = project(modality, backend.provider, payload, env, model=backend.model)
             if not within(projected, ceiling):
                 assert ceiling is not None  # noqa: S101 — `within` only refuses under one
                 reason = refusal(projected, ceiling, modality, backend.provider)
@@ -316,7 +316,14 @@ class Router:
             backend=backend,
             response=response,
             projected=projected,
-            actual=settle(modality, backend.provider, payload, response, self.config.env),
+            actual=settle(
+                modality,
+                backend.provider,
+                payload,
+                response,
+                self.config.env,
+                model=backend.model,
+            ),
             budget_units=ceiling,
             attempts=attempts,
         )

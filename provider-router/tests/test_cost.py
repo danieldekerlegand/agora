@@ -6,12 +6,16 @@ Pure-function tests. The behavioural half — what the *router* does with these 
 
 from __future__ import annotations
 
+import re
+import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from agora_provider_router.cost import (
     BUDGET_KEY,
+    BUDGET_UNITS_PER_USD,
     DEFAULT_COMPLETION_TOKENS,
     DEFAULT_SPEECH_CHARS,
     DEFAULT_VIDEO_SECONDS,
@@ -27,6 +31,35 @@ from agora_provider_router.cost import (
     take_ceiling,
     within,
 )
+from agora_provider_router.litellm_prices import ENABLE_ENV, usd_rate_for
+
+#: The canonical router's cost model, one area over. Read as text, never imported: the two
+#: routers share a contract and no source (`CLAUDE.md`, ADR-0001), so the only thing that can
+#: be pinned across the boundary is the number itself.
+APR_COST = Path(__file__).resolve().parents[2] / "provider-router-erl" / "src" / "apr_cost.erl"
+
+
+class TrappedLiteLLM:
+    """A stand-in ``litellm``: a price map that answers, and a pricing call that is a landmine.
+
+    ``cost_per_token`` is LiteLLM's own pricing entry point and it returns ``(0, 0)`` for a
+    model it has never heard of — *free* where it means *unknown*. Raising here is how these
+    tests assert the rule structurally rather than by inspection: any route into it fails the
+    test that took it.
+    """
+
+    model_cost: dict[str, dict[str, float]] = {
+        # $2 per million output tokens.
+        "openai/gpt-5-pro": {"output_cost_per_token": 2e-6},
+        # $0.05 per second — the worked example the shipped sheet documents its anchor with.
+        "runway/gen-4": {"output_cost_per_video_per_second": 0.05},
+    }
+
+    def cost_per_token(self, *args: Any, **kwargs: Any) -> tuple[float, float]:
+        raise AssertionError(
+            "the cost model must never ask LiteLLM to price a model: it answers (0, 0) for "
+            "one it does not know, which is 'free' where it means 'unknown'"
+        )
 
 
 class TestRates:
@@ -178,3 +211,97 @@ class TestCeiling:
         message = refusal(cost, 100.0, "video", "runway")
         assert "100" in message
         assert "exceeds" in message
+
+
+class TestTheKeptRulesUnderARateSource:
+    """The three rules that stay hand-built, re-asserted with a rate source underneath them.
+
+    ``docs/router-hand-built-behaviours.md`` §2.2 keeps three things out of any borrowed
+    pricing library: ``unpriced`` is not free, the denomination is KCB ``budget_units``, and
+    the non-text ``measure()`` sizes seconds, characters and generations. The LiteLLM price
+    map (:mod:`agora_provider_router.litellm_prices`) now feeds rates *underneath* them, so
+    each rule is asserted again here with the source switched on — the classes above are the
+    same three rules with it off, which is the other half of the same contract.
+
+    What the source may fill in is :mod:`tests.test_litellm_prices`' subject. What it may
+    never move is this one's.
+    """
+
+    @pytest.fixture
+    def sourced(self, monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
+        """The source switched on over :class:`TrappedLiteLLM`'s map."""
+        monkeypatch.setitem(sys.modules, "litellm", TrappedLiteLLM())
+        return {ENABLE_ENV: "1"}
+
+    def test_a_model_no_layer_prices_stays_unpriced_never_zero(
+        self, sourced: dict[str, str], tmp_path: Path
+    ) -> None:
+        sheet = tmp_path / "prices.toml"
+        sheet.write_text("[rates.text]\nopenai = 0.5\n", encoding="utf-8")
+        env = {**sourced, PRICE_TABLE_ENV: str(sheet)}
+        assert rate_for("text", "some-new-vendor", env, model="no-such-model") == (0.0, True)
+        cost = project("text", "some-new-vendor", {"max_tokens": 1}, env, model="no-such-model")
+        assert cost.units == 0.0
+        assert within(cost, 1_000_000.0) is False, "an unmapped model must stay refusable"
+        assert "no published text rate" in refusal(cost, 1e6, "text", "some-new-vendor")
+
+    def test_a_miss_falls_through_the_source_rather_than_pricing_zero(
+        self, sourced: dict[str, str]
+    ) -> None:
+        # A model the map does not carry is a missing key, so the layer under it still stands
+        # — and the trapped ``cost_per_token``, which would have called it $0, is not reached.
+        assert rate_for("text", "openai", sourced, model="no-such-model") == rate_for(
+            "text", "openai"
+        )
+
+    def test_a_sourced_rate_arrives_denominated_in_budget_units(
+        self, sourced: dict[str, str]
+    ) -> None:
+        # The source answers in the vendor's currency...
+        assert usd_rate_for("video", "runway", "gen-4", sourced) == 0.05
+        # ...and the cost model, not the source, says what a budget unit is.
+        rate, unpriced = rate_for("video", "runway", sourced, model="gen-4")
+        assert unpriced is False
+        assert rate == pytest.approx(0.05 * BUDGET_UNITS_PER_USD)
+        assert rate == 5000.0, "the anchor the shipped sheet documents: $0.05/second"
+        assert rate_for("text", "openai", sourced, model="gpt-5-pro")[0] == pytest.approx(0.2)
+
+    def test_a_ceiling_is_compared_in_budget_units_not_dollars(
+        self, sourced: dict[str, str]
+    ) -> None:
+        cost = project("video", "runway", {"duration": 2}, sourced, model="gen-4")
+        assert cost.units == 10_000.0  # 2 seconds x 5000 units
+        assert within(cost, 10_000.0) is True
+        # $0.10 would have bought this; a ceiling of 0.10 *units* must not.
+        assert within(cost, 0.10) is False
+
+    def test_the_non_text_measure_is_untouched_by_the_source(self, sourced: dict[str, str]) -> None:
+        # ``measure`` takes neither env nor model: a request's cost is quantity x rate, and a
+        # rate source may only move the rate. Asserted through ``project``, where the two meet.
+        video = project("video", "runway", {"duration": 3, "n": 2}, sourced, model="gen-4")
+        assert (video.quantity, video.unit) == (6.0, "second")
+        speech = project("speech", "elevenlabs", {"input": "hello"}, sourced, model="gen-4")
+        assert (speech.quantity, speech.unit) == (5.0, "character")
+        images = project("image", "openai", {"n": 3}, sourced, model="gen-4")
+        assert (images.quantity, images.unit) == (3.0, "image")
+        # And each still errs high when the request states no size.
+        bare = project("video", "runway", {}, sourced, model="gen-4")
+        assert bare.quantity == DEFAULT_VIDEO_SECONDS
+        assert project("speech", "elevenlabs", {}, sourced).quantity == DEFAULT_SPEECH_CHARS
+
+    @pytest.mark.skipif(
+        not APR_COST.exists(),
+        reason="standalone checkout: the canonical router's cost model is absent",
+    )
+    def test_the_canonical_router_anchors_a_budget_unit_identically(self) -> None:
+        # The lockstep half. A ceiling travels between the two routers, so it is only a
+        # comparable scalar while both denominate it the same way — and the Python router is
+        # now the one that converts a currency-denominated source. ``apr_conformance_SUITE``
+        # pins this from the other side; this one runs where rebar3 is not installed.
+        pin = r"budget_units_per_usd\(\) -> ([0-9][0-9_]*\.[0-9]+)"
+        anchor = re.search(pin, APR_COST.read_text("utf-8"))
+        assert anchor is not None, "apr_cost must state the anchor as budget_units_per_usd/0"
+        assert float(anchor.group(1).replace("_", "")) == BUDGET_UNITS_PER_USD, (
+            "the two cost models disagree on what a budget unit is worth — bump apr_cost.erl "
+            "and cost.py together, or a ceiling means two different things on the two routers"
+        )

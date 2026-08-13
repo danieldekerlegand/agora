@@ -627,3 +627,65 @@ Files: `clients/sdk/src/{discovery,openai}.ts` + their tests (new, 27 tests),
   what `AGORA_PUBLIC_BASE_URL` does in production, so the substitution costs no fidelity.
 - **The registry's default port is 8787** (`DEFAULT_REGISTRY_PORT`), not 8080 — worth reading
   `main.ts` before writing a port into a doc; the doc tests check imports and links, not ports.
+
+## 53-litellm-price-map-source — US-1: the LiteLLM price map as a source of rates
+
+Borrowed the second of the two things the spike found LiteLLM genuinely owns (the first, its
+vendor wire adapters, is `litellm_dispatch.py`): the maintained **per-model price map**, wired
+in as a *source of rates* under the cost model rather than as a cost model.
+
+`cost.rate_for` now walks five layers instead of three, most specific first:
+`AGORA_PRICE_<MODALITY>_<PROVIDER>` → `FREE_PROVIDERS` → `AGORA_PRICE_TABLE` sheet → the map →
+shipped `prices.toml` → `unpriced`. The map goes **over** the shipped sheet (it is model-exact
+where that sheet holds one estimate per *provider* — point `AGORA_PROVIDER_OPENAI_MODEL` at a
+dearer model and the projection follows) and **under** both deployer-set layers (a hand-set
+rate is a decision, a sourced one is only data). `_merged_rates` became `_replacement_rates`:
+the replacement sheet is now its own layer rather than a dict merged over the shipped one, so
+the map can sit between them. Same outcome for every pre-existing case.
+
+Reaching the map needs the model, so `rate_for` / `project` / `settle` gained a keyword-only
+`model=`; `router.py` (rank, projection, settle) and `manifest.py` pass the backend the ladder
+chose. Off by default → the default surface, and the corpus bytes, are unchanged.
+
+Gate: `make check` exit 0 (Erlang gate clean-skips, no rebar3); router gate 212 passed, 5
+skipped (the two real-library classes).
+
+Files: `provider-router/src/agora_provider_router/litellm_prices.py` (new),
+`cost.py`, `router.py`, `manifest.py`, `tests/test_litellm_prices.py` (new, 30 tests),
+`provider-router/README.md`.
+
+**Left for US-2:** `docs/router-hand-built-behaviours.md` §2.2's last row and
+`docs/litellm-dispatch-adapter.md`'s keep-list still call the map "a candidate *source* of
+rates to layer underneath" — true when written, now adopted. US-2 re-asserts that keep-list,
+so the row updates (and the Erlang lockstep) belong there.
+
+### Learnings for future iterations
+
+- **A borrowed source may not name its denomination.** `litellm_prices.usd_rate_for` answers in
+  **USD**; `cost.py` multiplies by the new `BUDGET_UNITS_PER_USD` (1 unit = US$0.00001, the
+  anchor `prices.toml` already documented in prose only). Anything that could set the
+  denomination is a cost model wearing a source's name — and the KCB ceiling travels between
+  projects with no shared billing account, so the conversion has to happen at one site.
+- **Read the map, never `litellm.cost_per_token`.** That function returns `(0, 0)` for a model
+  it has never heard of — *free* where it means *unknown*, the exact inversion `unpriced`
+  exists to prevent. A dict lookup answers with a **missing key**, which is the distinction the
+  whole safety rule rests on. Any future "just ask the library what it costs" is this bug.
+- **An optional source that cannot load is an absence, not an error.** Where the dispatch
+  adapter raises `MISSING_MESSAGE` (it costs the *rung*, and the walk continues), a pricing
+  failure would cost the *request* — so `_price_map()` swallows the import failure and returns
+  `{}`. Pricing then degrades one layer towards `unpriced`, which is refused under a ceiling.
+  Fail-safe for a rate means fail *expensive*.
+- **LiteLLM fetches its cost map over HTTP at import** unless `LITELLM_LOCAL_MODEL_COST_MAP` is
+  set. Pricing is on the request path and `cost.py` is documented as making no network call, so
+  `_price_map()` does `os.environ.setdefault(LOCAL_MAP_ENV, "True")` immediately before the
+  import (`setdefault`, so a deployer who wants the live map can still say so). Whichever module
+  imports `litellm` first decides this for the process — worth remembering if `litellm_dispatch`
+  ever grows an import-time path.
+- **`None` in `sys.modules` is how the import machinery spells "absent".**
+  `monkeypatch.setitem(sys.modules, "litellm", None)` makes `import_module` raise `ImportError`
+  for real, which is a truer "extra not installed" fixture than stubbing the loader — and it
+  works whatever the developer's venv holds.
+- **The price map lists both `provider/model` and bare `model`, and they can disagree.** Look
+  the provider-qualified key up first. Cross-checking the entry's own `litellm_provider` against
+  agora's provider name is tempting and wrong: one vendor's models are filed under several
+  LiteLLM providers, so the check rejects correct rates more often than wrong ones.

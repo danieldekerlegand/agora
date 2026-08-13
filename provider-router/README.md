@@ -152,6 +152,27 @@ identically with it on, and `tests/test_litellm_dispatch.py` asserts that by cou
 the vendor adapter received — zero, for a zero-ceiling request. The spike behind the decision is
 [`docs/spike-litellm-leaf.md`](../docs/spike-litellm-leaf.md).
 
+### Borrowed rates (also optional)
+
+The same extra carries LiteLLM's maintained **price map**, which can be switched on separately as
+a *source of rates* underneath the cost model:
+
+```sh
+export AGORA_PRICE_LITELLM=1
+```
+
+With it on, a rung is priced by the map's entry for the **model** the ladder actually chose —
+which is what the shipped sheet cannot do, holding one conservative estimate per *provider*. Point
+`AGORA_PROVIDER_OPENAI_MODEL` at a model an order of magnitude dearer and the projection follows.
+
+It only ever fills rates in. `AGORA_PRICE_TABLE` and `AGORA_PRICE_<MODALITY>_<PROVIDER>` still win
+over it, the zero-spend tiers are still free ahead of it, and a model the map does not price falls
+back to the shipped sheet and then to `unpriced` — never to zero. That last one is the whole
+reason the map is read directly rather than through `litellm.cost_per_token`, which answers
+`(0, 0)` for a model it has never heard of: *free* where it means *unknown*. It is a source of
+numbers, not a cost model — the `budget_units` denomination, the `unpriced` rule and the
+non-text `measure()` all stay in `cost.py`.
+
 ## Capability manifest
 
 `GET /.well-known/kcb-manifest.json` is the router's KCB manifest (§2) — the first concrete one in
@@ -198,15 +219,17 @@ them. Settings are read from the process environment and, under it, the env file
 | `AGORA_PRICE_TABLE` | path to a replacement price sheet (TOML/JSON) — swaps the whole shipped rate table |
 | `AGORA_PRICE_<MODALITY>_<PROVIDER>` | overrides a single rate, in budget units per unit — wins over the file and the shipped defaults |
 | `AGORA_LITELLM=1` | dials the native-wire vendors LiteLLM covers, instead of leaving them `pending-adapter` — needs the `[litellm]` extra (see **Borrowed vendor adapters**) |
+| `AGORA_PRICE_LITELLM=1` | prices a rung from LiteLLM's per-model price map where it has one — under both overrides above, over the shipped sheet; needs the same extra (see **Borrowed rates**) |
 | `AGORA_ROUTER_IDENTITY` | overrides the KINP identity `/health` and the KCB manifest report (default `agora:agent:provider-router`) |
 | `AGORA_PUBLIC_BASE_URL` | the address the KCB manifest publishes for itself |
 | `AGORA_ENV_FILE` | the env file to read provider settings from |
 | `AGORA_HOST` / `AGORA_PORT` | the uvicorn bind address for the entry point (default `0.0.0.0:8000`) |
 
-The price sheet (`AGORA_PRICE_TABLE`) and the per-rate overrides layer: a replacement file swaps
-the shipped table wholesale, then any `AGORA_PRICE_<MODALITY>_<PROVIDER>` wins over both. Neither
-can un-free the zero-spend ladder — mlx-serve, Ollama and the placeholder are priced 0.0 ahead of
-any table — and an unpriceable rung still never passes a ceiling (see **Budget ceilings**).
+The rate layers, most specific first: `AGORA_PRICE_<MODALITY>_<PROVIDER>` wins over everything,
+then the zero-spend tiers (mlx-serve, Ollama and the placeholder are priced 0.0 ahead of any
+table, so nothing can un-free the ladder), then a replacement `AGORA_PRICE_TABLE` sheet, then the
+optional LiteLLM price map, and last the shipped `prices.toml`. A provider none of them prices is
+`unpriced`, and an unpriceable rung still never passes a ceiling (see **Budget ceilings**).
 
 Three rules the code enforces rather than documents:
 
