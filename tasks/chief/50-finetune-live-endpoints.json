@@ -44,7 +44,7 @@
         "The §5.3 export endpoint returns the real export matrix (KMI assets carrying `media:derived_from`/`media:variant_of` lineage) and the §8 registration surface registers the minted model entity, both replacing prior 404s.",
         "Registration enforces the §5.4/FT-A output-egress rule — a `local-only`-inheriting model is refused cross-boundary registration (`egress-output`), an in-tier one admits — proven by a test; `make check-trainer` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
