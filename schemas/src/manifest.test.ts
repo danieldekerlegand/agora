@@ -106,6 +106,30 @@ describe('parseManifest', () => {
     expect(() => parseManifest([])).toThrow(ManifestError);
     expect(() => parseManifest({})).toThrow(/KCB manifest extension/);
   });
+
+  it('reads a provider that serves both §4 transports plus its own named addresses', () => {
+    // The provider-router's shape: `mcp` and `a2a` (the spec's named transports) alongside
+    // addresses KCB names nowhere. The map is open on purpose — a provider publishes what it
+    // serves — so every one of these must survive the narrowing as a string, and the
+    // transports must not need special-casing to get through.
+    const endpoints = {
+      openai: 'https://router.example/v1',
+      mcp: 'https://router.example/mcp',
+      a2a: 'https://router.example/a2a',
+      doctor: 'https://router.example/doctor',
+      manifest: 'https://router.example/.well-known/agent-card.json',
+    };
+    const parsed = parseManifest(manifest({ endpoints }));
+    expect(parsed.endpoints).toEqual(endpoints);
+  });
+
+  it('rejects a transport endpoint that is not an address', () => {
+    // A dialable address or nothing: a non-string `mcp` would reach a peer as a dead promise
+    // (ADR-0001 decision 3), so it is refused at the index rather than handed out.
+    expect(() => parseManifest(manifest({ endpoints: { mcp: null } }))).toThrow(
+      /manifest.endpoints.mcp/,
+    );
+  });
 });
 
 describe('the KCB extension on the card', () => {

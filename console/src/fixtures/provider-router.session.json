@@ -6,6 +6,8 @@
     "version": "0.1.0",
     "endpoints": {
       "openai": "http://127.0.0.1:8000/v1",
+      "mcp": "http://127.0.0.1:8000/mcp",
+      "a2a": "http://127.0.0.1:8000/a2a",
       "doctor": "http://127.0.0.1:8000/doctor",
       "manifest": "http://127.0.0.1:8000/.well-known/agent-card.json"
     },

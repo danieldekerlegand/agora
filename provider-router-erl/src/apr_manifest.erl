@@ -22,10 +22,13 @@
 %%%   registry's zero-cost preference a lie on exactly the deployments where it matters most.
 %%%   The number is priced against a fixed *nominal* request per modality, stated in `basis',
 %%%   so two providers' figures are comparable.
-%%% * **No endpoint is advertised that is not served.** §2's example carries `mcp' and `a2a'
-%%%   addresses; this router serves neither yet, so it publishes neither. An address in a
-%%%   manifest is a promise the registry hands to peers who then dial it directly (ADR-0001
-%%%   decision 3) — a dead one is worse than an absent one.
+%%% * **No endpoint is advertised that is not served.** An address in a manifest is a promise
+%%%   the registry will hand to peers who then dial it directly (ADR-0001 decision 3) — a dead
+%%%   one is worse than an absent one. So the `mcp' and `a2a' addresses §2's example carries
+%%%   appeared here only once {@link apr_mcp} and {@link apr_a2a} answered them, and they are
+%%%   spelled from those modules' own path functions rather than re-typed: the advertisement
+%%%   cannot drift off the surface it describes without the call failing. The card's `url' —
+%%%   A2A's own field for the service endpoint — is that same served address.
 -module(apr_manifest).
 
 -export([manifest_path/0, legacy_manifest_path/0, extension_uri/0,
@@ -61,12 +64,18 @@ extension_uri() -> ?EXTENSION_URI.
 
 %% @doc The A2A AgentCard for the router, carrying the KCB manifest as its one extension.
 %%
-%% `name' is the router's KINP agent id. No `url' (A2A service endpoint) is advertised because
-%% the router serves none yet — the same "no endpoint that is not served" rule that keeps
-%% `a2a'/`mcp' out of the body's `endpoints'. Never raises.
+%% `name' is the router's KINP agent id and `url' its A2A service endpoint — the address {@link
+%% apr_a2a} answers, so a peer that reads only the plain A2A card (never unpacking the KCB
+%% extension) can still dial it. `preferredTransport' states which A2A transport that address
+%% speaks, since a bare `url' would otherwise leave a client to assume one. Card `url' and body
+%% `endpoints.a2a' are one address, built from one {@link base_url/1}. Never raises.
 -spec agent_card(apr_config:config()) -> apr_json:object().
 agent_card(Config) ->
+    Base = base_url(Config),
     {obj, [{<<"name">>, apr:identity()},
+           {<<"url">>, <<Base/binary, (apr_a2a:path())/binary>>},
+           {<<"preferredTransport">>, <<"JSONRPC">>},
+           {<<"protocolVersion">>, apr_a2a:protocol_version()},
            {<<"capabilities">>,
             {obj, [{<<"extensions">>,
                     [{obj, [{<<"uri">>, ?EXTENSION_URI},
@@ -86,6 +95,11 @@ body(Config) ->
            {<<"version">>, apr:version()},
            {<<"endpoints">>,
             {obj, [{<<"openai">>, <<Base/binary, "/v1">>},
+                   %% The two KCB §4 transports, at the paths their own modules serve. A peer
+                   %% picks whichever it already speaks and dials this router directly — no
+                   %% relay stands between them (ADR-0001 decision 3).
+                   {<<"mcp">>, <<Base/binary, (apr_mcp:path())/binary>>},
+                   {<<"a2a">>, <<Base/binary, (apr_a2a:path())/binary>>},
                    {<<"doctor">>, <<Base/binary, "/doctor">>},
                    {<<"manifest">>, <<Base/binary, (manifest_path())/binary>>}]}},
            {<<"produces">>, unique([produced_port(M) || M <- Modalities])},

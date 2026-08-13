@@ -30,7 +30,7 @@
         "The router serves working MCP and A2A endpoints (answering the KCB \u00a74 verbs the manifest will advertise), proven by a test that dials each transport directly and gets a valid response.",
         "The endpoints are observer-safe (no relay/proxy of traffic between other peers, ADR-0001); `make check-provider-router` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -41,7 +41,7 @@
         "The KCB manifest `endpoints` and the AgentCard advertise `mcp`/`a2a`, and `test_manifest.py`'s `test_it_advertises_no_endpoint_it_does_not_serve` + `test_the_card_advertises_no_a2a_endpoint_it_does_not_serve` are re-pinned to the new key set \u2014 the server and the advertisement land together, never apart.",
         "The manifest schema in `schemas/` validates the new endpoint keys; `make check-schemas` + `make check-provider-router` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -52,7 +52,7 @@
         "The Erlang router serves + advertises the identical MCP/A2A endpoint set; re-running `capture_python_surface.py` reproduces the corpus and `apr_conformance_SUITE` stays green.",
         "`make check-router-erl` runs the full gate where rebar3 is present and clean-skips otherwise; `make check` green end to end."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]

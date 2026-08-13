@@ -26,6 +26,9 @@ src/
   apr_cost.erl                  the agora:50 price table + the budget_units ceiling (KCB §5)
   apr_placeholder.erl           the deterministic terminal tier
   apr_manifest.erl              the KCB capability manifest / A2A AgentCard (KCB §2, §6)
+  apr_invoke.erl                one invocation, three transports — the shared translation
+  apr_mcp.erl                   the MCP server surface: `invoke` as a tool call (KCB §4)
+  apr_a2a.erl                   the A2A server surface: `invoke` as a task (KCB §4)
   apr_router.erl                resolution, the ladder walk, and the routing report
   apr_ladder_sup.erl            one modality subtree per modality
   apr_modality_sup.erl          a modality's rung workers + its permanent placeholder worker
@@ -40,7 +43,7 @@ src/
   apr_translate.erl             the supervised port program over the Rust translator (agora:60)
   apr_health.erl                the byte-identical /health body
   apr_*_handler.erl             cowboy handlers: health, doctor, models, providers, manifest,
-                                redirect, generate, subscribe (SSE), fetch
+                                redirect, generate, jsonrpc (MCP + A2A), subscribe (SSE), fetch
   agora_provider_router_app.erl OTP application — boots the cowboy listener
   agora_provider_router_sup.erl top supervisor, over the ladder tree and the bus
 test/
@@ -146,6 +149,19 @@ the backend it is dispatched with (`apr_backends:backend_url/1`).
 `/.well-known/kcb-manifest.json` with a **308** onto it. Both are registered here, with the
 same statuses and the same bodies: a 0.2.0 crawler must land on the authoritative document
 rather than a dead address, and byte-for-byte conformance (US-6) is judged against the card.
+
+## The invoke transports
+
+KCB §4 maps `invoke` onto an MCP tool call (`/mcp`) and an A2A task (`/a2a`), and both are
+served here exactly as `mcp.py`/`a2a.py` serve them: JSON-RPC 2.0 over one POST, ending in the
+same `apr_router:complete/3` the OpenAI routes call, so a peer gets the same ladder, the same
+ceiling and the same always-completes guarantee whichever way it dials. `apr_invoke` holds the
+translation both share, so the two cannot disagree about what `generate.image` takes.
+
+They are **advertised and served together**: `endpoints.mcp`, `endpoints.a2a` and the card's
+own `url` are built from `apr_mcp:path/0` and `apr_a2a:path/0`, so the advertisement cannot
+drift off the surface it describes. Neither relays — an MCP tool that named a peer address or
+an A2A message addressed to one is refused, never forwarded (ADR-0001 decisions 3/7).
 
 ## Gate
 
