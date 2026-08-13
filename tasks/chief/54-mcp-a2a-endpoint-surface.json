@@ -41,7 +41,7 @@
         "The KCB manifest `endpoints` and the AgentCard advertise `mcp`/`a2a`, and `test_manifest.py`'s `test_it_advertises_no_endpoint_it_does_not_serve` + `test_the_card_advertises_no_a2a_endpoint_it_does_not_serve` are re-pinned to the new key set \u2014 the server and the advertisement land together, never apart.",
         "The manifest schema in `schemas/` validates the new endpoint keys; `make check-schemas` + `make check-provider-router` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
