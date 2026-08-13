@@ -31,7 +31,7 @@
         "A `check-studio` Makefile target is added (mirroring `check-console`'s `ts-area PKG=@agora/studio` shape) and the `studio/` area is covered by `make check` via `check-ts` (which runs `npm run lint` + `npm run typecheck` + `npm run test`)",
         "`make check` is green: `npm run lint` (root eslint flat config) clean, `npm run typecheck` (`tsc -p`, `--noEmit`) clean, and `vitest` passes for the new package; at least one `src/*.test.tsx` renders the shell"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -43,7 +43,7 @@
         "A test asserts the backbone lists zero participants when given empty/absent config, and that participants are sourced only from data passed in at runtime (never imported statically)",
         "The shell is observer-only: it holds no code path that relays or proxies traffic between participants (ADR-0001); `make check` green"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -55,7 +55,7 @@
         "A test drives ingestion with a synthetic, non-project-specific config and asserts the cast reflects it exactly (add/remove a participant \u2192 the backbone reflects it), while an empty config still yields the empty state from US-2",
         "`make check` green; Studio stays source-first (no build emit introduced)"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]

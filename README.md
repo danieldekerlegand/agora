@@ -148,6 +148,7 @@ since everything is reached over the wire, never imported across a language boun
 | `resolver/` | TypeScript | `make check-resolver` |
 | `knowledge/` | TypeScript | `make check-knowledge` — the KGP knowledge-sync bridge |
 | `console/` | TypeScript + React | `make check-console` |
+| `studio/` | TypeScript + React | `make check-studio` — the topology/observability UI shell (ships with no participants) |
 | `schemas/` | TypeScript | `make check-schemas` |
 | `clients/sdk/` | TypeScript | `make check-clients` — the published client SDK (`make build` emits its `dist/`) |
 | `examples/participant-starter/` | TypeScript | `make check-examples` — the copy-and-run participant starter |

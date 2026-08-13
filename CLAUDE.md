@@ -45,6 +45,7 @@ more than one. Zero errors, exit 0. `make help` lists everything.
 | `resolver/` | `make check-resolver` |
 | `knowledge/` | `make check-knowledge` |
 | `console/` | `make check-console` |
+| `studio/` | `make check-studio` |
 | `translation/` | `make check-translation` |
 
 Dependencies install themselves (`make install`, or implicitly via any `check-*` target).
@@ -96,6 +97,7 @@ registry/          TS — thin KCB discovery (route-by-lookup, NEVER proxy)
 resolver/          TS — KINP resolve / reconcile
 knowledge/         TS — the KGP knowledge-sync bridge (admit any producer's claims, deliver a pack)
 console/           TS + React — conformance scenario runner + UI (observer, not a hub)
+studio/            TS + React — the topology/observability UI shell (observer; ships with NO cast)
 schemas/           TS — @agora/schemas, shared manifest schemas / protocol types
 clients/sdk/       TS — @agora/sdk, THE published client SDK; returns ADDRESSES, never relays
 examples/          TS — copy-and-run sample code; consumes the SDK, is never imported by it
