@@ -31,7 +31,7 @@
         "Scope semantics match the relying-party rule: an issued `*` or trailing-`/*` scope is honored as subtree coverage, and issuing an unknown verb is refused at mint time (an issuer must not mint what a relying party would 422).",
         "The issuer is capability-scoped, never caller-scoped \u2014 no project name appears as a literal; the grantee is whatever principal the host names; `make check` green with the new `grants/` gate wired in."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
