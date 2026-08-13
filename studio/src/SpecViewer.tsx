@@ -10,6 +10,12 @@
  * inferred, and no contract is defined — a contract Studio has never heard of still renders,
  * because what is rendered is the participant's claim rather than Studio's checklist.
  *
+ * Beside every claim sits what `@agora/schemas` made of it (`checks.ts`) — valid, invalid with
+ * the checker's own reason, or unjudged where no rule exists to apply. A claim and its ruling
+ * are never separated: a document shown without one reads as vouched for, and the difference
+ * between a participant SAYING it speaks KCB and its document VALIDATING as KCB is the whole
+ * reason this panel is worth reading.
+ *
  * The one control on it is the participant picker, and it is a view control: it changes which
  * claim is on screen and touches nothing on the fabric. There is no button on a contract and
  * none on a document, for the same reason there is none on a node (ADR-0001 decisions 3 and
@@ -21,6 +27,7 @@
 import { useState } from 'react';
 
 import { labelOf } from './backbone.ts';
+import { checkView, type ArtifactCheck, type ContractCheck } from './checks.ts';
 import {
   advertisementOf,
   isEmptyView,
@@ -79,7 +86,11 @@ export function SpecViewer({ topology, cards = {}, selected }: SpecViewerProps) 
   );
 }
 
-/** What one participant advertises: the contracts it names, and the documents it named them in. */
+/**
+ * What one participant advertises: the contracts it names, the documents it named them in, and
+ * what `@agora/schemas` made of each. The claim and the ruling on it are never shown apart —
+ * a document printed without its verdict reads as vouched for, and Studio vouches for nothing.
+ */
 function SpecPanel({ view }: { view: SpecView }) {
   if (isEmptyView(view)) {
     return (
@@ -89,6 +100,12 @@ function SpecPanel({ view }: { view: SpecView }) {
       </p>
     );
   }
+
+  const checked = checkView(view);
+  const contractChecks = new Map(checked.contracts.map((check) => [check.spec, check]));
+  const artifactChecks = new Map(
+    checked.artifacts.map((check) => [`${check.source}:${check.at}`, check]),
+  );
 
   return (
     <>
@@ -100,7 +117,7 @@ function SpecPanel({ view }: { view: SpecView }) {
           <ul aria-labelledby="studio-spec-contracts">
             {view.contracts.map((contract) => (
               <li key={contract.spec} className="studio-contract">
-                <ContractRow contract={contract} />
+                <ContractRow contract={contract} check={contractChecks.get(contract.spec)} />
               </li>
             ))}
           </ul>
@@ -112,7 +129,10 @@ function SpecPanel({ view }: { view: SpecView }) {
         <ul aria-labelledby="studio-spec-artifacts">
           {view.artifacts.map((artifact) => (
             <li key={`${artifact.source}:${artifact.at}`} className="studio-artifact">
-              <ArtifactRow artifact={artifact} />
+              <ArtifactRow
+                artifact={artifact}
+                check={artifactChecks.get(`${artifact.source}:${artifact.at}`)}
+              />
             </li>
           ))}
         </ul>
@@ -123,16 +143,18 @@ function SpecPanel({ view }: { view: SpecView }) {
 
 /**
  * One contract: which it is, the version the participant declared, the version this build
- * pins, and where the claim was read.
+ * pins, where the claim was read — and what checking one against the other concluded.
  *
  * The two versions sit side by side rather than being reconciled — a participant on a spec
- * this build does not speak is a real and ordinary state of a fabric, and it is the reader's
- * to judge. A contract this build pins no version for (KMI) shows the blank it actually has.
+ * this build does not speak is a real and ordinary state of a fabric, and where `@agora/schemas`
+ * states no rule to settle it the verdict says `unjudged` and leaves the judging to the reader.
+ * A contract this build pins no version for (KMI) shows the blank it actually has.
  */
-function ContractRow({ contract }: { contract: SpecAdvertisement }) {
+function ContractRow({ contract, check }: { contract: SpecAdvertisement; check: ContractCheck | undefined }) {
   return (
     <>
       <span className="spec">{contract.spec}</span>
+      <VerdictRow check={check} />
       {contract.declared ? (
         <span className="declared"> advertises {contract.declared}</span>
       ) : (
@@ -149,20 +171,44 @@ function ContractRow({ contract }: { contract: SpecAdvertisement }) {
 }
 
 /**
- * One document, as the participant published it.
+ * One document, as the participant published it — and whether it validates.
  *
  * Rendered with `JSON.stringify`, not canonicalised: key order is the author's, and a viewer
  * that re-sorted a document would be showing its own rendering of the bytes rather than the
  * bytes. `served` versus `indexed` stays on the row because the provider is authoritative and
  * the index is a cache (KCB §3) — when the two differ, that is the finding.
+ *
+ * The verdict rides above the document rather than replacing it: a reader who does not believe
+ * the ruling has the bytes it was reached from, right there, to check it against.
  */
-function ArtifactRow({ artifact }: { artifact: SpecArtifact }) {
+function ArtifactRow({ artifact, check }: { artifact: SpecArtifact; check: ArtifactCheck | undefined }) {
   return (
     <>
       <span className="kind">{artifact.kind}</span>{' '}
       <span className="source">{artifact.source}</span>{' '}
       <span className="at">{artifact.at}</span>
+      <VerdictRow check={check} />
       <pre className="document">{show(artifact.document)}</pre>
+    </>
+  );
+}
+
+/**
+ * What the schemas package concluded, and why.
+ *
+ * The reason is shown whenever there is one — an `invalid` without it is an accusation, and an
+ * `unjudged` without it looks like an omission rather than the honest blank it is. The checker
+ * that ruled is named too, because the rule lives in `@agora/schemas` and a reader is entitled
+ * to go read the rule rather than take this panel's word for it.
+ */
+function VerdictRow({ check }: { check: ContractCheck | ArtifactCheck | undefined }) {
+  if (!check) return null;
+  return (
+    <>
+      {' '}
+      <span className={`verdict ${check.verdict}`}>{check.verdict}</span>
+      <span className="checker"> per {check.by}</span>
+      {check.reasons.length > 0 && <span className="reason"> — {check.reasons.join('; ')}</span>}
     </>
   );
 }

@@ -54,7 +54,8 @@ nobody, or no config at all, is the empty state above.
 | `src/useConnections.ts` | `useConnections` — one monitoring pass per graph, folded into that log; the health half of the churn seam |
 | `src/Connections.tsx` | the health panel: one row per connection, with its status, its uptime and what the far end said when it broke |
 | `src/specs.ts` | the spec reading: which koine contracts a participant advertises, read off its own AgentCard / KCB manifest and cited to the path in it that says so |
-| `src/SpecViewer.tsx` | the spec viewer: pick a participant, see the contracts it advertises and the documents it advertised them in, verbatim |
+| `src/checks.ts` | the spec ruling: every advertised document handed to `@agora/schemas` (`parseManifest` / `parseManifestBody`, versions per `schemas/src/versions.ts`), verdict plus the checker's own reason back |
+| `src/SpecViewer.tsx` | the spec viewer: pick a participant, see the contracts it advertises, the documents it advertised them in verbatim, and what validating each concluded |
 | `src/useTopology.ts` | `useTopology` — one pass over the lookup surfaces per snapshot, re-run when the host's query moves or it calls `refresh()`; this is the churn seam |
 | `src/index.ts` | the package surface (source-first — nothing is emitted) |
 | `src/main.tsx` | the browser entry point (`npm run dev -w @agora/studio`) — reads the page's embedded config, if it has one |
@@ -190,3 +191,26 @@ The version a participant declares and the version this build pins sit side by s
 being reconciled — a peer on a spec this build does not speak is an ordinary state of a real
 fabric, and it is the reader's to judge. This build pins no KMI version at all
 (`schemas/src/versions.ts`), and the viewer shows that blank as a blank.
+
+### …and whether it holds up
+
+Next to every claim is what `@agora/schemas` made of it. Studio validates nothing itself: a
+served AgentCard goes through `parseManifest` (card, its single KCB extension, and the manifest
+riding in that extension's `params`), a manifest body through `parseManifestBody` — the same
+narrowing the KCB registry runs at index time, against the versions pinned once in
+`schemas/src/versions.ts`. Whatever it throws becomes the reason, unedited, printed directly
+above the bytes it was reached from.
+
+Three verdicts, and the third is the load-bearing one:
+
+- **valid** — the checker read the document and had no complaint.
+- **invalid** — it had one, and the row carries it verbatim: `manifest.kcb_version 9.9.9 is not
+  readable by KCB 0.2.0`, `manifest.endpoints must be an object, got nothing`.
+- **unjudged** — no rule existed to apply. KCB is the contract the schemas package states a
+  compatibility rule for (`isCompatibleKcbVersion`); for every other one a declared version that
+  differs from this build's pin is a disagreement worth seeing, not a failure Studio has any
+  standing to declare. A contract nothing stamped a version on is unjudged for the plainest
+  reason there is.
+
+`unjudged` is never styled or reported as a soft pass. A viewer that greened it would be granting
+conformance nobody granted — and fabricated conformance is worth strictly less than no viewer.

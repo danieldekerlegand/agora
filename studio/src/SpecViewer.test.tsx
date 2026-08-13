@@ -6,7 +6,7 @@
  * here (`.example` hostnames), and swapping them swaps the whole view.
  */
 import { createRegistry } from '@agora/registry';
-import { SPEC_VERSIONS, type CapabilityManifest } from '@agora/schemas';
+import { embedManifest, SPEC_VERSIONS, type CapabilityManifest } from '@agora/schemas';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -92,6 +92,62 @@ describe('the spec viewer', () => {
     const panel = screen.getByRole('region', { name: 'spec viewer' });
     expect(panel.textContent).toContain('advertises no specs');
     expect(within(panel).queryAllByRole('listitem')).toEqual([]);
+  });
+
+  it('shows what the schemas package made of each document, not an assumed pass', async () => {
+    render(<SpecViewer topology={await graph(LIBRARIAN)} />);
+
+    const [document] = within(
+      screen.getByRole('list', { name: 'advertised documents' }),
+    ).getAllByRole('listitem');
+    expect(document?.querySelector('.verdict')?.textContent).toBe('valid');
+    // The rule is named, so the reader can go read the rule rather than trust the panel.
+    expect(document?.textContent).toContain('parseManifestBody');
+  });
+
+  it('flags a served document this build cannot read, and says why on the row', async () => {
+    // The provider serves a card stamped for a KCB this build does not speak, while the index
+    // still holds the good copy it registered with — the disagreement the panel exists to show.
+    const card = embedManifest({ name: LIBRARIAN.identity, url: 'https://librarian.example/a2a' }, {
+      ...LIBRARIAN,
+      kcb_version: '9.9.9',
+    });
+    render(
+      <SpecViewer
+        topology={await graph(LIBRARIAN)}
+        cards={{ [LIBRARIAN.identity]: card }}
+      />,
+    );
+
+    const documents = within(
+      screen.getByRole('list', { name: 'advertised documents' }),
+    ).getAllByRole('listitem');
+    expect(documents.map((row) => row.querySelector('.verdict')?.textContent)).toEqual([
+      'invalid',
+      'invalid',
+      'valid',
+    ]);
+    const panel = screen.getByRole('region', { name: 'spec viewer' });
+    expect(panel.textContent).toContain('9.9.9');
+    expect(panel.textContent).toContain(`is not readable by KCB ${SPEC_VERSIONS.kcb}`);
+  });
+
+  it('says unjudged where no rule exists, rather than passing the claim quietly', async () => {
+    render(<SpecViewer topology={await graph(LIBRARIAN)} />);
+
+    const contracts = within(
+      screen.getByRole('list', { name: 'koine contracts' }),
+    ).getAllByRole('listitem');
+    const verdicts = Object.fromEntries(
+      contracts.map((row) => [
+        row.querySelector('.spec')?.textContent,
+        row.querySelector('.verdict')?.textContent,
+      ]),
+    );
+
+    // KCB is stamped and this build has a rule for it; KINP and KGP are advertised without a
+    // version, and nothing is claimed about what was never stated.
+    expect(verdicts).toEqual({ kinp: 'unjudged', kgp: 'unjudged', kcb: 'valid' });
   });
 
   it('reads specs and never drives them: no button, no link, on any of it', async () => {

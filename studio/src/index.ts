@@ -72,6 +72,15 @@ export {
   type TrackOptions,
 } from './history.ts';
 export {
+  checkArtifact,
+  checkContract,
+  checkView,
+  type ArtifactCheck,
+  type CheckedView,
+  type ContractCheck,
+  type Verdict,
+} from './checks.ts';
+export {
   advertisementOf,
   isEmptyView,
   pinnedVersion,

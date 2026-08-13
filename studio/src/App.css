@@ -326,6 +326,34 @@
   font-size: 0.75rem;
 }
 
+/* What the schemas package made of a claim. `unjudged` is deliberately not styled as a pass:
+   no rule was applied, and a viewer that greened it would be granting conformance nobody did. */
+.studio-specs .verdict {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.studio-specs .verdict.valid {
+  color: #2f7a3f;
+}
+
+.studio-specs .verdict.invalid {
+  color: #b3261e;
+}
+
+.studio-specs .verdict.unjudged {
+  color: #8a6d1f;
+}
+
+/* Who ruled, and why. Never dropped from an `invalid`: a verdict without its reason is an
+   accusation the reader cannot check against the document printed below it. */
+.studio-specs .checker,
+.studio-specs .reason {
+  font-size: 0.75rem;
+  color: #777;
+}
+
 /* The document as its author published it — author's key order, no re-formatting beyond indent. */
 .studio-specs .document {
   margin: 0.2rem 0 0.6rem;
