@@ -55,7 +55,7 @@
         "A test drives ingestion with a synthetic, non-project-specific config and asserts the cast reflects it exactly (add/remove a participant \u2192 the backbone reflects it), while an empty config still yields the empty state from US-2",
         "`make check` green; Studio stays source-first (no build emit introduced)"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
