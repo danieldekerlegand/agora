@@ -67,6 +67,37 @@ Retention is an in-memory, bounded read model — a provider-local fan-out, not 
 store; eviction only ever drops *closed* runs, so a live run is never yanked from its subscribers.
 A deployment that must survive a restart backs the same interface with a persistent log.
 
+### `exports` + `register` — a run's §5 outputs outlive its stream (agora:50 US-2)
+
+A run's stream ends; its outputs do not. Two further verbs answer for a completed run, both
+advertised (`endpoints.exports`, `endpoints.register`) because both are served:
+
+- **`GET /exports?job=<activity-id>`** — the **§5.3 export matrix**: the minted model entity with
+  its `based_on`/`derived_from` links (§5.1), the §5.2 PROV activity that anchors it (`used` /
+  `generated` / `seed` / `config_hash`), and one entry per weight/export asset carrying its
+  byte-hash id, its registered `application/vnd.koine.model+…` media type, and its
+  `media:derived_from` (adapter → base) / `media:variant_of` (each export → the adapter) link.
+  The matrix **is** the KMI lineage graph — there is no bespoke export registry — and every entry
+  also carries the egress class + union license it inherited from `{data ∪ base}` (§5.4), so a
+  consumer knows what it may `fetch`, and where, before asking for a byte.
+- **`POST /register`** `{"job": …, "across_boundary": false}` — the **§8 registration** of the
+  minted model entity. A finetuned model is a KINP entity a capability can produce, so it belongs
+  in the existing **KCB discovery registry**, not a bespoke model store; that is what makes a
+  finetuned model composable (§8). `across_boundary` is the one fact the provider cannot derive —
+  whether the index is a cross-project / cloud one or the caller's own. `GET /register?job=…`
+  reads the entry back, because registration is a state change and an orchestrator asks whether
+  its run's model landed.
+
+**Output egress is enforced here** (§5.4/FT-A, `registration.py`): a model — or any weight/export
+asset — that inherited `local-only` from `{data ∪ base}` is **refused** a cross-boundary
+registration with a reported `egress-output` problem (`422`, the twin of the §4.2 admission
+reject), while an in-tier registration admits any class, because keeping `local-only` output
+in-tier is exactly what §5.4 permits. Both verbs share the run journal's terminal event, where the
+full artifact bundle rides out of band from the id-only §6 wire shape — so what §6 announced,
+§5.3 serves and §8 indexes, with one minting authority (`lineage.py`) and no second projection.
+A run this process never `invoke`d is a `404`; one that has not reached its terminal event is a
+`409` (the §5 outputs are minted at completion, FT-C), never an empty matrix.
+
 ## Egress-gated placement & spend gating (US-3)
 
 Admission does more than check the payload — before any compute is committed it computes the

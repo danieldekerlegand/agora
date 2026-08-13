@@ -57,6 +57,8 @@ class TestShape:
             "a2a",
             "invoke",
             "subscribe",
+            "exports",
+            "register",
             "health",
             "manifest",
         }

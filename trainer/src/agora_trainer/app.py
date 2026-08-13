@@ -2,9 +2,12 @@
 
 The trainer *publishes itself* so the registry can crawl it and peers can discover it, and it
 serves the KCB §4 verbs a `finetune` caller actually dials: `invoke` admits a job and streams the
-KFT §6 training-telemetry back to the caller that started the run, and `subscribe` fans that same
+KFT §6 training-telemetry back to the caller that started the run, `subscribe` fans that same
 stream out to every *other* consumer — an orchestrator watching a run it did not open, a console
-attaching late, a client reconnecting after a dropped socket. Every route here corresponds to an
+attaching late, a client reconnecting after a dropped socket — and the run's §5 outputs outlive
+its stream on two further surfaces: `exports` serves the §5.3 export matrix (the weight/export KMI
+assets with their lineage and inherited envelope) and `register` registers the minted model entity
+(§8) under the §5.4 output-egress rule. Every route here corresponds to an
 endpoint the manifest advertises, and no manifest endpoint is unserved (ADR-0001 decision 3).
 
 The config is built once from the process environment and cached; tests build their own
@@ -33,15 +36,19 @@ from .bridge import (
 from .config import TrainerConfig
 from .engine import UnsupportedJob
 from .grant import Grant
-from .journal import RunRegistry
+from .journal import RunJournal, RunRegistry
+from .lineage import ArtifactBundle
 from .manifest import (
     AGENT_CARD_PATH,
+    EXPORTS_PATH,
     INVOKE_PATH,
     MANIFEST_PATH,
+    REGISTER_PATH,
     SUBSCRIBE_PATH,
     agent_card,
     capability_manifest,
 )
+from .registration import RegistrationRejected, Registrations, register_bundle
 from .runner import RunRejected, run
 from .telemetry import TelemetryEvent
 from .validate import Problem, Report, Status
@@ -100,6 +107,19 @@ def get_runs() -> RunRegistry:
 
 
 RunsDep = Annotated[RunRegistry, Depends(get_runs)]
+
+
+@lru_cache(maxsize=1)
+def get_registrations() -> Registrations:
+    """The process-wide record of what this provider registered (KFT §8).
+
+    Cached like the runs journal, and overridden by identity in a test: `register` writes an
+    accepted registration here and the read verb serves it back, so both must see one ledger.
+    """
+    return Registrations()
+
+
+RegistrationsDep = Annotated[Registrations, Depends(get_registrations)]
 
 
 def get_directory(config: ConfigDep) -> Directory:
@@ -220,6 +240,91 @@ def subscribe(
     """
     journal = runs.get(job)
     if journal is None:
+        return _unknown_run(job)
+
+    def _ndjson() -> Iterator[bytes]:
+        for event in journal.read(from_step=from_step):
+            yield _line(event)
+
+    return _telemetry_response(_ndjson(), job)
+
+
+@app.get(EXPORTS_PATH)
+def exports(runs: RunsDep, job: str) -> Response:
+    """The §5.3 export matrix of a completed run — the KMI assets the run generated.
+
+    ``job`` names the run. The body is the run's whole §5 output: the minted model entity (§5.1)
+    with its base lineage, the §5.2 PROV activity it was anchored to, and one entry per weight /
+    export asset — its byte-hash id, its registered ``application/vnd.koine.model+…`` media type,
+    and the ``media:derived_from`` / ``media:variant_of`` link that makes the export matrix *the*
+    KMI lineage graph rather than a bespoke export registry. Every entry also carries the egress
+    class and union license it inherited from ``{data ∪ base}`` (§5.4), so the caller knows what
+    it may `fetch` and where before it asks for a byte.
+
+    A ``job`` this provider never ran is a ``404``; a run that has not reached its terminal event
+    is a ``409`` — the matrix exists only once the run minted it (§5.2, FT-C), and an empty
+    matrix would read as "this run produced nothing".
+    """
+    found = _completed(runs, job)
+    if isinstance(found, JSONResponse):
+        return found
+    return JSONResponse(status_code=200, content={"ok": True, "job": job, **found.describe()})
+
+
+@app.post(REGISTER_PATH)
+async def register(request: Request, runs: RunsDep, registrations: RegistrationsDep) -> Response:
+    """Register a completed run's minted model in the discovery registry (KFT §8, §5.4).
+
+    A finetuned model is a KINP entity a capability can produce, so it belongs in the **KCB
+    discovery registry** — the existing index, not a bespoke model store (§8). The body names the
+    run (``{"job": …}``) and which side of the trust boundary it is being registered on
+    (``across_boundary``, default in-tier), which is the one fact the provider cannot derive:
+    whether the index is a cross-project / cloud one or the caller's own.
+
+    The §5.4/FT-A output-egress rule is enforced here and reported, never silently applied: a
+    model — or any weight/export asset — that inherited ``local-only`` from ``{data ∪ base}`` is
+    **refused** a cross-boundary registration (``egress-output``, 422, the twin of the §4.2
+    admission reject), while an in-tier registration admits any class, because keeping
+    ``local-only`` output in-tier is exactly what §5.4 permits. ``201`` on a new registration,
+    ``200`` when the identical entry already stood — re-registering a run is idempotent.
+    """
+    try:
+        payload = await request.json()
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+        return _reject(_usage_report("request body is not valid JSON"))
+    if not isinstance(payload, dict):
+        return _reject(_usage_report("a registration request must be a JSON object"))
+    job = payload.get("job")
+    if not isinstance(job, str) or not job:
+        return _reject(
+            _usage_report("registration requires `job`, the id of a run this provider completed")
+        )
+    found = _completed(runs, job)
+    if isinstance(found, JSONResponse):
+        return found
+    try:
+        registered = register_bundle(found, across_boundary=bool(payload.get("across_boundary")))
+    except RegistrationRejected as exc:
+        return _reject(Report(status=Status.INVALID, problems=(exc.problem,)))
+    stood = registrations.get(job)
+    registrations.record(job, registered)
+    return JSONResponse(
+        status_code=200 if stood == registered else 201,
+        content={"ok": True, "job": job, "registration": registered.describe()},
+    )
+
+
+@app.get(REGISTER_PATH)
+def registration(registrations: RegistrationsDep, job: str) -> Response:
+    """What this provider registered for ``job`` (KFT §8) — the index entry, read back.
+
+    Registration is a state change, so it is answerable afterwards: an orchestrator that pushed a
+    run's model asks whether it landed, and on which side of the boundary. A run whose model was
+    never registered is a ``404`` — there is genuinely no entry, which is a different answer from
+    "registered with nothing in it".
+    """
+    registered = registrations.get(job)
+    if registered is None:
         return JSONResponse(
             status_code=404,
             content={
@@ -227,20 +332,74 @@ def subscribe(
                 "status": "unknown",
                 "problems": [
                     Problem(
-                        "unknown-run",
+                        "unregistered",
                         "/job",
-                        f"no run {job!r} on this provider; `subscribe` streams a run this "
-                        "trainer `invoke`d (KFT §6, KCB §4)",
+                        f"run {job!r} has no registered model on this provider; POST "
+                        f"{REGISTER_PATH} to register a completed run's model (KFT §8)",
                     ).describe()
                 ],
             },
         )
+    return JSONResponse(
+        status_code=200, content={"ok": True, "job": job, "registration": registered.describe()}
+    )
 
-    def _ndjson() -> Iterator[bytes]:
-        for event in journal.read(from_step=from_step):
-            yield _line(event)
 
-    return _telemetry_response(_ndjson(), job)
+def _completed(runs: RunRegistry, job: str) -> ArtifactBundle | JSONResponse:
+    """``job``'s minted §5 artifact bundle, or the structured refusal that stands in for it.
+
+    The bundle rides the run's terminal telemetry event out of band from the id-only §6 wire
+    shape, and the journal retains it — so the outputs of a run stay readable after its stream
+    ended, which is what makes `exports` and `register` addressable at all.
+    """
+    journal = runs.get(job)
+    if journal is None:
+        return _unknown_run(job)
+    bundle = _minted(journal)
+    if bundle is None:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "ok": False,
+                "status": "incomplete",
+                "problems": [
+                    Problem(
+                        "run-incomplete",
+                        "/job",
+                        f"run {job!r} has not reached its terminal event; a run's §5 outputs are "
+                        "minted at completion (KFT §5.2, FT-C), so there is nothing to serve yet",
+                    ).describe()
+                ],
+            },
+        )
+    return bundle
+
+
+def _minted(journal: RunJournal) -> ArtifactBundle | None:
+    """The artifact bundle on a run's terminal event, or ``None`` while the run is unfinished."""
+    for event in reversed(journal.replay()):
+        if event.terminal and event.artifacts is not None:
+            return event.artifacts
+    return None
+
+
+def _unknown_run(job: str) -> JSONResponse:
+    """A run this process never `invoke`d — an honest 404 rather than an empty success."""
+    return JSONResponse(
+        status_code=404,
+        content={
+            "ok": False,
+            "status": "unknown",
+            "problems": [
+                Problem(
+                    "unknown-run",
+                    "/job",
+                    f"no run {job!r} on this provider; the `subscribe` / `exports` / `register` "
+                    "verbs answer for a run this trainer `invoke`d (KFT §6/§5.3/§8, KCB §4)",
+                ).describe()
+            ],
+        },
+    )
 
 
 def _line(event: TelemetryEvent) -> bytes:

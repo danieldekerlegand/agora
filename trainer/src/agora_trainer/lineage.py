@@ -184,6 +184,21 @@ class ArtifactBundle:
     def weight_ids(self) -> tuple[str, ...]:
         return tuple(w.id for w in self.weights)
 
+    def describe(self) -> dict[str, Any]:
+        """The §5.3 export matrix as a caller reads it — the model, the run, every asset.
+
+        This *is* the KMI lineage graph (§5.3): each entry carries its registered media type and
+        its ``media:derived_from`` / ``media:variant_of`` link, plus the §5.4 egress + union
+        license it inherited, so a consumer can decide what it may `fetch` without re-deriving
+        the corpus. The §5.2 activity rides along because the export matrix is only meaningful
+        against the run that generated it (FT-C).
+        """
+        return {
+            "model": self.model.describe(),
+            "activity": self.activity.describe(),
+            "exports": [asset.describe() for asset in self.weights],
+        }
+
 
 # --- minting helpers (shared by every engine so ids never drift) -----------------------------
 

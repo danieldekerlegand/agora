@@ -24,12 +24,16 @@ Two choices mirror the provider-router's manifest discipline:
   modality* — ``find({produces:{entityType:"text-generation"}})`` — as well as by capability name.
 * **No endpoint is advertised that is not served.** A manifest address is a promise a peer will
   dial directly (ADR-0001 decision 3); a dead one is worse than an absent one. This build serves
-  ``/health``, the A2A agent card, this manifest, and the `finetune` ``/invoke`` +
-  ``/subscribe`` task surface, and publishes exactly those. ``invoke`` also rides each
+  ``/health``, the A2A agent card, this manifest, the `finetune` ``/invoke`` + ``/subscribe``
+  task surface, and a completed run's outputs — the ``/exports`` §5.3 matrix and the ``/register``
+  §8 registration — and publishes exactly those. ``invoke`` also rides each
   capability's own ``endpoint``, which is what ``endpointFor`` hands a caller — so a bridge that
   discovered this trainer through the registry gets the URL it actually posts a job to, not the
   agent card. ``subscribe`` is advertised alongside it, because a run's telemetry consumer is
-  rarely the connection that opened the run (KCB §4, KFT §6).
+  rarely the connection that opened the run (KCB §4, KFT §6). ``exports`` and ``register`` are
+  published for the same reason: a run's §5 output outlives its stream, so the consumer that reads
+  the export matrix (§5.3) or registers the minted model (§8) dials an address rather than holding
+  a socket open for the whole run.
 """
 
 from __future__ import annotations
@@ -59,6 +63,14 @@ INVOKE_PATH = "/invoke"
 #: The `finetune` subscribe surface (KCB §4) — where any *other* consumer reads the same §6
 #: stream for a run named by its ``job`` id, from the beginning or from a step cursor.
 SUBSCRIBE_PATH = "/subscribe"
+
+#: The §5.3 export matrix of a completed run — the weight/export KMI assets with their media
+#: types, their ``media:derived_from`` / ``media:variant_of`` lineage, and the §5.4 envelope.
+EXPORTS_PATH = "/exports"
+
+#: The §8 registration surface — where the minted model entity is registered in the discovery
+#: registry, under the §5.4/FT-A output-egress rule, and where that entry is read back.
+REGISTER_PATH = "/register"
 
 #: The KMI weight/export media types the trainer produces (KFT §5.3, koine registry media-types).
 WEIGHTS_MEDIA_TYPES: tuple[str, ...] = (
@@ -177,6 +189,8 @@ def capability_manifest(config: TrainerConfig) -> dict[str, Any]:
             "a2a": f"{base}{AGENT_CARD_PATH}",
             "invoke": f"{base}{INVOKE_PATH}",
             "subscribe": f"{base}{SUBSCRIBE_PATH}",
+            "exports": f"{base}{EXPORTS_PATH}",
+            "register": f"{base}{REGISTER_PATH}",
             "health": f"{base}/health",
             "manifest": f"{base}{MANIFEST_PATH}",
         },
