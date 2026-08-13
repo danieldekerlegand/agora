@@ -51,7 +51,9 @@ from .placeholder import complete as placeholder_complete
 logger = logging.getLogger(__name__)
 
 #: An injected transport: dial ``backend`` with ``payload``, return the decoded response.
-#: Raising is how it reports "this rung did not answer" — the router falls through.
+#: Raising is how it reports "this rung did not answer" — the router falls through. So is
+#: returning anything that is not a JSON object: an answer the ladder cannot read is an
+#: answer it did not get (:func:`_malformed`).
 Transport = Callable[[Backend, dict[str, Any]], Awaitable[dict[str, Any]]]
 
 #: Seconds a single rung gets before it counts as unavailable. A slow paid tier must not
@@ -306,6 +308,25 @@ class Router:
                     )
                 )
                 continue
+            malformed = _malformed(response)
+            if malformed is not None:
+                logger.warning(
+                    "tier %s (%s) answered %s for %s",
+                    backend.tier,
+                    backend.provider,
+                    malformed,
+                    modality,
+                )
+                attempts.append(
+                    Attempt(
+                        tier=backend.tier,
+                        provider=backend.provider,
+                        ok=False,
+                        reason=malformed,
+                        projected=projected,
+                    )
+                )
+                continue
             attempts.append(
                 Attempt(tier=backend.tier, provider=backend.provider, ok=True, projected=projected)
             )
@@ -360,3 +381,36 @@ def _reason(exc: Exception, backend: Backend) -> str:
         if secret:
             reason = reason.replace(secret, "***")
     return reason
+
+
+def _malformed(response: Any) -> str | None:
+    """Why ``response`` is not an answer, or ``None`` if it is one.
+
+    A rung that replies with something other than a JSON **object** did not answer. Every
+    modality's response is read out of an object — ``usage`` for what a text call billed,
+    ``data`` for the artifacts an image or music call returned — so a bare array, string or
+    number would be settled, relayed and reported as though it were a completion. A local
+    backend is the likeliest source (a proxy's error page, a half-implemented ``/v1`` shim
+    in front of a model server), which is exactly the tier whose address the operator, not
+    a vendor, is responsible for; and the ladder's answer to a rung that did not answer is
+    the next rung. Reported like any other failed attempt, with ``dialed`` true — it was
+    contacted, so it may well have billed.
+    """
+    if isinstance(response, Mapping):
+        return None
+    return f"malformed response: expected a JSON object, got {_json_type(response)}"
+
+
+def _json_type(value: Any) -> str:
+    """The JSON name for what a rung sent back, so both routers can say the same thing."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, (int, float)):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, (list, tuple)):
+        return "array"
+    return "a non-JSON value"

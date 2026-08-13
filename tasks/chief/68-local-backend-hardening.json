@@ -55,8 +55,8 @@
         "The `unpriced`-never-passes-a-ceiling and `resolve_all`-never-raises guards are re-asserted on every dispatch path this tasklist touched, per the \u00a72.3 rule that any change to a dispatch path re-proves the guards.",
         "`make check` green; if the external surface changed, the conformance corpus was regenerated via `capture_python_surface.py` and `apr_conformance_SUITE` passes against it."
       ],
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "A non-object answer was a real crash on the Python side (`settle` reads `.get` off the response outside the transport's try), so the story's fix is a guard rather than only a test: `router.py::_malformed` / `apr_rung_worker:malformed/1`, same wording in both. The Erlang half's refused/timeout/malformed cases arrive as an injected transport \u2014 the canonical router has no live HTTP dial yet \u2014 which is the same failure the ladder sees. `make check` also needed the stale vendored koine finetune-job snapshot refreshed (red on main since koine cd98c41); the refresh is additive and every gate is green."
     }
   ]
 }
