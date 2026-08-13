@@ -28,6 +28,7 @@ FIXTURES  := $(CURDIR)/schemas/src/conformance/fixtures
 .PHONY: help install install-py install-trainer install-ts check check-provider-router \
         check-router-erl check-trainer check-ts \
         check-schemas check-clients check-examples check-registry check-resolver check-console \
+        check-knowledge check-grants check-studio \
         check-conformance check-translation build fmt clean
 
 # The Erlang provider-router (agora:80, ADR-0004) — supersedes provider-router/ (agora:50).
@@ -133,6 +134,11 @@ check-resolver:  ## Gate: the resolver only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/resolver
 check-knowledge:  ## Gate: the KGP knowledge-sync bridge only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/knowledge
+# The KCB §5 grant issuer — the issuance half of the grants the router and the trainer already
+# enforce. Its own area because it is a control-plane service in its own right: it mints and
+# publishes verification material, and stands in nobody's path.
+check-grants:  ## Gate: the KCB §5 capability-grant issuer only
+	@$(MAKE) --no-print-directory ts-area PKG=@agora/grants
 check-console:  ## Gate: the console only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/console
 # Agora Studio — the topology/observability UI. Its own area, not a second console: the console
