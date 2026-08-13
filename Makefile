@@ -13,7 +13,8 @@ UV     := cd $(PY_DIR) && uv
 TRAINER_DIR := trainer
 UV_TRAINER  := cd $(TRAINER_DIR) && uv
 # npm workspace selectors for the TS areas.
-TS_AREAS := schemas clients/sdk registry resolver console examples/participant-starter
+TS_AREAS := schemas clients/sdk registry resolver console examples/participant-starter \
+            examples/local-inference
 
 # The interchange artifact names — the shared list BOTH validators expose
 # (schemas/src/validator.ts ARTIFACT_SCHEMAS ⇔ artifact_validator.py). legacy's
@@ -112,10 +113,13 @@ check-schemas:  ## Gate: the shared schemas package only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/schemas
 check-clients:  ## Gate: the client SDK only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/sdk
-# The copy-and-run participant starter (examples/) — a consumer of the published SDK, so it is
-# its own area: its test starts the starter, fetches its AgentCard and dials it on the wire.
-check-examples:  ## Gate: the participant starter example only
-	@$(MAKE) --no-print-directory ts-area PKG=@agora/example-participant-starter
+# The examples (examples/) — consumers of the published SDK, so they are their own area: the
+# starter's test starts it, fetches its AgentCard and dials it on the wire, and the thin
+# local-inference cast's tests do the same over both A2A and MCP. One target, because they make
+# one promise together — the published surface is enough to become a participant.
+check-examples:  ## Gate: the examples only (participant starter + the thin local-inference cast)
+	@$(MAKE) --no-print-directory ts-area \
+		PKG="@agora/example-participant-starter @agora/example-local-inference"
 check-registry: check-path-index  ## Gate: the registry only (TS gate + the Rust path-index crate)
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/registry
 

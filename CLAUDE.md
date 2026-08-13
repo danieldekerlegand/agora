@@ -119,6 +119,13 @@ via an address the SDK projected. Keep it runnable with plain `node src/particip
 strip-only loader rejects TypeScript parameter properties and enums, so the SDK's own source must
 not grow either (see `RegistryFetchError`).
 
+`examples/local-inference/` is the same promise at cast scale: four **sample** thin participants
+(an app and three services, `example:agent:*`, each barely more than a local inference call) sharing
+one `wire.ts` that serves the KCB manifest, the AgentCard and both transports — A2A `message/send`
+and the MCP `initialize`/`tools/list`/`tools/call` handshake, with the capability's own name as the
+tool. Same rules as the starter: the published SDK only, strip-loader-runnable (`node src/notes.ts`,
+asserted by a test that spawns it), and nothing in agora ever imports it.
+
 The relation registry is koine's data and agora's tooling: `schemas/src/registry-schema.ts`
 validates it, `clients/sdk/src/relation-registry.ts` fetches and indexes it. The only copy here is
 the test snapshot under `schemas/src/fixtures/` (reachable as `@agora/schemas/fixtures`, never
