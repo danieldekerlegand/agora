@@ -36,6 +36,7 @@ from .backends import (
     Backend,
     Rank,
     TierResolution,
+    dispatch_headers,
     dispatch_url,
     placeholder_backend,
     resolve_tier,
@@ -133,12 +134,13 @@ async def http_transport(backend: Backend, payload: dict[str, Any]) -> dict[str,
     The endpoint comes from :func:`~agora_provider_router.backends.dispatch_url`, which
     refuses an address nobody configured rather than reaching for a default one — a local
     rung that got this far without an operator's base URL raises here, and raising is just
-    "the next rung, please".
+    "the next rung, please". The headers come from
+    :func:`~agora_provider_router.backends.dispatch_headers`, which carries a credential
+    when one was configured — for a local rung as much as a paid one — and fabricates none
+    when it was not.
     """
     url = dispatch_url(backend)
-    headers = {"content-type": "application/json"}
-    if backend.api_key is not None:
-        headers["authorization"] = f"Bearer {backend.api_key.get_secret_value()}"
+    headers = dispatch_headers(backend)
     async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
         response = await client.post(url, json=payload, headers=headers)
         response.raise_for_status()
