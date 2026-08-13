@@ -135,6 +135,11 @@ check-knowledge:  ## Gate: the KGP knowledge-sync bridge only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/knowledge
 check-console:  ## Gate: the console only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/console
+# Agora Studio — the topology/observability UI. Its own area, not a second console: the console
+# runs authored scenarios, Studio observes a fabric that is already running (ADR-0001 decision 7
+# binds both — observer, never hub).
+check-studio:  ## Gate: Agora Studio only
+	@$(MAKE) --no-print-directory ts-area PKG=@agora/studio
 
 # --- translation (Rust — cargo workspace) ---
 # The native core (US-1), plus the wasm (US-4) and PyO3 (US-5) binding steps, which

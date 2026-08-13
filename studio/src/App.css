@@ -1,0 +1,63 @@
+/* The shell's own frame. Views bring their own styling; this file only lays out the stage. */
+.studio {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: system-ui, sans-serif;
+}
+
+.studio-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #d8d8d8;
+}
+
+.studio-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.studio-tagline {
+  margin: 0.25rem 0 0;
+  max-width: 60ch;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+/* Where a view mounts. Empty is a legitimate, expected state — not a loading placeholder. */
+.studio-stage {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.studio-footer {
+  padding: 0.75rem 1.5rem;
+  border-top: 1px solid #d8d8d8;
+  color: #555;
+  font-size: 0.8rem;
+}
+
+.studio-footer h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.studio-footer ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.studio-footer .spec {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.studio-footer .version {
+  font-variant-numeric: tabular-nums;
+}
