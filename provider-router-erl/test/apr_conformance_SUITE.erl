@@ -163,7 +163,7 @@ the_kcb_version_is_pinned_to_the_typescript_schemas_package(_Config) ->
             end
     end.
 
-%% `kcb: '0.2.0',' — the one pin in the file, quoted either way.
+%% `kcb: '0.4.3',' — the one pin in the file, quoted either way.
 kcb_pin(Source) ->
     {match, [Version]} =
         re:run(Source, "kcb:\\s*['\"]([^'\"]+)['\"]", [{capture, [1], binary}]),

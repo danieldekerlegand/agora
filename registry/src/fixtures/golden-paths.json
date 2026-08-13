@@ -7,7 +7,7 @@
         {
           "identity": "pinakes:agent:describer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "pinakes:agent:describer",
             "endpoints": {
               "mcp": "https://pinakes.example/mcp"
@@ -49,7 +49,7 @@
         {
           "identity": "orchestrator:agent:composer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "orchestrator:agent:composer",
             "endpoints": {
               "a2a": "https://composer.example/.well-known/agent-card.json"
@@ -104,7 +104,7 @@
         {
           "identity": "composer:agent:renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:renderer",
             "endpoints": {
               "mcp": "https://composer.example/mcp"
@@ -148,7 +148,7 @@
         {
           "identity": "composer:agent:premium-renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:premium-renderer",
             "endpoints": {
               "mcp": "https://premium.composer.example/mcp"
@@ -191,7 +191,7 @@
         {
           "identity": "analyzer:agent:narrator",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "analyzer:agent:narrator",
             "endpoints": {
               "mcp": "https://analyzer.example/mcp"
@@ -324,7 +324,7 @@
         {
           "identity": "pinakes:agent:describer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "pinakes:agent:describer",
             "endpoints": {
               "mcp": "https://pinakes.example/mcp"
@@ -366,7 +366,7 @@
         {
           "identity": "orchestrator:agent:composer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "orchestrator:agent:composer",
             "endpoints": {
               "a2a": "https://composer.example/.well-known/agent-card.json"
@@ -421,7 +421,7 @@
         {
           "identity": "composer:agent:renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:renderer",
             "endpoints": {
               "mcp": "https://composer.example/mcp"
@@ -465,7 +465,7 @@
         {
           "identity": "composer:agent:premium-renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:premium-renderer",
             "endpoints": {
               "mcp": "https://premium.composer.example/mcp"
@@ -508,7 +508,7 @@
         {
           "identity": "analyzer:agent:narrator",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "analyzer:agent:narrator",
             "endpoints": {
               "mcp": "https://analyzer.example/mcp"
@@ -594,7 +594,7 @@
         {
           "identity": "composer:agent:unpriced-renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:unpriced-renderer",
             "endpoints": {
               "mcp": "https://unpriced.composer.example/mcp"
@@ -637,7 +637,7 @@
         {
           "identity": "composer:agent:premium-renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:premium-renderer",
             "endpoints": {
               "mcp": "https://premium.composer.example/mcp"
@@ -724,7 +724,7 @@
         {
           "identity": "pinakes:agent:describer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "pinakes:agent:describer",
             "endpoints": {
               "mcp": "https://pinakes.example/mcp"
@@ -766,7 +766,7 @@
         {
           "identity": "orchestrator:agent:composer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "orchestrator:agent:composer",
             "endpoints": {
               "a2a": "https://composer.example/.well-known/agent-card.json"
@@ -821,7 +821,7 @@
         {
           "identity": "composer:agent:renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:renderer",
             "endpoints": {
               "mcp": "https://composer.example/mcp"
@@ -865,7 +865,7 @@
         {
           "identity": "composer:agent:premium-renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:premium-renderer",
             "endpoints": {
               "mcp": "https://premium.composer.example/mcp"
@@ -908,7 +908,7 @@
         {
           "identity": "analyzer:agent:narrator",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "analyzer:agent:narrator",
             "endpoints": {
               "mcp": "https://analyzer.example/mcp"
@@ -994,7 +994,7 @@
         {
           "identity": "composer:agent:renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:renderer",
             "endpoints": {
               "mcp": "https://composer.example/mcp"
@@ -1082,7 +1082,7 @@
         {
           "identity": "pinakes:agent:describer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "pinakes:agent:describer",
             "endpoints": {
               "mcp": "https://pinakes.example/mcp"
@@ -1124,7 +1124,7 @@
         {
           "identity": "orchestrator:agent:composer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "orchestrator:agent:composer",
             "endpoints": {
               "a2a": "https://composer.example/.well-known/agent-card.json"
@@ -1179,7 +1179,7 @@
         {
           "identity": "composer:agent:renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:renderer",
             "endpoints": {
               "mcp": "https://composer.example/mcp"
@@ -1223,7 +1223,7 @@
         {
           "identity": "composer:agent:premium-renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:premium-renderer",
             "endpoints": {
               "mcp": "https://premium.composer.example/mcp"
@@ -1266,7 +1266,7 @@
         {
           "identity": "analyzer:agent:narrator",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "analyzer:agent:narrator",
             "endpoints": {
               "mcp": "https://analyzer.example/mcp"
@@ -1322,7 +1322,7 @@
         {
           "identity": "pinakes:agent:describer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "pinakes:agent:describer",
             "endpoints": {
               "mcp": "https://pinakes.example/mcp"
@@ -1364,7 +1364,7 @@
         {
           "identity": "orchestrator:agent:composer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "orchestrator:agent:composer",
             "endpoints": {
               "a2a": "https://composer.example/.well-known/agent-card.json"
@@ -1419,7 +1419,7 @@
         {
           "identity": "composer:agent:renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:renderer",
             "endpoints": {
               "mcp": "https://composer.example/mcp"
@@ -1463,7 +1463,7 @@
         {
           "identity": "composer:agent:premium-renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:premium-renderer",
             "endpoints": {
               "mcp": "https://premium.composer.example/mcp"
@@ -1506,7 +1506,7 @@
         {
           "identity": "analyzer:agent:narrator",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "analyzer:agent:narrator",
             "endpoints": {
               "mcp": "https://analyzer.example/mcp"
@@ -1563,7 +1563,7 @@
         {
           "identity": "pinakes:agent:describer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "pinakes:agent:describer",
             "endpoints": {
               "mcp": "https://pinakes.example/mcp"
@@ -1605,7 +1605,7 @@
         {
           "identity": "orchestrator:agent:composer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "orchestrator:agent:composer",
             "endpoints": {
               "a2a": "https://composer.example/.well-known/agent-card.json"
@@ -1660,7 +1660,7 @@
         {
           "identity": "composer:agent:renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:renderer",
             "endpoints": {
               "mcp": "https://composer.example/mcp"
@@ -1704,7 +1704,7 @@
         {
           "identity": "composer:agent:premium-renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:premium-renderer",
             "endpoints": {
               "mcp": "https://premium.composer.example/mcp"
@@ -1747,7 +1747,7 @@
         {
           "identity": "analyzer:agent:narrator",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "analyzer:agent:narrator",
             "endpoints": {
               "mcp": "https://analyzer.example/mcp"
@@ -1890,7 +1890,7 @@
         {
           "identity": "pinakes:agent:describer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "pinakes:agent:describer",
             "endpoints": {
               "mcp": "https://pinakes.example/mcp"
@@ -1932,7 +1932,7 @@
         {
           "identity": "orchestrator:agent:composer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "orchestrator:agent:composer",
             "endpoints": {
               "a2a": "https://composer.example/.well-known/agent-card.json"
@@ -1987,7 +1987,7 @@
         {
           "identity": "composer:agent:renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:renderer",
             "endpoints": {
               "mcp": "https://composer.example/mcp"
@@ -2031,7 +2031,7 @@
         {
           "identity": "composer:agent:premium-renderer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "composer:agent:premium-renderer",
             "endpoints": {
               "mcp": "https://premium.composer.example/mcp"
@@ -2074,7 +2074,7 @@
         {
           "identity": "analyzer:agent:narrator",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "analyzer:agent:narrator",
             "endpoints": {
               "mcp": "https://analyzer.example/mcp"
@@ -2116,7 +2116,7 @@
         {
           "identity": "agora:agent:provider-router",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "agora:agent:provider-router",
             "version": "0.1.0",
             "endpoints": {
@@ -2381,7 +2381,7 @@
         {
           "identity": "syn:agent:seed-describer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:seed-describer",
             "endpoints": {
               "mcp": "https://seed-describer.example/mcp"
@@ -2421,7 +2421,7 @@
         {
           "identity": "syn:agent:outliner",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:outliner",
             "endpoints": {
               "mcp": "https://outliner.example/mcp"
@@ -2459,7 +2459,7 @@
         {
           "identity": "syn:agent:sketch-render",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:sketch-render",
             "endpoints": {
               "mcp": "https://sketch-render.example/mcp"
@@ -2499,7 +2499,7 @@
         {
           "identity": "syn:agent:midi-master",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:midi-master",
             "endpoints": {
               "mcp": "https://midi-master.example/mcp"
@@ -2541,7 +2541,7 @@
         {
           "identity": "syn:agent:midi-cheap",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:midi-cheap",
             "endpoints": {
               "mcp": "https://midi-cheap.example/mcp"
@@ -2695,7 +2695,7 @@
         {
           "identity": "syn:agent:seed-describer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:seed-describer",
             "endpoints": {
               "mcp": "https://seed-describer.example/mcp"
@@ -2735,7 +2735,7 @@
         {
           "identity": "syn:agent:outliner",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:outliner",
             "endpoints": {
               "mcp": "https://outliner.example/mcp"
@@ -2773,7 +2773,7 @@
         {
           "identity": "syn:agent:sketch-render",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:sketch-render",
             "endpoints": {
               "mcp": "https://sketch-render.example/mcp"
@@ -2813,7 +2813,7 @@
         {
           "identity": "syn:agent:midi-master",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:midi-master",
             "endpoints": {
               "mcp": "https://midi-master.example/mcp"
@@ -2855,7 +2855,7 @@
         {
           "identity": "syn:agent:midi-cheap",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "syn:agent:midi-cheap",
             "endpoints": {
               "mcp": "https://midi-cheap.example/mcp"

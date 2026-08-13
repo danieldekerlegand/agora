@@ -302,7 +302,7 @@ describe('a participant somebody described carries what they wrote down about it
   // The config seam's own shape (`config.ts`): a described peer may come with the address it
   // publishes and the manifest the describer read for it. Neither makes it discovered — nobody
   // indexed it — and both are what make a described fabric watchable rather than merely drawn.
-  const manifest = { kcb_version: '0.2.0', identity: OUTSIDE };
+  const manifest = { kcb_version: '0.4.3', identity: OUTSIDE };
   const described = {
     participants: [
       { identity: OUTSIDE, label: 'an outside peer', endpoints: { mcp: 'http://peer/mcp' }, manifest },

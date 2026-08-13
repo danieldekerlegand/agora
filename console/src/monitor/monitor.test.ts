@@ -8,7 +8,7 @@ import { describeMonitor, FabricMonitor, subscribeAddress, worldsIn } from './mo
 
 /** A provider that serves the subscribe verb — the only kind the monitor can watch live. */
 const PRODUCER: CapabilityManifest = {
-  kcb_version: '0.2.0',
+  kcb_version: '0.4.3',
   identity: 'processor:agent:live',
   endpoints: { subscribe: 'https://processor.example/subscribe' },
   capabilities: [
@@ -21,7 +21,7 @@ const PRODUCER: CapabilityManifest = {
 
 /** A provider with no stream — an address it never published must never be invented. */
 const SILENT: CapabilityManifest = {
-  kcb_version: '0.2.0',
+  kcb_version: '0.4.3',
   identity: 'agora:agent:provider-router',
   endpoints: { openai: 'https://router.example/v1' },
   capabilities: [],

@@ -87,7 +87,7 @@ curl localhost:8790/.well-known/agent-card.json
         "description": "Koine capability-bus manifest",
         "required": false,
         "params": {                                   // ← the KCB manifest rides here
-          "kcb_version": "0.2.0",
+          "kcb_version": "0.4.3",
           "identity": "example:agent:summarizer",
           "endpoints": {
             "a2a": "http://localhost:8790/.well-known/agent-card.json",

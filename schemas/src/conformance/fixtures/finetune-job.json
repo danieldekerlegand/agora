@@ -1,5 +1,5 @@
 {
-  "kft_version": "0.3.0",
+  "kft_version": "0.5.0",
   "job": "orchestrator:activity:ft-run/9f2a",
   "base_model": "pinakes:model:qwen2.5-vl-3b-instruct",
   "modality": "image-text-to-text",

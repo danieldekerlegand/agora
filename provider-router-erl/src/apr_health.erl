@@ -2,7 +2,7 @@
 %%%
 %%% Starlette's `JSONResponse` serializes with compact separators (`","`/`":"`) and
 %%% preserves insertion order, so the wire form is exactly
-%%% `{"status":"ok","identity":...,"version":...,"kcb_version":"0.2.0"}`. We assemble that
+%%% `{"status":"ok","identity":...,"version":...,"kcb_version":"0.4.3"}`. We assemble that
 %%% byte string directly rather than route through a JSON encoder, so the ordering and
 %%% spacing are guaranteed regardless of any map/encoder behaviour.
 -module(apr_health).

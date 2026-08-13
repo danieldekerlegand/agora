@@ -11,10 +11,12 @@ import {
 
 describe('@agora/schemas', () => {
   it('pins the koine spec versions the commons implements', () => {
-    expect(SPEC_VERSIONS.kcb).toBe('0.2.0');
-    expect(SPEC_VERSIONS.kinp).toBe('0.2.0');
-    expect(SPEC_VERSIONS.kgp).toBe('0.4.0');
-    expect(SPEC_VERSIONS.kft).toBe('0.3.0');
+    expect(SPEC_VERSIONS.kcb).toBe('0.4.3');
+    expect(SPEC_VERSIONS.kinp).toBe('0.2.1');
+    expect(SPEC_VERSIONS.kgp).toBe('0.5.2');
+    expect(SPEC_VERSIONS.kmi).toBe('0.3.2');
+    expect(SPEC_VERSIONS.kft).toBe('0.5.0');
+    expect(SPEC_VERSIONS.kcs).toBe('0.2.0');
   });
 
   it('re-exports the relation-registry pin', () => {

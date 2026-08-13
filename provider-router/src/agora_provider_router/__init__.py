@@ -41,4 +41,4 @@ ROUTER_IDENTITY = os.environ.get(ROUTER_IDENTITY_ENV_VAR, "").strip() or _DEFAUL
 #: The koine capability-bus version this build speaks. Kept in step with
 #: ``schemas/src/index.ts``'s ``SPEC_VERSIONS.kcb``; the cross-language check in
 #: ``tests/test_skeleton.py`` fails if they drift.
-KCB_VERSION = "0.2.0"
+KCB_VERSION = "0.4.3"

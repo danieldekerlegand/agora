@@ -254,15 +254,15 @@ describe('emitting the KCB extension', () => {
 describe('isCompatibleKcbVersion', () => {
   it('reads its own version and later patches of it', () => {
     expect(isCompatibleKcbVersion(SPEC_VERSIONS.kcb)).toBe(true);
-    expect(isCompatibleKcbVersion('0.2.7')).toBe(true);
+    expect(isCompatibleKcbVersion('0.4.7')).toBe(true);
   });
 
   it('refuses a different major, and pre-1.0 a different minor', () => {
     expect(isCompatibleKcbVersion('1.0.0')).toBe(false);
-    expect(isCompatibleKcbVersion('0.1.0')).toBe(false);
+    expect(isCompatibleKcbVersion('0.2.0')).toBe(false);
   });
 
   it('refuses a manifest on an unreadable spec version', () => {
-    expect(() => parseManifest(manifest({ kcb_version: '0.1.0' }))).toThrow(/not readable/);
+    expect(() => parseManifest(manifest({ kcb_version: '0.2.0' }))).toThrow(/not readable/);
   });
 });

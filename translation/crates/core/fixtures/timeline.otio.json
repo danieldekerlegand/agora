@@ -2,7 +2,7 @@
     "OTIO_SCHEMA": "Timeline.1",
     "metadata": {
         "koine": {
-            "kmi_version": "0.3.0",
+            "kmi_version": "0.3.2",
             "media_map": {
                 "analyzer:asset:blake3-c3d4e5f6a1b2": "/conform/renaud-approach.mov",
                 "analyzer:asset:blake3-d4e5f6a1b2c3": "/conform/narration.wav",

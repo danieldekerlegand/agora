@@ -181,7 +181,7 @@ the_manifest_advertises_the_resolved_tier(Config) ->
     Uri = apr_json:get(<<"uri">>, Extension),
     Manifest = apr_json:get(<<"params">>, Extension),
 
-    <<"0.2.0">> = apr_json:get(<<"kcb_version">>, Manifest),
+    <<"0.4.3">> = apr_json:get(<<"kcb_version">>, Manifest),
     <<"agora:agent:provider-router">> = apr_json:get(<<"identity">>, Manifest),
     Endpoints = apr_json:get(<<"endpoints">>, Manifest),
     <<"http://127.0.0.1:8000/doctor">> = apr_json:get(<<"doctor">>, Endpoints),

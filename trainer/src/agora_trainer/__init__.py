@@ -52,7 +52,7 @@ TRAINER_IDENTITY = os.environ.get(TRAINER_IDENTITY_ENV_VAR, "").strip() or _DEFA
 #: The koine capability-bus version this build speaks. Kept in step with
 #: ``schemas/src/versions.ts``'s ``SPEC_VERSIONS.kcb``; the cross-language check in
 #: ``tests/test_skeleton.py`` fails if they drift (the same pin the provider-router keeps).
-KCB_VERSION = "0.2.0"
+KCB_VERSION = "0.4.3"
 
 #: The koine fine-tuning profile version this trainer implements (``koine/specs/fine-tuning.md``).
-KFT_VERSION = "0.3.0"
+KFT_VERSION = "0.5.0"

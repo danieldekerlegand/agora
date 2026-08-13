@@ -14,7 +14,7 @@ import { createDiscoveryClient, DISCOVERY_ROUTES, DiscoveryError } from './disco
 const REGISTRY = 'http://registry.example';
 
 const manifest: CapabilityManifest = {
-  kcb_version: '0.2.0',
+  kcb_version: '0.4.3',
   identity: 'example:agent:sample-provider',
   endpoints: { a2a: 'https://provider.example/a2a' },
   capabilities: [{ name: 'summarize.text', cost: { est_units: 0 } }],
@@ -225,7 +225,7 @@ describe('the registry as it describes itself', () => {
         status: 200,
         body: {
           identity: 'agora:agent:registry',
-          kcbVersion: '0.2.0',
+          kcbVersion: '0.4.3',
           proxiesTraffic: false,
           verbs: ['register', 'find'],
         },
@@ -241,7 +241,7 @@ describe('the registry as it describes itself', () => {
     const client = createDiscoveryClient(REGISTRY, {
       fetch: stubFetch(() => ({
         status: 200,
-        body: { identity: 'agora:agent:registry', kcbVersion: '0.2.0', verbs: [] },
+        body: { identity: 'agora:agent:registry', kcbVersion: '0.4.3', verbs: [] },
       })),
     });
 

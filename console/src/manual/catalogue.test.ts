@@ -53,7 +53,7 @@ describe('the capability catalogue', () => {
     // that is on the network would read its canned answer as the fabric's.
     const registry = createRegistry();
     registry.register(
-      { kcb_version: '0.2.0', identity: 'consumer:agent:composer', endpoints: {}, capabilities: [] },
+      { kcb_version: '0.4.3', identity: 'consumer:agent:composer', endpoints: {}, capabilities: [] },
       { source: 'push' },
     );
     const providers = catalogue({ registry, standins: bundledStandins() });
