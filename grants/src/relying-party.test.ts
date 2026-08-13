@@ -29,8 +29,10 @@ import {
   permits,
   SUBTREE_SUFFIX,
   WILDCARD_SCOPE,
+  type IssuedGrant,
 } from './grant.ts';
-import { createGrantIssuer, createSigningKey, type IssuedGrant } from './issuer.ts';
+import { createGrantIssuer } from './issuer.ts';
+import { createSigningKey } from './keys.ts';
 
 const APR_GRANT = readRepoFile('provider-router-erl/src/apr_grant.erl');
 const TRAINER_GRANT = readRepoFile('trainer/src/agora_trainer/grant.py');

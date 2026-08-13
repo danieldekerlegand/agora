@@ -27,6 +27,8 @@
  *   default both relying parties already implement (`budget_units => undefined`, `None`).
  */
 
+import type { ManifestSigning } from '@agora/schemas';
+
 /** The §4 verbs. A grant may name any of them; `discover`/`describe` are unauthenticated reads
  * that no relying party checks, but they are mintable so an over-broad token is refused as "not
  * covering this scope" rather than as a syntax error the caller cannot act on. */
@@ -189,4 +191,35 @@ export function parseGrant(input: unknown): Grant {
   const token = typeof verb === 'string' && verb !== '' ? `${verb}:${scope}` : scope;
   const ceiling = parseCeiling(record[CEILING_KEY]);
   return { ...parseGrantToken(token), budget_units: ceiling };
+}
+
+/**
+ * A signature in the §5 `{key_id, alg}` shape — the one manifests and KGP packs share — plus
+ * the detached bytes it covers.
+ */
+export interface GrantSignature extends ManifestSigning {
+  /** base64url over the canonical grant bytes (`verify.ts`). */
+  readonly value: string;
+}
+
+/**
+ * A minted grant on the wire: the §5 grant shape, the principal it was minted for, when it
+ * stops counting, and the signature over all of it.
+ *
+ * The **expiry is not optional**. An issuer that keeps no ledger of what it minted — this one
+ * keeps none, deliberately — has no revocation list to add a grant to, so ageing out is the
+ * only way a credential ever stops being one. A grant that never expires could not be withdrawn
+ * by anybody, which is a worse property than any lifetime a host might pick.
+ *
+ * The relying parties read past it: `apr_grant:parse/1` and the trainer's `Grant` take `verb`,
+ * `scope` and `budget_units` and ignore what they do not know, so an expiring grant is still
+ * exactly the grant they already parse. Enforcement of the expiry belongs with whoever verifies
+ * the signature — `verifyGrant` in this workspace, and downstream enforcement importing it.
+ */
+export interface IssuedGrant extends Grant {
+  /** Whatever principal the host names. Opaque to the issuer, covered by the signature. */
+  readonly grantee: string;
+  /** ISO-8601 UTC. After this instant the grant verifies as expired, and is refused. */
+  readonly expires_at: string;
+  readonly signature: GrantSignature;
 }

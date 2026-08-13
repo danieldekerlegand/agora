@@ -1,18 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { GrantError, parseGrant, permits } from './grant.ts';
+import { GrantError, parseGrant, permits, type IssuedGrant } from './grant.ts';
+import { createGrantIssuer, parseGrantRequest } from './issuer.ts';
 import {
-  canonicalGrantBytes,
-  createGrantIssuer,
   createSigningKey,
   GRANT_SIGNING_ALG,
-  parseGrantRequest,
   publicKeyFrom,
   publicMaterial,
   signingKeyFrom,
-  verifyGrantSignature,
-  type IssuedGrant,
-} from './issuer.ts';
+} from './keys.ts';
+import { canonicalGrantBytes, verifyGrantSignature } from './verify.ts';
 
 const key = createSigningKey('issuer-test-1');
 const issuer = createGrantIssuer({ key });
@@ -47,8 +44,12 @@ describe('minting', () => {
   });
 
   it('accepts the split spelling and the token spelling as the same grant', () => {
-    const split = issue({ verb: 'subscribe', scope: 'world/consensus-reality' });
-    const token = issue({ scope: 'subscribe:world/consensus-reality' });
+    // One clock for both mints: the expiry is signed, so two mints a millisecond apart are two
+    // different grants — which is the point of signing it, and would hide the equality here.
+    const fixed = createGrantIssuer({ key, now: () => '2026-08-13T12:00:00.000Z' });
+    const at = { grantee: GRANTEE };
+    const split = fixed.issue({ ...at, verb: 'subscribe', scope: 'world/consensus-reality' });
+    const token = fixed.issue({ ...at, scope: 'subscribe:world/consensus-reality' });
     expect(split.verb).toBe(token.verb);
     expect(split.scope).toBe(token.scope);
     expect(split.signature.value).toBe(token.signature.value);
@@ -131,6 +132,7 @@ describe('the signature', () => {
     const reordered = JSON.parse(
       JSON.stringify({
         signature: grant.signature,
+        expires_at: grant.expires_at,
         grantee: grant.grantee,
         budget_units: grant.budget_units,
         scope: grant.scope,

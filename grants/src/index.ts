@@ -12,7 +12,9 @@
  * is asking. The grantee is whatever principal the host names.
  *
  * - `grant.ts`  — the §5 grant shape and the relying parties' rules, mirrored
- * - `issuer.ts` — minting, the `{key_id, alg}` signature, and the public material
+ * - `keys.ts`   — signing keys, rotation with an overlap window, published material
+ * - `issuer.ts` — minting, the `{key_id, alg}` signature, the expiry every grant carries
+ * - `verify.ts` — the check a *relying party* runs: shape, key, signature, lifetime
  * - `server.ts` — the HTTP surface (`POST /grants`, `GET /keys`, `GET /describe`)
  * - `main.ts`   — the standalone entry point, configured from `AGORA_GRANTS_*`
  */
@@ -32,26 +34,47 @@ export {
   SUBTREE_SUFFIX,
   WILDCARD_SCOPE,
   type Grant,
+  type GrantSignature,
   type GrantVerb,
+  type IssuedGrant,
 } from './grant.ts';
 export {
-  canonicalGrantBytes,
-  createGrantIssuer,
+  createKeyring,
   createSigningKey,
-  GRANT_ISSUER_IDENTITY,
+  DEFAULT_OVERLAP_MS,
   GRANT_SIGNING_ALG,
-  parseGrantRequest,
+  instant,
+  isoAt,
   publicKeyFrom,
   publicMaterial,
   signingKeyFrom,
+  type Clock,
+  type Keyring,
+  type KeyringOptions,
+  type PublicKeyMaterial,
+  type PublishedKey,
+  type RetiringKey,
+  type SigningKey,
+} from './keys.ts';
+export {
+  canonicalGrantBytes,
+  createGrantVerifier,
+  isExpired,
+  parseIssuedGrant,
+  verifyGrant,
   verifyGrantSignature,
+  type GrantVerifier,
+  type GrantVerifierOptions,
+  type KeySource,
+} from './verify.ts';
+export {
+  createGrantIssuer,
+  DEFAULT_GRANT_LIFETIME_MS,
+  GRANT_ISSUER_IDENTITY,
+  parseGrantRequest,
   type GrantIssuer,
   type GrantIssuerOptions,
   type GrantRequest,
-  type GrantSignature,
-  type IssuedGrant,
-  type PublicKeyMaterial,
-  type SigningKey,
 } from './issuer.ts';
 export {
   createGrantServer,

@@ -17,47 +17,36 @@
  * (`ManifestSigning`), with the detached signature bytes alongside it. The algorithm is
  * asymmetric on purpose: a relying party must be able to verify a grant from published material
  * without dialing the issuer per request, which is what a shared secret would force.
+ *
+ * Two things the issuer deliberately does *not* keep: a ledger of what it minted, and a way to
+ * mint something that never expires. It keeps no ledger because it is not in the enforcement
+ * path and a list it never consults is only a liability; that in turn is why every grant carries
+ * an {@link IssuedGrant.expires_at} — with nothing to revoke *from*, ageing out is how a
+ * credential stops being one. Key rotation ({@link ./keys.ts}) is the coarse instrument beside
+ * it: retiring a key ends every grant signed under it at once.
  */
-import { createPrivateKey, createPublicKey, generateKeyPairSync, sign, verify, type KeyObject } from 'node:crypto';
+import { sign } from 'node:crypto';
 
-import type { ManifestSigning } from '@agora/schemas';
-
-import { GrantError, parseGrant, type Grant } from './grant.ts';
+import { GrantError, parseGrant, type Grant, type IssuedGrant } from './grant.ts';
+import {
+  createKeyring,
+  instant,
+  isoAt,
+  type Clock,
+  type Keyring,
+  type PublishedKey,
+  type RetiringKey,
+  type SigningKey,
+} from './keys.ts';
+import { canonicalGrantBytes, createGrantVerifier, type GrantVerifier } from './verify.ts';
 
 /** KINP identity of the issuer itself — a control-plane service is a fabric entity too. */
 export const GRANT_ISSUER_IDENTITY = 'agora:agent:grant-issuer';
 
-/** The signing algorithm. Asymmetric, so verification needs public material and nothing else. */
-export const GRANT_SIGNING_ALG = 'ed25519';
-
-/** A signature in the §5 `{key_id, alg}` shape, plus the detached bytes it covers. */
-export interface GrantSignature extends ManifestSigning {
-  /** base64url over {@link canonicalGrantBytes}. */
-  readonly value: string;
-}
-
-/** A signing key. The private half never leaves the issuer; the public half is publishable. */
-export interface SigningKey {
-  readonly key_id: string;
-  readonly alg: string;
-  readonly privateKey: KeyObject;
-  readonly publicKey: KeyObject;
-}
-
-/** The public half of a signing key, in the form a relying party can be handed. */
-export interface PublicKeyMaterial {
-  readonly key_id: string;
-  readonly alg: string;
-  /** The SPKI DER of the public key, base64url — self-describing, no key format to negotiate. */
-  readonly public_key: string;
-}
-
-/** A minted grant: the §5 grant shape, the principal it was minted for, and the signature. */
-export interface IssuedGrant extends Grant {
-  /** Whatever principal the host names. Opaque to the issuer, covered by the signature. */
-  readonly grantee: string;
-  readonly signature: GrantSignature;
-}
+/** How long a minted grant counts for, unless the host says otherwise: one hour. Short enough
+ * that a retired key is not the only way a grant ever stops, long enough for a real chain of
+ * invocations to complete under one credential. */
+export const DEFAULT_GRANT_LIFETIME_MS = 60 * 60 * 1000;
 
 /** What a caller asks for. `scope` may carry the whole `<verb>:<scope>` token instead. */
 export interface GrantRequest {
@@ -68,88 +57,33 @@ export interface GrantRequest {
 }
 
 export interface GrantIssuerOptions {
+  /** The key to mint under. A keyring is built around it; rotate onto the next one in place. */
   readonly key: SigningKey;
+  /** Keys already on their way out — a redeploy that adopted the outgoing key mid-rotation. */
+  readonly previousKeys?: readonly RetiringKey[];
+  /** How long a minted grant counts for. Must be positive: there is no unexpiring grant. */
+  readonly lifetimeMs?: number;
+  readonly now?: Clock;
 }
 
 export interface GrantIssuer {
   /** The key grants are currently minted under. */
   readonly key: SigningKey;
+  /** The keys this issuer signs and verifies with, over time. */
+  readonly keyring: Keyring;
+  /** How long a grant minted now will count for, in milliseconds. */
+  readonly lifetimeMs: number;
   /** Mint one grant, or refuse with a graded {@link GrantError}. */
   issue(request: unknown): IssuedGrant;
-  /** The public material a relying party verifies with. */
-  publicKeys(): readonly PublicKeyMaterial[];
-}
-
-/** Generate a fresh signing key under a host-chosen `key_id`. */
-export function createSigningKey(key_id: string): SigningKey {
-  const id = key_id.trim();
-  if (id === '') throw new GrantError(422, 'a signing key needs a key_id');
-  const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-  return { key_id: id, alg: GRANT_SIGNING_ALG, privateKey, publicKey };
-}
-
-/** Adopt an existing ed25519 key pair (PEM or DER), so a host can supply its own material. */
-export function signingKeyFrom(key_id: string, privateKeyPem: string): SigningKey {
-  const privateKey = createPrivateKey(privateKeyPem);
-  return {
-    key_id: key_id.trim(),
-    alg: GRANT_SIGNING_ALG,
-    privateKey,
-    publicKey: createPublicKey(privateKey),
-  };
-}
-
-/** The public half of `key`, as it is published. */
-export function publicMaterial(key: SigningKey): PublicKeyMaterial {
-  return {
-    key_id: key.key_id,
-    alg: key.alg,
-    public_key: key.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
-  };
-}
-
-/** Rebuild a verifying key from published material. */
-export function publicKeyFrom(material: PublicKeyMaterial): KeyObject {
-  return createPublicKey({
-    key: Buffer.from(material.public_key, 'base64url'),
-    format: 'der',
-    type: 'spki',
-  });
-}
-
-/**
- * The bytes a signature covers: every claim of the grant plus the `{key_id, alg}` naming the key
- * itself, canonically serialized (keys sorted, absent claims absent). Signing over the key
- * identity too means a grant cannot be replayed under a substituted algorithm or key id.
- */
-export function canonicalGrantBytes(grant: {
-  readonly verb: string;
-  readonly scope: string;
-  readonly budget_units?: number | undefined;
-  readonly grantee: string;
-  readonly signature: { readonly key_id: string; readonly alg: string };
-}): Buffer {
-  return Buffer.from(
-    canonicalJson({
-      alg: grant.signature.alg,
-      budget_units: grant.budget_units,
-      grantee: grant.grantee,
-      key_id: grant.signature.key_id,
-      scope: grant.scope,
-      verb: grant.verb,
-    }),
-    'utf8',
-  );
-}
-
-/** Whether `grant`'s signature verifies under `key`. Shape errors are `false`, not throws — a
- * verifier is asked a question, and "this is not a grant I can verify" is an answer to it. */
-export function verifyGrantSignature(grant: IssuedGrant, key: KeyObject): boolean {
-  try {
-    return verify(null, canonicalGrantBytes(grant), key, Buffer.from(grant.signature.value, 'base64url'));
-  } catch {
-    return false;
-  }
+  /** The public material a relying party verifies with — current key first, then any in overlap. */
+  publicKeys(): readonly PublishedKey[];
+  /** Mint under `next` from here on; the outgoing key keeps verifying for the overlap window. */
+  rotate(next: SigningKey, options?: { readonly overlapMs?: number }): RetiringKey;
+  /** End an overlap early — every grant still signed under `key_id` stops verifying. */
+  retire(key_id: string): void;
+  /** Verify a presented grant against this issuer's own published material. The reusable form
+   * for everybody else is `createGrantVerifier` — this is the same function, keys pre-wired. */
+  verify(presented: unknown): IssuedGrant;
 }
 
 /** Read a mint request off the wire, refusing anything the relying parties would refuse. */
@@ -178,11 +112,28 @@ export function parseGrantRequest(input: unknown): GrantRequest {
   };
 }
 
-/** Build an issuer over one signing key. Rotation onto a second key is US-2's business. */
+/** Build an issuer over one signing key, rotatable in place. */
 export function createGrantIssuer(options: GrantIssuerOptions): GrantIssuer {
-  const { key } = options;
+  const now = options.now ?? (() => new Date().toISOString());
+  const lifetimeMs = options.lifetimeMs ?? DEFAULT_GRANT_LIFETIME_MS;
+  if (!Number.isFinite(lifetimeMs) || lifetimeMs <= 0) {
+    // A zero or absent lifetime is not "no expiry", it is a grant nobody could ever spend or
+    // withdraw. The issuer keeps no revocation list, so the lifetime is the only clock there is.
+    throw new GrantError(422, 'a grant lifetime must be a positive number of milliseconds');
+  }
+  const keyring = createKeyring({
+    key: options.key,
+    ...(options.previousKeys === undefined ? {} : { previous: options.previousKeys }),
+    now,
+  });
+  const verifier: GrantVerifier = createGrantVerifier({ keys: () => keyring.published(), now });
+
   return {
-    key,
+    get key() {
+      return keyring.current;
+    },
+    keyring,
+    lifetimeMs,
     issue(request: unknown): IssuedGrant {
       const parsed = parseGrantRequest(request);
       // The mint gate IS the relying parties' parse: verb membership, the `<verb>:<scope>` split
@@ -193,11 +144,13 @@ export function createGrantIssuer(options: GrantIssuerOptions): GrantIssuer {
         budget_units: parsed.budget_units,
       });
       assertMintableScope(grant.scope);
+      const key = keyring.current;
       const unsigned = {
         verb: grant.verb,
         scope: grant.scope,
         ...(grant.budget_units === undefined ? {} : { budget_units: grant.budget_units }),
         grantee: parsed.grantee,
+        expires_at: isoAt(instant(now()) + lifetimeMs),
       };
       const signature = { key_id: key.key_id, alg: key.alg };
       const value = sign(
@@ -208,7 +161,16 @@ export function createGrantIssuer(options: GrantIssuerOptions): GrantIssuer {
       return { ...unsigned, signature: { ...signature, value } };
     },
     publicKeys() {
-      return [publicMaterial(key)];
+      return keyring.published();
+    },
+    rotate(next, rotateOptions) {
+      return keyring.rotate(next, rotateOptions);
+    },
+    retire(key_id) {
+      keyring.retire(key_id);
+    },
+    verify(presented) {
+      return verifier(presented);
     },
   };
 }
@@ -225,18 +187,4 @@ function assertMintableScope(scope: string): void {
   if (scope.trim() !== scope) {
     throw new GrantError(422, `a grant scope may not be padded with whitespace (got ${JSON.stringify(scope)})`);
   }
-}
-
-/** Deterministic JSON: object keys sorted, absent values absent. Two issuers signing the same
- * grant sign the same bytes, which is what makes a signature checkable anywhere. */
-function canonicalJson(value: unknown): string {
-  if (value === null) return 'null';
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
 }

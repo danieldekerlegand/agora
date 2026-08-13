@@ -1,17 +1,36 @@
 /**
  * The issuer's standalone entry point — boot the issuance surface from the process environment.
  *
- *   AGORA_GRANTS_KEY_ID     the `key_id` grants are minted under (default: `issuer-1`)
- *   AGORA_GRANTS_KEY        an ed25519 private key in PEM, if the host supplies its own material
- *   AGORA_GRANTS_HOST/_PORT bind address (default 127.0.0.1:8791)
+ *   AGORA_GRANTS_KEY_ID       the `key_id` grants are minted under (default: `issuer-1`)
+ *   AGORA_GRANTS_KEY          an ed25519 private key in PEM, if the host supplies its own material
+ *   AGORA_GRANTS_LIFETIME     how long a minted grant counts for, in seconds (default: 3600)
+ *   AGORA_GRANTS_PREVIOUS_KEY_ID  the key being rotated OUT, kept verifying through the overlap
+ *   AGORA_GRANTS_PREVIOUS_KEY     that key's private PEM (only its public half is ever used)
+ *   AGORA_GRANTS_OVERLAP      how long the outgoing key keeps verifying, in seconds (default: 86400)
+ *   AGORA_GRANTS_HOST/_PORT   bind address (default 127.0.0.1:8791)
  *
  * With no `AGORA_GRANTS_KEY` the process generates an ephemeral key pair at boot. That is right
  * for a demo and wrong for a deployment — an ephemeral key means every restart invalidates every
  * grant in flight — so the log line says which of the two happened.
+ *
+ * **Rotation without a rotation route.** A deployment rotates by restarting with the successor
+ * as `AGORA_GRANTS_KEY` and the incumbent demoted to `AGORA_GRANTS_PREVIOUS_KEY`: new grants are
+ * minted under the successor, the grants already in callers' hands keep verifying until the
+ * overlap runs out, and the published key set says exactly when that is. The overlap therefore
+ * belongs on the deploy, where the operator is, rather than on an open HTTP surface where
+ * anybody who can ask for a grant could retire everybody else's key.
  */
 import { pathToFileURL } from 'node:url';
 
-import { createGrantIssuer, createSigningKey, signingKeyFrom, type SigningKey } from './issuer.ts';
+import { createGrantIssuer, DEFAULT_GRANT_LIFETIME_MS } from './issuer.ts';
+import {
+  createSigningKey,
+  DEFAULT_OVERLAP_MS,
+  isoAt,
+  signingKeyFrom,
+  type RetiringKey,
+  type SigningKey,
+} from './keys.ts';
 import { createGrantServer, type GrantService } from './server.ts';
 
 /** The environment slice the entry point reads — a plain mapping, so a test can pass its own. */
@@ -26,20 +45,41 @@ export interface GrantsLaunch {
   key: SigningKey;
   /** True when the key was generated at boot rather than supplied by the host. */
   ephemeralKey: boolean;
+  /** The key being rotated out, if this boot is the second half of a rotation. */
+  previousKeys: readonly RetiringKey[];
+  /** How long a minted grant counts for. */
+  lifetimeMs: number;
   host: string;
   port: number;
 }
 
-export function grantsLaunchFromEnv(env: GrantsEnv = {}): GrantsLaunch {
+export function grantsLaunchFromEnv(env: GrantsEnv = {}, at = new Date().toISOString()): GrantsLaunch {
   const keyId = env.AGORA_GRANTS_KEY_ID?.trim() || DEFAULT_KEY_ID;
   const pem = env.AGORA_GRANTS_KEY?.trim();
   const supplied = pem !== undefined && pem !== '';
+  const overlapMs = parseSeconds(env.AGORA_GRANTS_OVERLAP, DEFAULT_OVERLAP_MS, 'AGORA_GRANTS_OVERLAP');
   return {
     key: supplied ? signingKeyFrom(keyId, pem) : createSigningKey(keyId),
     ephemeralKey: !supplied,
+    previousKeys: previousFromEnv(env, Date.parse(at) + overlapMs),
+    lifetimeMs: parseSeconds(env.AGORA_GRANTS_LIFETIME, DEFAULT_GRANT_LIFETIME_MS, 'AGORA_GRANTS_LIFETIME'),
     host: env.AGORA_GRANTS_HOST?.trim() || DEFAULT_GRANTS_HOST,
     port: parsePort(env.AGORA_GRANTS_PORT, DEFAULT_GRANTS_PORT, 'AGORA_GRANTS_PORT'),
   };
+}
+
+/** The outgoing half of a rotation. Both halves or neither: a key id with no key verifies
+ * nothing, and a key with no id cannot be named by the signature that needs it. */
+function previousFromEnv(env: GrantsEnv, notAfterMs: number): readonly RetiringKey[] {
+  const keyId = env.AGORA_GRANTS_PREVIOUS_KEY_ID?.trim();
+  const pem = env.AGORA_GRANTS_PREVIOUS_KEY?.trim();
+  if (!keyId && !pem) return [];
+  if (!keyId || !pem) {
+    throw new Error(
+      'AGORA_GRANTS_PREVIOUS_KEY_ID and AGORA_GRANTS_PREVIOUS_KEY are set together or not at all',
+    );
+  }
+  return [{ key: signingKeyFrom(keyId, pem), not_after: isoAt(notAfterMs) }];
 }
 
 /** A bound, running issuer. */
@@ -52,9 +92,27 @@ export interface StartedGrantIssuer {
 
 export async function startGrantIssuer(env: GrantsEnv = {}): Promise<StartedGrantIssuer> {
   const launch = grantsLaunchFromEnv(env);
-  const service = createGrantServer(createGrantIssuer({ key: launch.key }));
+  const service = createGrantServer(
+    createGrantIssuer({
+      key: launch.key,
+      previousKeys: launch.previousKeys,
+      lifetimeMs: launch.lifetimeMs,
+    }),
+  );
   const address = await service.listen(launch.port, launch.host);
   return { service, ephemeralKey: launch.ephemeralKey, host: address.host, port: address.port };
+}
+
+/** Seconds in the environment, milliseconds in the code — a duration on a wire is seconds
+ * everywhere else in this tree, and a millisecond-denominated env var is a footgun. */
+function parseSeconds(raw: string | undefined, fallbackMs: number, name: string): number {
+  const trimmed = raw?.trim();
+  if (trimmed === undefined || trimmed === '') return fallbackMs;
+  const seconds = Number(trimmed);
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    throw new Error(`${name} must be a positive number of seconds, got ${JSON.stringify(raw)}`);
+  }
+  return seconds * 1000;
 }
 
 function parsePort(raw: string | undefined, fallback: number, name: string): number {
