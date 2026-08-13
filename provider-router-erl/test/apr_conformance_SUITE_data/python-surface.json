@@ -65,6 +65,15 @@
           "body": ""
         },
         {
+          "method": "GET",
+          "path": "/mcp",
+          "headers": {},
+          "request": null,
+          "status": 405,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32601,\"message\":\"/mcp is a stateless POST surface; it opens no stream\"}}"
+        },
+        {
           "method": "POST",
           "path": "/v1/chat/completions",
           "headers": {},
@@ -251,6 +260,569 @@
             "x-agora-cost-units": "0"
           },
           "body": "{\"id\":\"chatcmpl-placeholder-306e8897ee53a2ac\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"placeholder-text\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 306e8897ee53.\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0},\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "2025-06-18"
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"agora:agent:provider-router\",\"version\":\"0.1.0\"},\"instructions\":\"One tool per capability this router offers (KCB \u00a72), each dispatched down its own tier ladder: paid \u2192 mlx-serve \u2192 local \u2192 a deterministic placeholder, so every call answers. This surface answers for this router alone \u2014 it never relays a call to another peer (ADR-0001 decision 3); peers are dialed directly at the address their own manifest advertises. A spend ceiling rides in the X-Agora-Budget-Units header or as a budget_units argument (KCB \u00a75).\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+              "protocolVersion": "1999-01-01"
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{\"tools\":{\"listChanged\":false}},\"serverInfo\":{\"name\":\"agora:agent:provider-router\",\"version\":\"0.1.0\"},\"instructions\":\"One tool per capability this router offers (KCB \u00a72), each dispatched down its own tier ladder: paid \u2192 mlx-serve \u2192 local \u2192 a deterministic placeholder, so every call answers. This surface answers for this router alone \u2014 it never relays a call to another peer (ADR-0001 decision 3); peers are dialed directly at the address their own manifest advertises. A spend ceiling rides in the X-Agora-Budget-Units header or as a budget_units argument (KCB \u00a75).\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "method": "notifications/initialized"
+          },
+          "status": 202,
+          "response_headers": {},
+          "body": ""
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "ping",
+            "params": {}
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list",
+            "params": {}
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[{\"name\":\"generate.text\",\"description\":\"Generate text down this router's text ladder. Always answers: an unavailable or over-budget rung falls through to a deterministic placeholder.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"prompt\":{\"type\":\"string\",\"description\":\"what to generate (text)\"},\"model\":{\"type\":\"string\",\"description\":\"a model id, if the caller wants one\"},\"budget_units\":{\"type\":\"number\",\"description\":\"KCB \u00a75 spend ceiling, in budget units\"},\"messages\":{\"type\":\"array\",\"description\":\"an OpenAI-shaped chat transcript; wins over `prompt` when given\",\"items\":{\"type\":\"object\"}}},\"additionalProperties\":true}},{\"name\":\"generate.image\",\"description\":\"Generate image down this router's image ladder. Always answers: an unavailable or over-budget rung falls through to a deterministic placeholder.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"prompt\":{\"type\":\"string\",\"description\":\"what to generate (image)\"},\"model\":{\"type\":\"string\",\"description\":\"a model id, if the caller wants one\"},\"budget_units\":{\"type\":\"number\",\"description\":\"KCB \u00a75 spend ceiling, in budget units\"}},\"additionalProperties\":true}},{\"name\":\"generate.speech\",\"description\":\"Generate speech down this router's speech ladder. Always answers: an unavailable or over-budget rung falls through to a deterministic placeholder.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"prompt\":{\"type\":\"string\",\"description\":\"what to generate (speech)\"},\"model\":{\"type\":\"string\",\"description\":\"a model id, if the caller wants one\"},\"budget_units\":{\"type\":\"number\",\"description\":\"KCB \u00a75 spend ceiling, in budget units\"}},\"additionalProperties\":true}},{\"name\":\"generate.music\",\"description\":\"Generate music down this router's music ladder. Always answers: an unavailable or over-budget rung falls through to a deterministic placeholder.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"prompt\":{\"type\":\"string\",\"description\":\"what to generate (music)\"},\"model\":{\"type\":\"string\",\"description\":\"a model id, if the caller wants one\"},\"budget_units\":{\"type\":\"number\",\"description\":\"KCB \u00a75 spend ceiling, in budget units\"}},\"additionalProperties\":true}},{\"name\":\"generate.video\",\"description\":\"Generate video down this router's video ladder. Always answers: an unavailable or over-budget rung falls through to a deterministic placeholder.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"prompt\":{\"type\":\"string\",\"description\":\"what to generate (video)\"},\"model\":{\"type\":\"string\",\"description\":\"a model id, if the caller wants one\"},\"budget_units\":{\"type\":\"number\",\"description\":\"KCB \u00a75 spend ceiling, in budget units\"}},\"additionalProperties\":true}}]}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "generate.text",
+              "arguments": {
+                "prompt": "what is the agora commons?"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request a1c4d3e75997.\"}],\"_meta\":{\"koine.dev/agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1031.428571,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "generate.image",
+              "arguments": {
+                "prompt": "a clay tablet"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"resource\",\"resource\":{\"uri\":\"agora:artifact:sha256:e05f73242ac42cbc227bfc107b2d0b0ea1045a6423f272ed06d387687756b1ee\",\"mimeType\":\"image/png\",\"blob\":\"D50T4O5XaXWnibQffTaAGlRD6aXCScOm9p/6Xak6liUPnRPg7ldpdaeJtB99NoAaVEPppcJJw6b2n/pdqTqWJQ+dE+DuV2l1p4m0H302gBpUQ+mlwknDpvaf+l2pOpYlD50T4O5XaXWnibQffTaAGlRD6aXCScOm9p/6Xak6liUPnRPg7ldpdaeJtB99NoAaVEPppcJJw6b2n/pdqTqWJQ+dE+DuV2l1p4m0H302gBpUQ+mlwknDpvaf+l2pOpYlD50T4O5XaXWnibQffTaAGlRD6aXCScOm9p/6Xak6liUPnRPg7ldpdaeJtB99NoAaVEPppcJJw6b2n/pdqTqWJQ==\"}}],\"_meta\":{\"koine.dev/agora\":{\"modality\":\"image\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-image\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any image vendor (openai, replicate)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama serves no image model\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"image\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"image\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "generate.speech",
+              "arguments": {
+                "input": "the agora commons"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"resource\",\"resource\":{\"uri\":\"agora:artifact:sha256:718019f02e7df6471ed6d5c164e5e83fade4fbf4b7aa2b07660de809e7afda3d\",\"mimeType\":\"audio/wav\",\"blob\":\"Zs+Y9YwDV3TFSjCDhBbM7OBrg3yWBm2Zhrjo/Bdggypmz5j1jANXdMVKMIOEFszs4GuDfJYGbZmGuOj8F2CDKmbPmPWMA1d0xUowg4QWzOzga4N8lgZtmYa46PwXYIMqZs+Y9YwDV3TFSjCDhBbM7OBrg3yWBm2Zhrjo/Bdggypmz5j1jANXdMVKMIOEFszs4GuDfJYGbZmGuOj8F2CDKmbPmPWMA1d0xUowg4QWzOzga4N8lgZtmYa46PwXYIMqZs+Y9YwDV3TFSjCDhBbM7OBrg3yWBm2Zhrjo/Bdggypmz5j1jANXdMVKMIOEFszs4GuDfJYGbZmGuOj8F2CDKg==\"}}],\"_meta\":{\"koine.dev/agora\":{\"modality\":\"speech\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-speech\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any speech vendor (elevenlabs, openai)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama serves no speech model\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"character\",\"quantity\":17.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"character\",\"quantity\":17.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true}}}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "summarize.text",
+              "arguments": {}
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32602,\"message\":\"unknown capability 'summarize.text' \u2014 this router offers generate.text, generate.image, generate.speech, generate.music, generate.video\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "resources/list",
+            "params": {}
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601,\"message\":\"this router serves no MCP method 'resources/list'\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": [
+            "not",
+            "a",
+            "request"
+          ],
+          "status": 400,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"a JSON-RPC request must be an object\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "what is the agora commons?"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-e1a8c56c380c57fc\",\"contextId\":\"ctx-e1a8c56c380c57fc\",\"kind\":\"task\",\"status\":{\"state\":\"completed\",\"message\":{\"role\":\"agent\",\"parts\":[{\"kind\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request a1c4d3e75997.\"}],\"messageId\":\"msg-e1a8c56c380c57fc\",\"kind\":\"message\",\"fromAgent\":\"agora:agent:provider-router\"}},\"metadata\":{\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1031.428571,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "a clay tablet"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "metadata": {
+                  "capability": "generate.image"
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-88304389685952f1\",\"contextId\":\"ctx-88304389685952f1\",\"kind\":\"task\",\"status\":{\"state\":\"completed\"},\"metadata\":{\"agora\":{\"modality\":\"image\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-image\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any image vendor (openai, replicate)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama serves no image model\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"image\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"image\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"},\"artifacts\":[{\"artifactId\":\"artifact-sha256-e05f73242ac42cbc227bfc107b2d0b0ea1045a6423f272ed06d387687756b1ee\",\"name\":\"generate.image\",\"parts\":[{\"kind\":\"file\",\"file\":{\"name\":\"sha256-e05f73242ac42cbc227bfc107b2d0b0ea1045a6423f272ed06d387687756b1ee.png\",\"mimeType\":\"image/png\",\"bytes\":\"D50T4O5XaXWnibQffTaAGlRD6aXCScOm9p/6Xak6liUPnRPg7ldpdaeJtB99NoAaVEPppcJJw6b2n/pdqTqWJQ+dE+DuV2l1p4m0H302gBpUQ+mlwknDpvaf+l2pOpYlD50T4O5XaXWnibQffTaAGlRD6aXCScOm9p/6Xak6liUPnRPg7ldpdaeJtB99NoAaVEPppcJJw6b2n/pdqTqWJQ+dE+DuV2l1p4m0H302gBpUQ+mlwknDpvaf+l2pOpYlD50T4O5XaXWnibQffTaAGlRD6aXCScOm9p/6Xak6liUPnRPg7ldpdaeJtB99NoAaVEPppcJJw6b2n/pdqTqWJQ==\"}}],\"metadata\":{\"digest\":\"sha256:e05f73242ac42cbc227bfc107b2d0b0ea1045a6423f272ed06d387687756b1ee\"}}]}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "a lyre"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "metadata": {
+                  "modality": "music"
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-5559ea35265553c9\",\"contextId\":\"ctx-5559ea35265553c9\",\"kind\":\"task\",\"status\":{\"state\":\"completed\"},\"metadata\":{\"agora\":{\"modality\":\"music\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-music\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any music vendor (replicate)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama serves no music model\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"generation\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"generation\",\"quantity\":1.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"},\"artifacts\":[{\"artifactId\":\"artifact-sha256-771725e6069594f519817da8d34f7fca5e0e271f9181751b1c5fc72eb961450a\",\"name\":\"generate.music\",\"parts\":[{\"kind\":\"file\",\"file\":{\"name\":\"sha256-771725e6069594f519817da8d34f7fca5e0e271f9181751b1c5fc72eb961450a.wav\",\"mimeType\":\"audio/wav\",\"bytes\":\"u7uPkpT7Sw9e1/c48RgLwBvSWybcOt/ZZwC1WbQ4uqe7u4+SlPtLD17X9zjxGAvAG9JbJtw639lnALVZtDi6p7u7j5KU+0sPXtf3OPEYC8Ab0lsm3Drf2WcAtVm0OLqnu7uPkpT7Sw9e1/c48RgLwBvSWybcOt/ZZwC1WbQ4uqe7u4+SlPtLD17X9zjxGAvAG9JbJtw639lnALVZtDi6p7u7j5KU+0sPXtf3OPEYC8Ab0lsm3Drf2WcAtVm0OLqnu7uPkpT7Sw9e1/c48RgLwBvSWybcOt/ZZwC1WbQ4uqe7u4+SlPtLD17X9zjxGAvAG9JbJtw639lnALVZtDi6pw==\"}}],\"metadata\":{\"digest\":\"sha256:771725e6069594f519817da8d34f7fca5e0e271f9181751b1c5fc72eb961450a\"}}]}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "in a conversation"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "contextId": "a-conversation"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-f5b000099beb639a\",\"contextId\":\"a-conversation\",\"kind\":\"task\",\"status\":{\"state\":\"completed\",\"message\":{\"role\":\"agent\",\"parts\":[{\"kind\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request f829db3aa10d.\"}],\"messageId\":\"msg-f5b000099beb639a\",\"kind\":\"message\",\"fromAgent\":\"agora:agent:provider-router\"}},\"metadata\":{\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":null,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1028.857143,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "for somebody else"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "toAgent": "example:agent:somebody-else"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32602,\"message\":\"this is agora:agent:provider-router, not 'example:agent:somebody-else' \u2014 dial that peer directly at the address its own manifest advertises; this router relays nothing (ADR-0001 decision 3)\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "summarize this"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "metadata": {
+                  "capability": "summarize.text"
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32602,\"message\":\"unknown capability 'generate.summarize.text' \u2014 this router offers generate.text, generate.image, generate.speech, generate.music, generate.video\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/stream",
+            "params": {}
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601,\"message\":\"this router serves no A2A method 'message/stream' \u2014 it serves message/send, and a task is complete when it is answered, so there is none to stream or fetch later\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {}
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32602,\"message\":\"message/send must carry a message\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": "not a request",
+          "status": 400,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32600,\"message\":\"a JSON-RPC request must be an object\"}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "generate.text",
+              "arguments": {
+                "prompt": "hi",
+                "budget_units": 0
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"_meta\":{\"koine.dev/agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "X-Agora-Budget-Units": "0"
+          },
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "generate.text",
+              "arguments": {
+                "prompt": "hi"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"_meta\":{\"koine.dev/agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "generate.text",
+              "arguments": {
+                "prompt": "hi",
+                "budget_units": "abc"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"budget_units must be a number of budget units, got 'abc'\"}],\"isError\":true}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "hi"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "metadata": {
+                  "budget_units": 0
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-8c8ca42e89f82a8d\",\"contextId\":\"ctx-8c8ca42e89f82a8d\",\"kind\":\"task\",\"status\":{\"state\":\"completed\",\"message\":{\"role\":\"agent\",\"parts\":[{\"kind\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"messageId\":\"msg-8c8ca42e89f82a8d\",\"kind\":\"message\",\"fromAgent\":\"agora:agent:provider-router\"}},\"metadata\":{\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "hi"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "metadata": {
+                  "X-Agora-Budget-Units": 0
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-8c8ca42e89f82a8d\",\"contextId\":\"ctx-8c8ca42e89f82a8d\",\"kind\":\"task\",\"status\":{\"state\":\"completed\",\"message\":{\"role\":\"agent\",\"parts\":[{\"kind\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"messageId\":\"msg-8c8ca42e89f82a8d\",\"kind\":\"message\",\"fromAgent\":\"agora:agent:provider-router\"}},\"metadata\":{\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {
+            "X-Agora-Budget-Units": "0"
+          },
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "hi"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-8c8ca42e89f82a8d\",\"contextId\":\"ctx-8c8ca42e89f82a8d\",\"kind\":\"task\",\"status\":{\"state\":\"completed\",\"message\":{\"role\":\"agent\",\"parts\":[{\"kind\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"messageId\":\"msg-8c8ca42e89f82a8d\",\"kind\":\"message\",\"fromAgent\":\"agora:agent:provider-router\"}},\"metadata\":{\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"no API key for any text vendor (openai, anthropic, groq, gemini)\"},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "hi"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "metadata": {
+                  "budget_units": "abc"
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32602,\"message\":\"budget_units must be a number of budget units, got 'abc'\"}}"
         }
       ]
     },
@@ -316,6 +888,15 @@
             "location": "/.well-known/agent-card.json"
           },
           "body": ""
+        },
+        {
+          "method": "GET",
+          "path": "/mcp",
+          "headers": {},
+          "request": null,
+          "status": 405,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32601,\"message\":\"/mcp is a stateless POST surface; it opens no stream\"}}"
         },
         {
           "method": "POST",
@@ -408,6 +989,186 @@
             "x-agora-cost-units": "0"
           },
           "body": "{\"id\":\"chatcmpl-placeholder-306e8897ee53a2ac\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"placeholder-text\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 306e8897ee53.\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0},\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"openai\",\"ok\":false,\"dialed\":false,\"reason\":\"projected 4.57714 budget units (76.2857 token @ 0.06) exceeds the 0-unit ceiling\",\"projected\":{\"units\":4.577143,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.06,\"unpriced\":false,\"estimate\":true}},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":76.285714,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "generate.text",
+              "arguments": {
+                "prompt": "hi",
+                "budget_units": 0
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"_meta\":{\"koine.dev/agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"openai\",\"ok\":false,\"dialed\":false,\"reason\":\"projected 61.4743 budget units (1024.57 token @ 0.06) exceeds the 0-unit ceiling\",\"projected\":{\"units\":61.474286,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.06,\"unpriced\":false,\"estimate\":true}},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "X-Agora-Budget-Units": "0"
+          },
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "generate.text",
+              "arguments": {
+                "prompt": "hi"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"_meta\":{\"koine.dev/agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"openai\",\"ok\":false,\"dialed\":false,\"reason\":\"projected 61.4743 budget units (1024.57 token @ 0.06) exceeds the 0-unit ceiling\",\"projected\":{\"units\":61.474286,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.06,\"unpriced\":false,\"estimate\":true}},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}}}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+              "name": "generate.text",
+              "arguments": {
+                "prompt": "hi",
+                "budget_units": "abc"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"budget_units must be a number of budget units, got 'abc'\"}],\"isError\":true}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "hi"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "metadata": {
+                  "budget_units": 0
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-8c8ca42e89f82a8d\",\"contextId\":\"ctx-8c8ca42e89f82a8d\",\"kind\":\"task\",\"status\":{\"state\":\"completed\",\"message\":{\"role\":\"agent\",\"parts\":[{\"kind\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"messageId\":\"msg-8c8ca42e89f82a8d\",\"kind\":\"message\",\"fromAgent\":\"agora:agent:provider-router\"}},\"metadata\":{\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"openai\",\"ok\":false,\"dialed\":false,\"reason\":\"projected 61.4743 budget units (1024.57 token @ 0.06) exceeds the 0-unit ceiling\",\"projected\":{\"units\":61.474286,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.06,\"unpriced\":false,\"estimate\":true}},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "hi"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "metadata": {
+                  "X-Agora-Budget-Units": 0
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-8c8ca42e89f82a8d\",\"contextId\":\"ctx-8c8ca42e89f82a8d\",\"kind\":\"task\",\"status\":{\"state\":\"completed\",\"message\":{\"role\":\"agent\",\"parts\":[{\"kind\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"messageId\":\"msg-8c8ca42e89f82a8d\",\"kind\":\"message\",\"fromAgent\":\"agora:agent:provider-router\"}},\"metadata\":{\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"openai\",\"ok\":false,\"dialed\":false,\"reason\":\"projected 61.4743 budget units (1024.57 token @ 0.06) exceeds the 0-unit ceiling\",\"projected\":{\"units\":61.474286,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.06,\"unpriced\":false,\"estimate\":true}},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {
+            "X-Agora-Budget-Units": "0"
+          },
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "hi"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console"
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"id\":\"task-8c8ca42e89f82a8d\",\"contextId\":\"ctx-8c8ca42e89f82a8d\",\"kind\":\"task\",\"status\":{\"state\":\"completed\",\"message\":{\"role\":\"agent\",\"parts\":[{\"kind\":\"text\",\"text\":\"[agora placeholder] no paid, mlx-serve or local backend was available; this is a deterministic stand-in for request 19e21ad5462e.\"}],\"messageId\":\"msg-8c8ca42e89f82a8d\",\"kind\":\"message\",\"fromAgent\":\"agora:agent:provider-router\"}},\"metadata\":{\"agora\":{\"modality\":\"text\",\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"model\":\"placeholder-text\",\"attempts\":[{\"tier\":\"paid\",\"provider\":\"openai\",\"ok\":false,\"dialed\":false,\"reason\":\"projected 61.4743 budget units (1024.57 token @ 0.06) exceeds the 0-unit ceiling\",\"projected\":{\"units\":61.474286,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.06,\"unpriced\":false,\"estimate\":true}},{\"tier\":\"mlx\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"mlx-serve base URL not set\"},{\"tier\":\"local\",\"provider\":\"-\",\"ok\":false,\"dialed\":false,\"reason\":\"ollama base URL not set\"},{\"tier\":\"placeholder\",\"provider\":\"placeholder\",\"ok\":true,\"dialed\":true}],\"cost\":{\"currency\":\"budget_units\",\"budget_units\":0.0,\"projected_units\":0.0,\"actual_units\":0.0,\"projected\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":1024.571429,\"rate\":0.0,\"unpriced\":false,\"estimate\":true},\"actual\":{\"units\":0.0,\"unit\":\"token\",\"quantity\":0.0,\"rate\":0.0,\"unpriced\":false,\"estimate\":false}}},\"protocolVersion\":\"1.1\"}}}"
+        },
+        {
+          "method": "POST",
+          "path": "/a2a",
+          "headers": {},
+          "request": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "message/send",
+            "params": {
+              "message": {
+                "role": "user",
+                "parts": [
+                  {
+                    "kind": "text",
+                    "text": "hi"
+                  }
+                ],
+                "messageId": "agora-corpus-message",
+                "kind": "message",
+                "fromAgent": "agora-console",
+                "metadata": {
+                  "budget_units": "abc"
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response_headers": {},
+          "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32602,\"message\":\"budget_units must be a number of budget units, got 'abc'\"}}"
         }
       ]
     }

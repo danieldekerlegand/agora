@@ -6,7 +6,8 @@
 %%%
 %%% The set is `app.py''s: six reads (`/health', `/doctor', `/v1/models', `/v1/providers', the
 %%% AgentCard at `manifest.py::MANIFEST_PATH' and the permanent redirect at its pre-0.3.0
-%%% `LEGACY_MANIFEST_PATH') and the five generation POSTs, one per modality.
+%%% `LEGACY_MANIFEST_PATH'), the two KCB §4 `invoke' transports ({@link apr_mcp}, {@link
+%%% apr_a2a}) and the five generation POSTs, one per modality.
 %%%
 %%% The two manifest paths are the reconciliation US-1 deferred: it registered the legacy
 %%% `/.well-known/kcb-manifest.json' as *the* manifest route, but `app.py' serves the card at
@@ -38,6 +39,10 @@ handlers() ->
      {apr_manifest:manifest_path(),        apr_manifest_handler, #{}, contract},
      {apr_manifest:legacy_manifest_path(), apr_redirect_handler,
       #{status => 308, location => apr_manifest:manifest_path()}, contract},
+     %% KCB §4 `invoke', on the two transports the manifest advertises. Both are `contract':
+     %% the Python router serves them too, so their bytes are pinned by the corpus.
+     {apr_mcp:path(),                      apr_jsonrpc_handler, #{surface => apr_mcp}, contract},
+     {apr_a2a:path(),                      apr_jsonrpc_handler, #{surface => apr_a2a}, contract},
      {<<"/v1/chat/completions">>,          apr_generate_handler, #{modality => text}, contract},
      {<<"/v1/images/generations">>,        apr_generate_handler, #{modality => image}, contract},
      {<<"/v1/audio/speech">>,              apr_generate_handler, #{modality => speech}, contract},

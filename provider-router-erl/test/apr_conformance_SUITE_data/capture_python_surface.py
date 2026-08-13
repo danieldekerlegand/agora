@@ -11,8 +11,9 @@ can leak into it. ``AGORA_ENV_FILE`` names a path that does not exist, which pin
 otherwise host-dependent byte on the surface — ``/doctor``'s ``config.env_file.path``.
 
 The keyed environment never dials: every one of its exchanges carries a ``budget_units: 0``
-ceiling, so the paid rung is refused before it is contacted. A capture that opened a socket
-to api.openai.com would be neither reproducible nor free.
+ceiling — in the body, in the transport header, in an MCP argument or in A2A message metadata
+— so the paid rung is refused before it is contacted. A capture that opened a socket to
+api.openai.com would be neither reproducible nor free.
 
 Regenerate (from the repo root) with::
 
@@ -58,6 +59,79 @@ READS = [
     ("GET", "/v1/providers", None, {}),
     ("GET", "/.well-known/agent-card.json", None, {}),
     ("GET", "/.well-known/kcb-manifest.json", None, {}),
+    # The MCP surface offers no server->client stream, and says so rather than hanging.
+    ("GET", "/mcp", None, {}),
+]
+
+
+def rpc(method: str, params: dict[str, Any] | None = None, **fields: Any) -> dict[str, Any]:
+    """One JSON-RPC request, as both transports take them."""
+    return {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}, **fields}
+
+
+def tool_call(tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    return rpc("tools/call", {"name": tool, "arguments": arguments})
+
+
+def send(text: str, **fields: Any) -> dict[str, Any]:
+    """One ``message/send``, in the wire shape ``console/src/kcs/a2a-wire.ts`` sends."""
+    message = {
+        "role": "user",
+        "parts": [{"kind": "text", "text": text}],
+        "messageId": "agora-corpus-message",
+        "kind": "message",
+        "fromAgent": "agora-console",
+        **fields,
+    }
+    return rpc("message/send", {"message": message})
+
+
+#: The KCB §4 ``invoke`` verb on its two transports. Every id here is derived from the request
+#: (``invoke.py::identifier``), so the bytes are a function of the corpus and not of the run —
+#: which is the only reason a task id can be pinned at all.
+#:
+#: A malformed *body* is deliberately absent: both routers answer it with the same JSON-RPC
+#: code at the same status, but the message quotes the parser's own prose, and CPython's
+#: ``JSONDecodeError`` text is a detail of the host rather than this router's contract.
+INVOCATIONS = [
+    ("POST", "/mcp", rpc("initialize", {"protocolVersion": "2025-06-18"}), {}),
+    ("POST", "/mcp", rpc("initialize", {"protocolVersion": "1999-01-01"}), {}),
+    ("POST", "/mcp", {"jsonrpc": "2.0", "method": "notifications/initialized"}, {}),
+    ("POST", "/mcp", rpc("ping"), {}),
+    ("POST", "/mcp", rpc("tools/list"), {}),
+    ("POST", "/mcp", tool_call("generate.text", {"prompt": "what is the agora commons?"}), {}),
+    ("POST", "/mcp", tool_call("generate.image", {"prompt": "a clay tablet"}), {}),
+    ("POST", "/mcp", tool_call("generate.speech", {"input": "the agora commons"}), {}),
+    ("POST", "/mcp", tool_call("summarize.text", {}), {}),
+    ("POST", "/mcp", rpc("resources/list"), {}),
+    ("POST", "/mcp", ["not", "a", "request"], {}),
+    ("POST", "/a2a", send("what is the agora commons?"), {}),
+    ("POST", "/a2a", send("a clay tablet", metadata={"capability": "generate.image"}), {}),
+    ("POST", "/a2a", send("a lyre", metadata={"modality": "music"}), {}),
+    ("POST", "/a2a", send("in a conversation", contextId="a-conversation"), {}),
+    ("POST", "/a2a", send("for somebody else", toAgent="example:agent:somebody-else"), {}),
+    ("POST", "/a2a", send("summarize this", metadata={"capability": "summarize.text"}), {}),
+    ("POST", "/a2a", rpc("message/stream"), {}),
+    ("POST", "/a2a", rpc("message/send"), {}),
+    ("POST", "/a2a", "not a request", {}),
+]
+
+#: The same two transports under a ceiling (KCB §5), in every spelling each one carries: the
+#: transport header, an MCP argument, and A2A message metadata (which has no headers of its
+#: own to put it in). Zero, so the paid rung is refused before it is contacted.
+CEILINGED_INVOCATIONS = [
+    (
+        "POST",
+        "/mcp",
+        tool_call("generate.text", {"prompt": "hi", "budget_units": 0}),
+        {},
+    ),
+    ("POST", "/mcp", tool_call("generate.text", {"prompt": "hi"}), {"X-Agora-Budget-Units": "0"}),
+    ("POST", "/mcp", tool_call("generate.text", {"prompt": "hi", "budget_units": "abc"}), {}),
+    ("POST", "/a2a", send("hi", metadata={"budget_units": 0}), {}),
+    ("POST", "/a2a", send("hi", metadata={"X-Agora-Budget-Units": 0}), {}),
+    ("POST", "/a2a", send("hi"), {"X-Agora-Budget-Units": "0"}),
+    ("POST", "/a2a", send("hi", metadata={"budget_units": "abc"}), {}),
 ]
 
 #: One generation per modality, on the OpenAI shape each route takes.
@@ -100,8 +174,8 @@ CEILINGS = [
 ]
 
 ENVIRONMENTS = [
-    ("bare", BARE_ENV, READS + GENERATIONS + CEILINGS),
-    ("keyed", KEYED_ENV, READS + CEILINGS),
+    ("bare", BARE_ENV, READS + GENERATIONS + CEILINGS + INVOCATIONS + CEILINGED_INVOCATIONS),
+    ("keyed", KEYED_ENV, READS + CEILINGS + CEILINGED_INVOCATIONS),
 ]
 
 #: Response headers that are part of the contract (the rest — content-length, date — are the
