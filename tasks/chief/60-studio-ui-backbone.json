@@ -31,7 +31,7 @@
         "A `check-studio` Makefile target is added (mirroring `check-console`'s `ts-area PKG=@agora/studio` shape) and the `studio/` area is covered by `make check` via `check-ts` (which runs `npm run lint` + `npm run typecheck` + `npm run test`)",
         "`make check` is green: `npm run lint` (root eslint flat config) clean, `npm run typecheck` (`tsc -p`, `--noEmit`) clean, and `vitest` passes for the new package; at least one `src/*.test.tsx` renders the shell"
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
