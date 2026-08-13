@@ -55,7 +55,7 @@
         "Attenuation: deriving a child grant from a presented parent succeeds only when the child's verb:scope is covered by the parent's and its `budget_units` is ≤ the parent's; a widening/raising derivation is refused — tested for scope, verb, and ceiling.",
         "The issuer's own KCB manifest advertises grant issuance as a capability (discoverable via `registry/`, address-only, never proxied), and the workspace README states the split: koine fixes the grant SHAPE, this service is the reference issuance runtime, relying parties enforce; `make check` green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
