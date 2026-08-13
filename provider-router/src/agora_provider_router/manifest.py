@@ -161,7 +161,9 @@ def manifest_body(router: Router) -> dict[str, Any]:
 
 def _capability(router: Router, modality: str, base: str) -> dict[str, Any]:
     backend = router.resolve(modality)
-    cost = project(modality, backend.provider, NOMINAL[modality], router.config.env)
+    cost = project(
+        modality, backend.provider, NOMINAL[modality], router.config.env, model=backend.model
+    )
     return {
         "name": capability_name(modality),
         "inputs": [consumed_port(modality)],

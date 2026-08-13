@@ -15,13 +15,21 @@ pointing ``AGORA_PRICE_TABLE`` at their own TOML/JSON file, or nudge a single ra
 per-``(modality, provider)`` ``AGORA_PRICE_<MODALITY>_<PROVIDER>`` var. The per-rate override
 wins over both the replacement file and the shipped defaults.
 
+A fifth source sits between them, off unless a deployer switches it on: LiteLLM's
+maintained per-model price map (:mod:`agora_provider_router.litellm_prices`,
+``AGORA_PRICE_LITELLM=1``). It only ever *fills in* rates — under both deployer-set layers,
+over the shipped per-provider estimate, and silent about any model it does not price. See
+that module for the full precedence and for why a source may not name its own denomination.
+
 The unit
 --------
 Costs are denominated in KCB **budget units**, not currency: a grant's ceiling travels
 between projects that do not share a billing account, so the bus needs one comparable
-scalar. The table is anchored at **1 unit = US$0.00001** (so $0.05/second of video = 5000
-units/second), which keeps whole numbers for media and sub-unit rates for tokens. That
-anchor is restated at the top of ``prices.toml`` so the shipped numbers stay self-explaining.
+scalar. The table is anchored at **1 unit = US$0.00001** (:data:`BUDGET_UNITS_PER_USD`, so
+$0.05/second of video = 5000 units/second), which keeps whole numbers for media and sub-unit
+rates for tokens. That anchor is restated at the top of ``prices.toml`` so the shipped
+numbers stay self-explaining, and it is applied *here* to anything a currency-denominated
+source hands over: the denomination is the cost model's, never a source's.
 
 **All rates are conservative estimates, not quotes.** Provider pricing changes constantly;
 every :class:`Cost` carries the inputs it was computed from (``quantity`` × ``rate``) so a
@@ -52,6 +60,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from . import litellm_prices
 from .backends import LOCAL_PROVIDER, MLX_PROVIDER
 from .ladder import PLACEHOLDER
 
@@ -64,6 +73,12 @@ PRICE_TABLE_ENV = "AGORA_PRICE_TABLE"
 
 #: The shipped default price sheet, packaged beside this module.
 PRICE_SHEET_FILE = "prices.toml"
+
+#: The KCB budget-unit anchor: 1 unit = US$0.00001, so a US dollar is this many units. The
+#: only place a currency becomes a denomination — a rate source speaks its vendor's currency
+#: and the conversion happens here, because a ceiling that travels between projects with no
+#: shared billing account cannot be denominated in one of their currencies.
+BUDGET_UNITS_PER_USD = 100_000.0
 
 #: The request-body key and header carrying a per-request spend ceiling (KCB §5).
 BUDGET_KEY = "budget_units"
@@ -162,13 +177,23 @@ def price_env_var(modality: str, provider: str) -> str:
 
 
 def rate_for(
-    modality: str, provider: str, env: Mapping[str, str] | None = None
+    modality: str,
+    provider: str,
+    env: Mapping[str, str] | None = None,
+    *,
+    model: str | None = None,
 ) -> tuple[float, bool]:
     """``(rate, unpriced)`` in budget units per :data:`UNIT_OF` unit.
 
-    A known paid provider gets its table rate, a free provider ``0.0``, and anything else
-    ``0.0`` **flagged unpriced** — see the module docstring for why that flag matters. A
-    malformed override is ignored so the table rate still stands.
+    Four layers, most specific first: the per-``(modality, provider)`` env override, the
+    zero-spend tiers held in :data:`FREE_PROVIDERS`, a deployer's replacement sheet
+    (:data:`PRICE_TABLE_ENV`), the optional per-``model`` LiteLLM price map
+    (:mod:`agora_provider_router.litellm_prices`), and last the shipped :data:`RATES`. A
+    provider none of them prices is ``0.0`` **flagged unpriced** — see the module docstring
+    for why that flag matters. A malformed override is ignored so the layer under it stands.
+
+    ``model`` is optional because most callers price a *provider*: the rung's cost does not
+    depend on it under any of the hand-set layers, and passing it only opens the sourced one.
     """
     env = env or {}
     raw = env.get(price_env_var(modality, provider))
@@ -181,28 +206,33 @@ def rate_for(
             return override, False
     if provider in FREE_PROVIDERS:
         return 0.0, False
-    table = _merged_rates(modality, env)
-    if provider in table:
-        return table[provider], False
+    replacement = _replacement_rates(modality, env)
+    if provider in replacement:
+        return replacement[provider], False
+    usd = litellm_prices.usd_rate_for(modality, provider, model, env)
+    if usd is not None:
+        return round(usd * BUDGET_UNITS_PER_USD, 9), False
+    shipped = RATES.get(modality, {})
+    if provider in shipped:
+        return shipped[provider], False
     return 0.0, True
 
 
-def _merged_rates(modality: str, env: Mapping[str, str]) -> dict[str, float]:
-    """The rates for ``modality``: the shipped :data:`RATES` with a replacement sheet
-    (:data:`PRICE_TABLE_ENV`) layered on top, so an added rate appears and a replaced one wins.
+def _replacement_rates(modality: str, env: Mapping[str, str]) -> dict[str, float]:
+    """The rates a deployer's replacement sheet (:data:`PRICE_TABLE_ENV`) sets for ``modality``.
 
-    A missing or unreadable replacement file is ignored so the shipped rate still stands — a
-    typo'd path must never silently un-price a rung and let it read as affordable.
+    Empty when no sheet is configured — and empty when the configured one cannot be read, so
+    a typo'd path falls through to the layers under it rather than un-pricing a rung: an
+    unreadable file must never make a paid rung read as affordable, nor as free.
     """
-    shipped = RATES.get(modality, {})
     path = env.get(PRICE_TABLE_ENV)
     if not (path and path.strip()):
-        return shipped
+        return {}
     try:
         _, replacement = _load_price_sheet(path.strip())
     except (OSError, ValueError, tomllib.TOMLDecodeError):
-        return shipped
-    return {**shipped, **replacement.get(modality, {})}
+        return {}
+    return replacement.get(modality, {})
 
 
 def measure(modality: str, payload: Mapping[str, Any]) -> float:
@@ -225,10 +255,15 @@ def measure(modality: str, payload: Mapping[str, Any]) -> float:
 
 
 def project(
-    modality: str, provider: str, payload: Mapping[str, Any], env: Mapping[str, str] | None = None
+    modality: str,
+    provider: str,
+    payload: Mapping[str, Any],
+    env: Mapping[str, str] | None = None,
+    *,
+    model: str | None = None,
 ) -> Cost:
     """The cost this request *would* incur on ``provider`` — computed before dispatch."""
-    rate, unpriced = rate_for(modality, provider, env)
+    rate, unpriced = rate_for(modality, provider, env, model=model)
     quantity = measure(modality, payload)
     return Cost(
         units=round(rate * quantity, 6),
@@ -245,6 +280,8 @@ def settle(
     payload: Mapping[str, Any],
     response: Mapping[str, Any],
     env: Mapping[str, str] | None = None,
+    *,
+    model: str | None = None,
 ) -> Cost:
     """The cost the request *did* incur, read off the response where the provider reports it.
 
@@ -252,7 +289,7 @@ def settle(
     difference is visible). The placeholder reports a zero-token ``usage`` block, so the
     zero-spend tier settles as a *measured* zero rather than an assumed one.
     """
-    rate, unpriced = rate_for(modality, provider, env)
+    rate, unpriced = rate_for(modality, provider, env, model=model)
     reported = _reported_quantity(modality, response)
     quantity = measure(modality, payload) if reported is None else reported
     return Cost(
