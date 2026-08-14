@@ -50,7 +50,7 @@
         "Any row where agora deliberately does NOT track koine's current version records the reason and the condition that would move it, so a lagging pin is visibly a decision rather than an oversight.",
         "chief/58-kgp-version-pin-advance is retired as subsumed — its KGP row is covered here — and ROADMAP.md's Phase F is updated to point at this tasklist instead."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
