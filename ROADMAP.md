@@ -134,32 +134,44 @@ cannot close until an orchestrator-side KCB *client* replaces the `Runner::Stub`
 
 ### Phase B — Provider-router adapter breadth — ⬜ planned (scale: M)
 
-Widen the one thing the router punts on — vendor wire dispatch — and adopt LiteLLM's maintained
-price map as a *source of rates* underneath `AGORA_PRICE_TABLE`. All of this sits **below** the
+Widen vendor coverage on the **canonical** path — the hand-written Rust `wire` codec the Erlang
+router drives — and adopt a maintained price map as a *source of rates* underneath
+`AGORA_PRICE_TABLE`. Vendor dispatch is **not** "the one thing the router punts on": it is agora's
+own codec, and it is the broader of the two paths in this tree. All of this sits **below** the
 transport boundary; every differentiator stays hand-built.
 
-> ⚠️ **Correction (2026-08-11) — the canonical dispatch path is Rust, not LiteLLM.**
-> `grep -ril litellm provider-router-erl/` returns **nothing**. The canonical Erlang router
-> (ADR-0004) reaches **all seven** native-wire vendors — anthropic, gemini, replicate, elevenlabs,
-> runway, luma, minimax — through the **Rust port program** `translation/crates/wire` (built by
-> `build-translator.sh`, driven by `apr_translate.erl` as a supervised OS process: a *port, not a
-> NIF*, so no third-party wire code can take down the node). LiteLLM lives only in the
-> **superseded Python router**, behind `AGORA_LITELLM=1`, where it makes **2 of 7** vendors
-> dialable. So the canonical path is **ahead** of the borrowed one — 8 `(vendor,modality)` pairs
-> to 2 — and `chief/52`, not `chief/51`, is the vendor-breadth path of record. **The code is
-> right**: LiteLLM cannot embed in the BEAM without a Python sidecar or a NIF, and either costs a
-> differentiator — and **LiteLLM 1.82.7/1.82.8 were backdoored on PyPI in March 2026**, which is
-> why the optional extra stays optional, pinned, and off. `chief/69` lands this correction across
-> the docs.
+> ⚠️ **Correction (2026-08-11, restated 2026-08-13) — the canonical dispatch path is Rust, not
+> LiteLLM.** The canonical Erlang router (ADR-0004) has **no LiteLLM code path**: nothing in
+> `rebar.config`, no import, no dispatch. (`grep -ril litellm provider-router-erl/` does *not*
+> return nothing, as this note previously claimed — it returns four files, six lines, every one a
+> prose comment attributing something to the Python side or pointing at
+> `docs/litellm-dispatch-adapter.md`.) It covers **all seven** native-wire vendors — anthropic,
+> gemini, replicate, elevenlabs, runway, luma, minimax — through the **Rust port program**
+> `translation/crates/wire` (built by `build-translator.sh`, driven by `apr_translate.erl` as a
+> supervised OS process: a *port, not a NIF*, so no third-party wire code can take down the node).
+> LiteLLM lives only in the **superseded Python router**, behind `AGORA_LITELLM=1`, where it makes
+> **2 of 7** vendors dialable. So the canonical path is **ahead** of the borrowed one — 8
+> `(vendor,modality)` pairs to 2 — and `chief/52`, not `chief/51`, is the vendor-breadth path of
+> record. **The code is right**: LiteLLM cannot embed in the BEAM without a Python sidecar or a
+> NIF, and either costs a differentiator — and **LiteLLM 1.82.7/1.82.8 were backdoored on PyPI in
+> March 2026**, which is why the optional extra stays optional, pinned, and off. `chief/69` lands
+> this correction across the docs.
+>
+> **Coverage is not dispatch.** The codec *renders* each vendor's native request; the *sender* is
+> a separate concern and the shipped default is still inert (`apr_router.erl:216` →
+> `no live transport configured`, and there is no HTTP client in `provider-router-erl/src/`).
+> `chief/73` is that story, and widening what the router can render while nothing sends it is work
+> with no observable effect — so `73` sequences ahead of `52`.
 
 | Status | Milestone | Tasklist |
 |---|---|---|
-| ⬜ | **Correct the dispatch record** — the docs still read as if LiteLLM were the router's dispatch path; state that the canonical router has zero LiteLLM and dials via the Rust port program, record why the code is right (BEAM-embedding cost + the March 2026 PyPI backdoor), and record **`agentjido/req_llm`** as the untried better option for canonical-side breadth (554★, Apache-2.0, v1.0.0, **21 providers / 1,205 models**, native BEAM, normalized token accounting + USD cost) · S | `chief/69-router-dispatch-record-correction` *(proposed)* |
-| ⬜ | Erlang/Rust `wire` codec widens past its 8 `(vendor,modality)` pairs (`translation/crates/wire/src/lib.rs`) — **the vendor-breadth path of record** · M | `chief/52-wire-codec-vendor-breadth` *(proposed)* |
+| ⬜ | **Correct the dispatch record** — the docs still read as if LiteLLM were the router's dispatch path; state that the canonical router has zero LiteLLM and renders via the Rust port program, record why the code is right (BEAM-embedding cost + the March 2026 PyPI backdoor), and record **`agentjido/req_llm`** as the untried option for canonical-side breadth · S | `chief/69-router-dispatch-record-correction` *(proposed)* |
+| ⬜ | Erlang/Rust `wire` codec widens past its 8 `(vendor,modality)` pairs (`translation/crates/wire/src/lib.rs`) — **the vendor-breadth path of record**, on top of a transport `chief/73` must land first · M | `chief/52-wire-codec-vendor-breadth` *(proposed)* |
+| ⬜ | **Evaluate `agentjido/req_llm` as the adopt half of the build-vs-adopt call** — 558★, Apache-2.0, **v1.20.0** (2026-08-10), **1,205 models / 21 provider integrations**, native BEAM, normalized tokens + USD cost (facts re-verified 2026-08-13). Judge it on the six criteria in [`docs/prior-art.md`](docs/prior-art.md#provider-router--an-openai-compatible-model-gateway): below the transport boundary, always-completes intact, `unpriced` never passes a ceiling, Elixir-in-a-rebar3-build, KCB manifest unchanged, maintainer pool. 21 maintained integrations against 7 hand-written codecs is the asymmetry that decides it · S | `chief/75-req-llm-breadth-evaluation` *(proposed, one call with `chief/73`)* |
 | ⬜ | Python/LiteLLM adapter widens past the 2-of-7 native-wire vendors it dials today (anthropic/gemini text) — **superseded-router scope only**, and it is chasing parity the canonical path already has; do it only to keep the byte-for-byte corpus meaningful, or not at all · M | `chief/51-litellm-adapter-vendor-breadth` *(proposed, re-scoped)* |
 | ⬜ | Adopt LiteLLM's maintained price map as an `AGORA_PRICE_TABLE` source, layered *under* the `unpriced`/`budget_units`/non-text `measure()` rules, never replacing them · S | `chief/53-litellm-price-map-source` *(proposed)* |
 
-*Depends on:* none; `69` should land before `51`/`52` so breadth work is scoped against the corrected record. Sources: `provider-router-erl/src/apr_translate.erl`, `translation/crates/wire/src/lib.rs`, `docs/litellm-dispatch-adapter.md`, `docs/spike-litellm-leaf.md` §5.
+*Depends on:* `69` should land before `51`/`52`/`75` so breadth work is scoped against the corrected record, and `73` (a live transport) before `52` — rendering more vendors changes nothing observable until something dials. `75` and `73`/US-1 are **one decision, not two**: `req_llm` would be both the sender and the breadth, so whichever runs first records the call for both. Sources: `provider-router-erl/src/apr_translate.erl`, `provider-router-erl/src/apr_router.erl`, `translation/crates/wire/src/lib.rs`, `docs/litellm-dispatch-adapter.md`, `docs/prior-art.md`, `docs/spike-litellm-leaf.md` §5.
 
 ### Phase B2 — Verified-defect closure (prior-art sweep, 2026-08) — ⬜ planned (scale: S–M)
 
@@ -284,7 +296,7 @@ the always-completes ladder's correctness, so it re-proves the §2.3 guards on e
 | Status | Milestone | Tasklist |
 |---|---|---|
 | 🚧 | **Cutover readiness watch** — both routers stay byte-identical green (a change to the router's external contract lands in both or neither) and the conformance corpus stays *live*, until Phase E's four preconditions trigger | — |
-| 🚧 | **Vendor/adapter breadth** — keep widening the canonical Rust `wire` codec (and, if it ever earns adoption, `req_llm`) while the differentiators stay hand-built (feeds Phase B) | — |
+| 🚧 | **Vendor/adapter breadth** — keep widening the canonical Rust `wire` codec, or adopt `req_llm` instead if the Phase B evaluation (`chief/75`) says the maintained 21-provider tree beats hand-writing the eighth codec; either way the differentiators stay hand-built (feeds Phase B) | — |
 | 🚧 | **Re-verify the competitive claims** — every dated comparison in `docs/prior-art.md`, `docs/spike-litellm-leaf.md`, and `docs/router-hand-built-behaviours.md` is re-checked on a cadence and re-dated or retired; the LiteLLM budget claim already went stale once (Phase B2 `chief/71`) | — |
 | 🚧 | **Contract-version tracking** — as koine specs revise, bump `schemas/src/versions.ts` and keep every language gate asserting against it in lockstep (feeds Phase F) | — |
 

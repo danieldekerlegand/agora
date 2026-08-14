@@ -8,26 +8,45 @@ for this story was *GO, NARROWED*. **Code:**
 > ## ⚠️ Scope correction — 2026-08-11
 >
 > **This adapter is scoped to the superseded Python router only. The canonical router contains
-> no LiteLLM at all.** `grep -ril litellm provider-router-erl/` returns nothing.
+> no LiteLLM at all** — no dependency in `rebar.config`, no import, no dispatch path. The name
+> survives under `provider-router-erl/` in four files and comments only — `apr_cost.erl`,
+> `apr_backends.erl`, `apr_conformance_SUITE.erl`, `apr_local_backend_tests.erl` — every
+> occurrence an attributed reference to the *Python* side or to this document. No code, no
+> configuration and no test assertion stands behind any of them.
 >
 > The canonical Erlang router (ADR-0004) dials **all seven** native-wire vendors — anthropic,
 > gemini, replicate, elevenlabs, runway, luma, minimax — through the **Rust port program**
-> `translation/crates/wire`, built by `provider-router-erl/build-translator.sh` and driven by
-> `apr_translate.erl` as a supervised external OS process. A **port, not a NIF**, deliberately:
-> a panic or segfault in third-party wire-format code costs one pipe and one restart instead of
-> the node, so *always-completes* stays a structural property of the design rather than a claim
-> about someone else's code.
+> [`translation/crates/wire`](../translation/crates/wire), built by
+> [`provider-router-erl/build-translator.sh`](../provider-router-erl/build-translator.sh) and
+> driven by [`apr_translate.erl`](../provider-router-erl/src/apr_translate.erl) as a supervised
+> external OS process.
+>
+> **A port, not a NIF, and that is the point.** That rationale is not re-argued here; it is
+> quoted from where it is enforced, the module doc of `apr_translate.erl`:
+>
+> > The router's invariant is that no rung can take down the node. A NIF runs inside the BEAM's
+> > address space, where a panic or a segfault in third-party wire-format code would be exactly
+> > the failure the sacred ladder exists to make impossible; "fail-safe" would be a claim about
+> > the Rust rather than a property of the design. An OS process cannot do that. Here the worst
+> > case costs one pipe: the port dies, `handle_info/2` clears it, this call answers
+> > `{error, _}`, the rung worker records an undialed attempt and the walk continues to a
+> > cheaper — ultimately zero-cost — rung. Always-completes and ZERO-SPEND hold with the
+> > translator absent, crashed, hung or wrong.
+>
+> Read that module doc, not this paragraph, if the two ever drift: *always-completes* is a
+> structural property of an OS-process boundary, not a claim about someone else's code.
 >
 > That makes the coverage picture the **opposite** of what the rest of this document implies:
-> the Rust codec covers **8 `(vendor,modality)` pairs across all seven vendors**, where this
-> adapter makes **2 of 7** dialable. The canonical path is ahead of the borrowed one, not behind
-> it, and the vendor-breadth path of record is `chief/52-wire-codec-vendor-breadth`.
+> the Rust codec covers **8 `(vendor,modality)` pairs across all seven native-wire vendors**,
+> where this adapter makes **2 of 7 vendors** dialable (anthropic and gemini, text only). The
+> canonical path is **ahead** of the borrowed one — 8 pairs to 2 — not behind it, and the
+> vendor-breadth path of record is `chief/52-wire-codec-vendor-breadth`.
 >
-> **The code is right; the record was wrong.** Two independent reasons to keep it that way:
-> LiteLLM cannot embed in the BEAM without a Python sidecar on the hot path or a NIF, and either
-> choice costs one of the two differentiators the router exists for; and **LiteLLM 1.82.7 and
-> 1.82.8 were backdoored on PyPI in March 2026** — disqualifying for an unpinned dependency on a
-> request path, and the standing reason this extra is optional, pinned, and off by default.
+> **The code is right; the record was wrong.** Two independent reasons to keep it that way —
+> LiteLLM cannot embed in the BEAM without giving up a differentiator, and it has a
+> compromised-release history on PyPI — are argued in full, with the pin they imply, under
+> [*Why this stays a Python-side borrow*](#why-this-stays-a-python-side-borrow--the-two-reasons-the-code-is-right)
+> below.
 >
 > Everything below remains accurate **for the Python router**. `chief/69` carries the full
 > correction across the docs, including `agentjido/req_llm` as the untried option for
@@ -108,6 +127,79 @@ plus the test that proves the pair round-trips.
    fixture rather than of the capturing host. Verified: re-running
    `capture_python_surface.py` after this change reproduces `python-surface.json` byte for
    byte.
+
+## Why this stays a Python-side borrow — the two reasons the code is right
+
+The scope correction above says the record was wrong. This section says why the **code** was
+right, so the question does not get re-litigated from scratch by the next reader who notices that
+a maintained multi-provider library exists. Two reasons, and neither depends on the other.
+
+### 1. LiteLLM cannot embed in the BEAM without costing a differentiator
+
+The canonical router is Erlang (ADR-0004). LiteLLM is a Python library, so there are exactly two
+ways to put it on the canonical dispatch path, and each one spends something the router exists
+for.
+
+**As a NIF** — which for a Python library means an embedded CPython inside the BEAM's own address
+space — it lands on the wrong side of the boundary `apr_translate.erl` exists to hold. The module
+doc quoted above is the whole argument: a fault in third-party code becomes a fault *of the node*,
+and *always-completes* stops being a structural property of an OS-process boundary and becomes a
+claim about somebody else's code. Nothing about that argument is weaker for Python than for Rust;
+it is stronger, because a Python rung also drags an interpreter, a GIL and an import graph inside
+the node, and a blocking call there holds a scheduler thread instead of yielding it.
+
+**As a Python sidecar** the node is safe again — a sidecar *is* a port, the shape agora already
+uses — but the cost moves rather than disappearing, and where it lands depends on how much of
+LiteLLM you actually use:
+
+* Used as a **pure wire-format translator**, it is safe and redundant. That is precisely what
+  [`translation/crates/wire`](../translation/crates/wire) already does, for eight
+  `(vendor,modality)` pairs against LiteLLM's two — and it would be doing the smaller job with a
+  Python interpreter, 86 declared dependencies and ~166 MB on the request hot path, plus the
+  supply-chain surface reason 2 is about.
+* Used as **itself** — its router, its fallback chain, its cost accounting, the parts that make
+  adopting it worth anything — the dispatch decision moves into a component with different rules.
+  It has no terminal rung that cannot fail (its fallback chain terminates only because agora's
+  last entry cannot), and `cost_per_token` answers `(0, 0)` for a model it has no rate for: **free
+  where agora means unknown**, which is fail-**open** exactly where the `unpriced` rule refuses.
+  Per-request, caller-supplied refusal taken *before the rung is dialed* survives only while that
+  decision stays above the transport boundary, which is the boundary a sidecar would sit below.
+
+Be precise about which half of that is still load-bearing: a hard budget **ceiling** on its own is
+no longer a differentiator — LiteLLM ships dollar-denominated pre-call budgets with
+`fail_closed_budget_enforcement`, and `chief/71-budget-differentiator-honesty` re-dates the
+spike's N4 finding rather than deleting it. What survives is the `unpriced`-never-passes rule, the
+`budget_units` denomination, non-text `measure()`, and the always-completes terminal rung.
+
+There is also a directional cost that is not about mechanism at all: giving the canonical Erlang
+router a Python process on its request path reverses the ADR-0004 cutover it is in the middle of.
+
+### 2. Supply chain — optional, floored and off, for a reason with a date on it
+
+**LiteLLM 1.82.7 and 1.82.8 were backdoored on PyPI in March 2026.** (An incident in the
+dependency, not in agora's use of it — see below: this router has never been able to resolve
+either release. Recorded here from the 2026-08 prior-art sweep and `ROADMAP.md` Phase B; it is a
+claim about an upstream package, so re-verify it upstream before citing it anywhere that matters.)
+
+An unpinned dependency on a request hot path with a compromised-release history is disqualifying.
+So this extra stays **optional**, **version-floored** and **off** unless `AGORA_LITELLM=1` — a
+third reason for that posture, standing alongside the weight and byte-for-byte-corpus ones
+above.
+
+The consequence, made concrete rather than left as a moral — checked 2026-08-13:
+
+| | |
+|---|---|
+| The constraint | `litellm = ["litellm>=1.95"]`, in [`provider-router/pyproject.toml`](../provider-router/pyproject.toml) |
+| Does it exclude the backdoored releases? | **Yes** — `1.95 > 1.82.8`, so neither is resolvable, and neither ever was. |
+| Enforced, or incidental? | Enforced. `TestTheFlooredExtraExcludesTheBackdooredReleases` in `provider-router/tests/test_litellm_dispatch.py` reads the extra out of `pyproject.toml` and fails if the floor is ever dropped past 1.82.7/1.82.8. |
+| Why no explicit `!=1.82.7,!=1.82.8`? | It would restate in metadata what the test already refuses to let drift, and it would churn the lockfile for a constraint that changes no resolution (verified: editing the specifier rewrites `uv.lock`'s `requires-dist` line). The floor is the pin; the test is what keeps it one. |
+| What an install actually gets | `provider-router/uv.lock` resolves 1.95.0 with per-artifact `sha256` hashes, so enabling the extra installs hash-checked. |
+
+Neither reason is an argument against *breadth*. The untried candidate for canonical-side vendor
+breadth is `agentjido/req_llm`, which is native BEAM and so pays neither of these costs; `chief/69`
+US-3 records it, with its facts and what adopting it would have to be judged on, in
+[`prior-art.md`](prior-art.md).
 
 ## Using it
 

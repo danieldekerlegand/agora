@@ -119,10 +119,17 @@ definition — it implements `capability-bus.md` §4–§5, not a completion API
 
 ### 2.5 What *is* delegated, for contrast
 
-One thing, below the transport boundary: dispatch for the `wire="native"` paid vendors
-LiteLLM covers *in the modality agora routes them for* — Anthropic and Gemini, off by default
-behind `AGORA_LITELLM=1`. See [the adapter record](litellm-dispatch-adapter.md). Every row
-above sits above that boundary, which is why turning the adapter on cannot reach any of them.
+One thing, below the transport boundary, and **in the Python router only**: dispatch for the
+`wire="native"` paid vendors LiteLLM covers *in the modality agora routes them for* — Anthropic
+and Gemini, off by default behind `AGORA_LITELLM=1`. See
+[the adapter record](litellm-dispatch-adapter.md). Every row above sits above that boundary,
+which is why turning the adapter on cannot reach any of them.
+
+The canonical Erlang router delegates nothing here: it dials all seven native-wire vendors —
+8 `(vendor,modality)` pairs — through agora's **own** Rust codec `translation/crates/wire`,
+run as a supervised OS port by `apr_translate` (a port, not a NIF, so a fault in wire-format
+code cannot take the node down; that module's own doc is the record). Delegation is therefore
+the *superseded* side's story, and the canonical side is ahead of it 8 pairs to 2.
 
 ---
 

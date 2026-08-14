@@ -4,10 +4,11 @@
 %%% URL was configured, and that is stated twice on purpose: once at resolution (an
 %%% unconfigured local tier is `unconfigured', so no backend is ever built for it) and once at
 %%% dispatch ({@link apr_backends:dispatch_url/1}, so no injected transport can substitute an
-%%% address on its way out). LiteLLM defaults `ollama' to `http://localhost:11434' and it is
-%%% not alone; inheriting any such default would make "no local server configured" a claim
-%%% about whatever happens to be listening on the box, which is precisely the state the
-%%% zero-spend invariant has to be able to assert.
+%%% address on its way out). A client library will assume a well-known `ollama' port — more
+%%% than one does — and inheriting any such default would make "no local server configured" a
+%%% claim about whatever happens to be listening on the box, which is precisely the state the
+%%% zero-spend invariant has to be able to assert. `docs/local-backend-posture.md' §1 names
+%%% the library and the port.
 %%%
 %%% The other two thirds of the posture are here too, because they are the same subject: where
 %%% an unauthenticated local server is expected to be bound (and what the router says when it

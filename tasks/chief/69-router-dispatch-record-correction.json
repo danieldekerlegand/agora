@@ -36,7 +36,7 @@
         "The port-not-NIF rationale is preserved and cited rather than restated from scratch: an OS process cannot take down the node, so the always-completes ladder stays a structural property; `apr_translate.erl`'s own module doc is the source.",
         "docs/prior-art.md's provider-router section is corrected to match \u2014 its 'measured against LiteLLM' paragraph must not leave the impression that the borrowed adapters are the router's dispatch path of record."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -49,7 +49,7 @@
         "The consequence is made concrete rather than left as a moral: the `[litellm]` extra's version constraint is checked and pinned to exclude the compromised releases, or the reason it cannot be is recorded.",
         "Nothing in this story changes runtime behaviour, adds or removes a dependency, or regenerates the byte-for-byte conformance corpus; `make check-router-erl` and `make check-provider-router` both stay green."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {
@@ -62,7 +62,7 @@
         "ROADMAP.md's Phase B is re-ordered and re-scoped so the canonical Rust `wire` codec (`chief/52`) is the vendor-breadth path of record and the LiteLLM adapter row (`chief/51`) is explicitly scoped to the superseded Python router \u2014 with a stated note that `51` is chasing parity the canonical path already has, so it exists only to keep the byte-for-byte corpus meaningful, if at all.",
         "Phase B's prose no longer describes widening 'the one thing the router punts on' as a LiteLLM story, and a `chief/70`-style row for evaluating req_llm is added to Phase B or the Ongoing block."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
