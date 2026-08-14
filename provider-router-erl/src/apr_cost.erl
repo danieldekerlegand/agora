@@ -32,18 +32,21 @@
 %%%
 %%% Rates may be sourced; the rules may not
 %%% ---------------------------------------
-%%% Rates are data and can come from anywhere maintained — the Python router layers LiteLLM's
-%%% per-model price map in under its deployer-set layers
-%%% (`agora_provider_router/litellm_prices.py', off unless `AGORA_PRICE_LITELLM=1'; the
-%%% canonical router carries no LiteLLM at all, see `docs/litellm-dispatch-adapter.md'). What
-%%% a source may never supply is the three things above it: the `unpriced' rule (a model a
-%%% source does not price is a *missing rate*, which falls through and stays refusable, never
-%%% a rate of zero), the {@link measure/2} sizing of the non-text modalities, and the
-%%% denomination — a source speaks its vendor's currency and {@link from_usd/1} converts,
-%%% here, because a source that could name the denomination would be a cost model wearing a
-%%% source's name. Both routers' cost models therefore spell the conversion identically, and
-%%% `apr_conformance_SUITE' pins this module's anchor to the Python cost model's across the
-%%% language boundary the same way it pins the KCB version — bump one and the other goes red.
+%%% Rates are data and can come from anywhere maintained — the Python router layers a borrowed
+%%% per-model price map in under its deployer-set layers (an optional module of its own, off
+%%% unless its opt-in env var is set; this router borrows nothing to dispatch or to price, and
+%%% carries no line of that library anywhere in this tree —
+%%% `docs/router-hand-built-behaviours.md' §2.2 names the library, the module and the flag, and
+%%% points at the dispatch-adapter note that scopes the whole borrowed surface to the
+%%% superseded Python router). What a source may never supply is the three things above it:
+%%% the `unpriced' rule (a model a source does not price is a *missing rate*, which falls
+%%% through and stays refusable, never a rate of zero), the {@link measure/2} sizing of the
+%%% non-text modalities, and the denomination — a source speaks its vendor's currency and
+%%% {@link from_usd/1} converts, here, because a source that could name the denomination would
+%%% be a cost model wearing a source's name. Both routers' cost models therefore spell the
+%%% conversion identically, and `apr_conformance_SUITE' pins this module's anchor to the
+%%% Python cost model's across the language boundary the same way it pins the KCB version —
+%%% bump one and the other goes red.
 -module(apr_cost).
 
 -export([budget_key/0, budget_header/0, unit_anchor_usd/0, budget_units_per_usd/0,

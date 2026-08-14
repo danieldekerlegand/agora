@@ -64,12 +64,13 @@ local_provider() -> <<"ollama">>.
 %% @doc The providers of the keyless local tiers (`backends.py::LOCAL_PROVIDERS').
 %%
 %% Their address is the operator's and nobody else's: a client library will happily supply one
-%% (LiteLLM defaults `ollama' to `http://localhost:11434'), and inheriting it would make "no
-%% local server configured" a statement about whatever happens to be listening on the box
-%% rather than about the configuration. The rule is held twice — {@link resolve_tier/3} never
-%% yields such a rung, and {@link dispatch_url/1} refuses to name an address for one that
-%% somehow reached a transport anyway. See `docs/local-backend-posture.md', which states the
-%% whole posture (bind, auth, why the default is never inherited).
+%% (`ollama' has a well-known port that more than one of them assumes), and inheriting it
+%% would make "no local server configured" a statement about whatever happens to be listening
+%% on the box rather than about the configuration. The rule is held twice —
+%% {@link resolve_tier/3} never yields such a rung, and {@link dispatch_url/1} refuses to name
+%% an address for one that somehow reached a transport anyway. See
+%% `docs/local-backend-posture.md', which states the whole posture (bind, auth, why the
+%% default is never inherited).
 -spec local_providers() -> [binary()].
 local_providers() -> [mlx_provider(), local_provider()].
 

@@ -173,7 +173,8 @@ the_budget_unit_anchor_is_pinned_to_the_python_cost_model(_Config) ->
     %% The `budget_units' denomination is one of the three rules both cost models keep
     %% hand-built rather than inherit from a pricing library
     %% (`docs/router-hand-built-behaviours.md' §2.2), and the Python router now applies it to
-    %% a currency-denominated rate source (its optional LiteLLM price map). A ceiling travels
+    %% a currency-denominated rate source (the optional borrowed price map that same §2.2
+    %% names, which exists on the Python side only). A ceiling travels
     %% between the two routers, so it is only the comparable scalar KCB §5 asks for while both
     %% anchor it identically — pinned here the way the KCB version above is, and from the
     %% other side by `test_cost.py', which runs where rebar3 is not installed.
