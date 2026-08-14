@@ -32,7 +32,7 @@ pub const LEGACY_EDL_MEDIA_TYPE: &str = "application/vnd.koine.edl+json";
 
 /// The KMI spec version this path implements. Pinned alongside the other koine spec
 /// versions (`schemas/src/versions.ts`) — bump together.
-pub const KMI_VERSION: &str = "0.3.0";
+pub const KMI_VERSION: &str = "0.3.2";
 
 /// OTIO's own JSON adapter — the canonical form's reader/writer (KMI §4).
 pub const OTIO_JSON_ADAPTER: &str = "otio_json";

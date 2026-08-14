@@ -15,7 +15,7 @@ version() -> <<"0.1.0">>.
 %% @doc The koine capability-bus version this build speaks — `__init__.py::KCB_VERSION`.
 %% Kept in step with `schemas/src/versions.ts` SPEC_VERSIONS.kcb (asserted in US-6).
 -spec kcb_version() -> binary().
-kcb_version() -> <<"0.2.0">>.
+kcb_version() -> <<"0.4.3">>.
 
 %% @doc The identity a bare deployment reports — `__init__.py::_DEFAULT_ROUTER_IDENTITY`.
 -spec default_identity() -> binary().

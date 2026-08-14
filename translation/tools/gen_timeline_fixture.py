@@ -41,7 +41,7 @@ from opentimelineio.schema import (
 
 FIXTURE = Path(__file__).resolve().parents[1] / "crates" / "core" / "fixtures" / "timeline.otio.json"
 
-KMI_VERSION = "0.3.0"
+KMI_VERSION = "0.3.2"
 VIDEO_RATE = 24.0
 AUDIO_RATE = 48000.0
 

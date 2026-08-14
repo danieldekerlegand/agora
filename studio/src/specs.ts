@@ -42,7 +42,7 @@ export const SPEC_NAMES = ['kinp', 'kgp', 'kcb', 'kmi', 'kcs', 'kft'] as const;
 
 export type SpecName = (typeof SPEC_NAMES)[number];
 
-/** The versions this build pins, by contract. KMI has no pin here — see {@link pinnedVersion}. */
+/** The versions this build pins, by contract — every {@link SpecName} the viewer lists. */
 const PINNED: Partial<Record<SpecName, string>> = SPEC_VERSIONS;
 
 /**
@@ -50,8 +50,8 @@ const PINNED: Partial<Record<SpecName, string>> = SPEC_VERSIONS;
  *
  * `declared` is the version the participant stamped (`<spec>_version`, the key convention the
  * schemas package's own CLI reads); `pinned` is what this build speaks. Either can be absent:
- * a participant may advertise a contract without versioning its mention of it, and this build
- * pins no KMI version at all — an honest blank, not a zero.
+ * a participant may advertise a contract without versioning its mention of it, and a contract
+ * this build pins no version for shows an honest blank rather than a zero.
  */
 export interface SpecAdvertisement {
   spec: SpecName;

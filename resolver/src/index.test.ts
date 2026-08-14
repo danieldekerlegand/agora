@@ -11,8 +11,8 @@ describe('@agora/resolver', () => {
   it('identifies itself in KINP terms and pins the KINP version', () => {
     expect(describeResolver()).toEqual({
       identity: RESOLVER_IDENTITY,
-      kinpVersion: '0.2.0',
-      kgpVersion: '0.4.0',
+      kinpVersion: '0.2.1',
+      kgpVersion: '0.5.2',
       implemented: true,
       verbs: ['resolve', 'reconcile'],
       ingests: ['grounding-pack'],

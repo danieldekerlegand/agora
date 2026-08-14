@@ -32,7 +32,7 @@ health_returns_byte_identical_body(Config) ->
     {Status, Body} = get(Config, "/health"),
     200 = Status,
     <<"{\"status\":\"ok\",\"identity\":\"agora:agent:provider-router\","
-      "\"version\":\"0.1.0\",\"kcb_version\":\"0.2.0\"}">> = Body,
+      "\"version\":\"0.1.0\",\"kcb_version\":\"0.4.3\"}">> = Body,
     ok.
 
 every_contract_read_answers_without_crashing(Config) ->

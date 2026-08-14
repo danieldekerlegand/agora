@@ -13,7 +13,7 @@ const ROUTER: CapabilityManifest = {
 
 describe('@agora/sdk — KCB addressing', () => {
   it('speaks the KCB version the schemas package pins', () => {
-    expect(KCB_CLIENT_VERSION).toBe('0.2.0');
+    expect(KCB_CLIENT_VERSION).toBe('0.4.3');
   });
 
   it('treats a provider with no endpoint as undialable', () => {

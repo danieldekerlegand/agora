@@ -14,7 +14,7 @@
         "a2a": "http://127.0.0.1:8791/.well-known/agent-card.json"
       },
       "manifest": {
-        "kcb_version": "0.2.0",
+        "kcb_version": "0.4.3",
         "identity": "example:agent:notes-app",
         "endpoints": {
           "manifest": "http://127.0.0.1:8791/.well-known/kcb-manifest.json",
@@ -52,7 +52,7 @@
               "description": "Koine capability-bus manifest",
               "required": false,
               "params": {
-                "kcb_version": "0.2.0",
+                "kcb_version": "0.4.3",
                 "identity": "example:agent:notes-app",
                 "endpoints": {
                   "manifest": "http://127.0.0.1:8791/.well-known/kcb-manifest.json",
@@ -95,7 +95,7 @@
         "a2a": "http://127.0.0.1:8792/.well-known/agent-card.json"
       },
       "manifest": {
-        "kcb_version": "0.2.0",
+        "kcb_version": "0.4.3",
         "identity": "example:agent:keywords",
         "endpoints": {
           "manifest": "http://127.0.0.1:8792/.well-known/kcb-manifest.json",
@@ -133,7 +133,7 @@
               "description": "Koine capability-bus manifest",
               "required": false,
               "params": {
-                "kcb_version": "0.2.0",
+                "kcb_version": "0.4.3",
                 "identity": "example:agent:keywords",
                 "endpoints": {
                   "manifest": "http://127.0.0.1:8792/.well-known/kcb-manifest.json",
@@ -177,7 +177,7 @@
         "mcp": "http://127.0.0.1:8794/mcp"
       },
       "manifest": {
-        "kcb_version": "0.2.0",
+        "kcb_version": "0.4.3",
         "identity": "example:agent:embeddings",
         "endpoints": {
           "manifest": "http://127.0.0.1:8794/.well-known/kcb-manifest.json",
@@ -216,7 +216,7 @@
               "description": "Koine capability-bus manifest",
               "required": false,
               "params": {
-                "kcb_version": "0.2.0",
+                "kcb_version": "0.4.3",
                 "identity": "example:agent:embeddings",
                 "endpoints": {
                   "manifest": "http://127.0.0.1:8794/.well-known/kcb-manifest.json",

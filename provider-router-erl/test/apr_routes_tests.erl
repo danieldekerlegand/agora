@@ -54,7 +54,7 @@ dispatch_compiles_test() ->
 health_body_is_byte_identical_test() ->
     ?assertEqual(
        <<"{\"status\":\"ok\",\"identity\":\"agora:agent:provider-router\","
-         "\"version\":\"0.1.0\",\"kcb_version\":\"0.2.0\"}">>,
+         "\"version\":\"0.1.0\",\"kcb_version\":\"0.4.3\"}">>,
        apr_health:body()).
 
 %% Every address the manifest publishes is one this router actually serves — the same guard

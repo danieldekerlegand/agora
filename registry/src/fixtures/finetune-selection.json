@@ -29,7 +29,7 @@
         "registration": {
           "identity": "pinakes:agent:finetune",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "pinakes:agent:finetune",
             "endpoints": {
               "a2a": "https://pinakes.example/.well-known/agent-card.json"
@@ -160,7 +160,7 @@
         "registration": {
           "identity": "agora:agent:trainer",
           "manifest": {
-            "kcb_version": "0.2.0",
+            "kcb_version": "0.4.3",
             "identity": "agora:agent:trainer",
             "version": "0.1.0",
             "endpoints": {

@@ -103,10 +103,10 @@ describe('the contracts a participant advertises', () => {
     expect(kcb?.declared).toBe(kcb_version);
     expect(kcb?.pinned).toBe(SPEC_VERSIONS.kcb);
     // The participant advertises KMI by the plane it types its ports with, without stating a
-    // version — and this build pins none either. Both blanks are shown as blanks.
+    // version. That blank is shown as a blank; the pin beside it is this build's own.
     expect(kmi?.declared).toBeUndefined();
-    expect(kmi?.pinned).toBeUndefined();
-    expect(pinnedVersion('kmi')).toBeUndefined();
+    expect(kmi?.pinned).toBe(SPEC_VERSIONS.kmi);
+    expect(pinnedVersion('kmi')).toBe(SPEC_VERSIONS.kmi);
     expect(pinnedVersion('kcb')).toBe(SPEC_VERSIONS.kcb);
   });
 });

@@ -65,7 +65,7 @@ def test_clips_carry_content_addressed_asset_ids(timeline_json: str) -> None:
 
     plane = translation_py.kmi_media_plane()
     assert plane["timeline_media_type"] == "application/vnd.opentimelineio+json"
-    assert plane["kmi_version"] == "0.3.0"
+    assert plane["kmi_version"] == "0.3.2"
 
 
 def test_asset_identity_is_stable_across_a_real_adapter_cycle(video_only: str) -> None:

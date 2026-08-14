@@ -79,7 +79,15 @@ never as cross-language source). See README "Stack" for the rationale.
 
 The koine spec versions are pinned once in `schemas/src/versions.ts` and asserted against the
 Python constants by `provider-router/tests/` **and** `trainer/tests/`, and the Erlang one by
-`apr_conformance_SUITE`; if you bump one, bump all or those gates go red.
+`apr_conformance_SUITE`; if you bump one, bump all or those gates go red. Those assertions only
+compare agora to itself, so the **drift gate** `schemas/src/conformance/koine-pin-drift.ts`
+(`make check-koine-pins`, a prerequisite of `check-schemas` and a step of `check`) compares the
+table to koine's own `**Spec version:**` headers and fails when a row lags — SKIPPING loudly, never
+silently passing, where no koine sibling is checked out. Read `versions.ts`'s doc comment before
+moving a row: it states the track-current policy and the per-row register a deliberate lag belongs
+in. The same vendor-with-drift-gate shape covers koine's JSON Schemas
+(`scripts/regen-koine-schemas.mjs --check`) — anything mirrored from koine gets a gate that fails
+when the mirror rots.
 
 ## The contracts live in ../koine
 

@@ -97,7 +97,7 @@ describe('a config can say where a peer publishes, and what it published', () =>
   // The three optional fields are what make a described fabric watchable rather than merely
   // drawn: an address to observe the link at, and the peer's own documents to read. All three
   // are the host's copies of somebody else's bytes — carried, never fetched and never ruled on.
-  const MANIFEST = { kcb_version: '0.2.0', identity: 'example:agent:alpha' };
+  const MANIFEST = { kcb_version: '0.4.3', identity: 'example:agent:alpha' };
   const CARD = { name: 'example:agent:alpha', description: 'a sample peer' };
   const PUBLISHED = {
     ...ALPHA,
