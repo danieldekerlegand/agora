@@ -63,7 +63,7 @@
         "The gate follows the ecosystem's vendor-with-drift-gate pattern and is wired into `make check-schemas` (and therefore `make check` and `.chief/verify.sh`), so a future koine bump surfaces on the next run rather than at the next audit.",
         "The gate is tested both ways: a passing case with the pins correct, and a failing case with a deliberately wrong pin that produces the expected error — proving it can actually go red."
       ],
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ]
