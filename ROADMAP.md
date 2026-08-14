@@ -87,7 +87,7 @@ is the Chief tasklist that delivered a row (✅ merged), the pre-Chief bootstrap
 > The completed Chief bands are `10`–`40` (4/4 merged); the router/registry/resolver surfaces
 > predate that program and were built by the **US-AG1–4 bootstrap** (see `progress.txt`), which
 > has no completed `NN-*.json` record of its own. Proposed second-act tasklists are numbered
-> `chief/41`, `chief/50`–`58` (Phases A–F), `chief/60`–`66` (Phase G — Agora Studio),
+> `chief/41`, `chief/50`–`57` (Phases A–F; `58` retired as subsumed by `70`), `chief/60`–`66` (Phase G — Agora Studio),
 > `chief/67`–`68` (Phase H — trust & hardening), and `chief/69`–`72` (Phase B correction + Phase B2
 > verified-defect closure), chosen to not collide with the merged bands or the cross-repo
 > `agora:80`/`agora:90` references in `CLAUDE.md` / `trainer/README.md`.
@@ -181,11 +181,11 @@ thing.
 
 | Status | Milestone | Tasklist |
 |---|---|---|
-| ⬜ | **`schemas/src/versions.ts` lags koine on 4 of 6 specs** — kcb `0.2.0` vs **0.3.0**, kinp `0.2.0` vs **0.2.1**, kgp `0.4.0` vs **0.5.0**, kft `0.3.0` vs **0.4.0** — and **`kmi` is absent entirely** though `translation/` ships a KMI runtime. The three language constants are asserted only against **each other**, never against koine. Repin all six in lockstep, record the candidate-version policy, and add the **drift gate** that reads koine's spec headers · M · **subsumes `chief/58`** | `chief/70-spec-pin-repin-and-drift-gate` *(proposed)* |
+| ⬜ | **`schemas/src/versions.ts` lags koine on 4 of 6 specs** — kcb `0.2.0` vs **0.3.0**, kinp `0.2.0` vs **0.2.1**, kgp `0.4.0` vs **0.5.0**, kft `0.3.0` vs **0.4.0** — and **`kmi` is absent entirely** though `translation/` ships a KMI runtime. The three language constants are asserted only against **each other**, never against koine. Repin all six in lockstep, record the candidate-version policy, and add the **drift gate** that reads koine's spec headers · M · **subsumed + retired `chief/58`** | `chief/70-spec-pin-repin-and-drift-gate` *(proposed)* |
 | ⬜ | **Hard budget ceilings are no longer a differentiator** — LiteLLM now ships dollar-denominated pre-call budgets with `fail_closed_budget_enforcement`, so the N4 finding is superseded. Re-date it rather than delete it, and restate the four claims that **do** survive: the **`unpriced`-never-passes-a-ceiling rule** (LiteLLM's `cost_per_token` returns `(0,0)` for an unmapped model — *free* where it means *unknown*, i.e. fail-**open**), **`budget_units` denomination**, **non-text `measure()`**, and the **always-completes terminal rung** (no surveyed gateway has one) · S | `chief/71-budget-differentiator-honesty` *(proposed)* |
 | ⬜ | **KCB extension URI migration** — `https://koine.dev` is **unregistered** (verified 2026-08-11) and is the manifest extension URI; koine moves it to `w3id.org/koine/…` with a dual-accept window. agora pins the old string in **six** places, including the **byte-for-byte conformance corpus** that must be regenerated, not hand-edited · M, cross-repo | `chief/72-kcb-extension-uri-migration` *(proposed, parked on `koine:75`)* |
 
-*Depends on:* `72` is parked on `koine:75-w3id-namespace-migration` (migrating to a guessed URI would be a second defect). `70` subsumes and retires `chief/58`. `70` and `72` both move pinned constants across all three languages, so they share a conflict domain and must not co-schedule. Source: the 2026-08 prior-art sweep's *Verified defects* table.
+*Depends on:* `72` is parked on `koine:75-w3id-namespace-migration` (migrating to a guessed URI would be a second defect). `70` subsumed `chief/58`, which is now **retired** (file removed). `70` and `72` both move pinned constants across all three languages, so they share a conflict domain and must not co-schedule. Source: the 2026-08 prior-art sweep's *Verified defects* table.
 
 ### Phase C — KCB endpoint surface (MCP / A2A) — ⬜ planned (scale: M)
 
@@ -240,14 +240,34 @@ and both routers stay green.
 This phase was scoped to one lagging pin (`SPEC_VERSIONS.kgp` at `0.4.0` vs koine's `0.5.0`). The
 2026-08 sweep found **four** lagging pins plus a missing sixth spec, and — the real hole — that no
 gate anywhere compares agora's pins to **koine**; the three language constants are asserted only
-against each other, so they can agree perfectly on a version koine left behind.
+against each other, so they can agree perfectly on a version koine left behind. All of it is
+`chief/70`'s work; nothing is left in this phase of its own.
 
 | Status | Milestone | Tasklist |
 |---|---|---|
 | ⬜ | Repin all six specs in lockstep + record the candidate-version policy + add the koine-reading drift gate — the superset of this phase | `chief/70-spec-pin-repin-and-drift-gate` *(proposed, Phase B2)* |
-| ⏸ | ~~Decide + apply the KGP pin advance (0.4.0 → 0.5.0)~~ — **subsumed by `chief/70`; parked**, retire when `70` merges | `chief/58-kgp-version-pin-advance` *(parked)* |
+| ✅ | ~~Decide + apply the KGP pin advance (0.4.0 → 0.5.0)~~ — **retired as subsumed** by `chief/70` (tasklist file removed; the KGP row moved to `0.5.2` with the other five, and the decision it asked for is the policy below) | ~~`chief/58-kgp-version-pin-advance`~~ *(retired)* |
 
-*Depends on:* koine KGP re-ratification for the KGP row specifically; the rest of the repin does not wait on it. Sources: `progress.txt` US-1, the 2026-08 prior-art sweep's *Verified defects* table.
+**The candidate-version policy — track-current, ratified or candidate alike.** Stated in full next
+to the pins (`schemas/src/versions.ts`), summarized here because it governs every future row of this
+phase: each pin names the version in koine's spec header **today**, whatever that spec's status is —
+four of six are Candidate and are pinned exactly as the two Ratified ones are. A mixed table would
+state no rule at all, leaving nobody able to tell a decision from an oversight. The reasoning: koine
+publishes exactly one text per spec (a hold-at-ratified pin names a document no reader can
+retrieve); each candidate spec's re-ratification path *is* runtime work, so a commons that waits for
+ratification blocks the ratification waiting on it; and candidate means "not yet re-validated", not
+"unstable draft". The cost — a candidate can still move, and each move is a lockstep bump across
+four languages plus fixtures — is accepted, and the drift gate is what makes it land on the next
+`make check`. Enforcement is **not** uniform, and the policy says where: KGP pack ingest forgives
+everything but a different major (`resolver/src/grounding.ts`), so a producer that moved first is
+never rejected; KCB manifests and KCS scenarios refuse a different pre-1.0 *minor*
+(`isCompatibleKcbVersion` / `isCompatibleKcsVersion`), so those rows move their fixtures in the same
+change; KINP/KMI/KFT have no predicate at all, so their pins govern what agora emits. One deliberate
+deviation is on the register: agora still emits the legacy KCB extension-URI root, ending when
+`chief/72` lands and no later than KCB 0.6.0.
+
+*Depends on:* nothing — KGP re-ratification is explicitly *not* a precondition under the policy
+above. Sources: `progress.txt` US-1/US-2, the 2026-08 prior-art sweep's *Verified defects* table.
 
 ### Phase G — Agora Studio (the default topology/observability UI) — ⬜ planned (scale: L)
 
@@ -312,14 +332,14 @@ Smaller open threads noted across the docs, each with a known site, none big eno
 
 ## Chief Tasklist Status
 
-- **4/4 built-program tasklists merged**; 23 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 3 parked (`57-python-router-retirement`, `58-kgp-version-pin-advance` — subsumed by `70` — and `72-kcb-extension-uri-migration`, which waits on `koine:75`). Records live in
+- **4/4 built-program tasklists merged**; 22 proposed forward tasklists authored (`tasks/chief/*.json`, `passes:false`, unrun) — pending a run, not merged, of which 2 parked (`57-python-router-retirement` and `72-kcb-extension-uri-migration`, which waits on `koine:75`); `58-kgp-version-pin-advance` was **retired as subsumed** by `70` and its file removed. Records live in
   [`tasks/chief/completed/`](tasks/chief/completed/): `10-litellm-leaf-gateway`,
   `20-client-sdk-and-starter`, `30-translation-otio`, `40-fabric-data-plane-bridges` — each with a
   `mergedToMain` commit and all user stories `passes: true`.
 - Two tasklists carried cross-repo `dependsOn` into koine (`koine:10-kmi-adopt-otio`,
   `koine:40-fabric-producer-contracts`); both dependencies were satisfied before the agora work
   merged.
-- **23 proposed tasklists** (`chief/41`, `chief/50`–`58`, `chief/60`–`66`, `chief/67`–`68`,
+- **22 proposed tasklists** (`chief/41`, `chief/50`–`57`, `chief/60`–`66`, `chief/67`–`68`,
   `chief/69`–`72`) back the planned Phases A–H above — **now authored** (`tasks/chief/*.json`,
   `passes: false`, unrun); they are numbered to not collide with the merged bands or the cross-repo
   `agora:80`/`agora:90` references. `chief/50` additionally encodes its now-merged cross-repo closure deps
@@ -327,7 +347,7 @@ Smaller open threads noted across the docs, each with a known site, none big eno
   `chief/55` so Studio is never built on the provisional telemetry shape.
 - **`chief/69`–`72` are the 2026-08 prior-art sweep's verified-defect closure**, not speculative
   breadth work: the LiteLLM-vs-Rust dispatch record correction (`69`), the six-spec repin + koine
-  drift gate (`70`, subsuming `58`), the budget-differentiator restatement (`71`), and the
+  drift gate (`70`, which subsumed and retired `58`), the budget-differentiator restatement (`71`), and the
   cross-repo KCB extension-URI migration (`72`, parked on `koine:75`). Each was found by direct
   inspection of this tree — `grep -ril litellm provider-router-erl/` returning nothing, four stale
   pins in `schemas/src/versions.ts`, and an unresolvable `koine.dev` — and each has a checkable
