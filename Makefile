@@ -28,7 +28,7 @@ FIXTURES  := $(CURDIR)/schemas/src/conformance/fixtures
 
 .PHONY: help install install-py install-trainer install-ts check check-provider-router \
         check-router-erl check-trainer check-ts \
-        check-schemas check-clients check-examples check-registry check-resolver check-console \
+        check-schemas check-koine-pins check-clients check-examples check-registry check-resolver check-console \
         check-knowledge check-grants check-studio \
         check-conformance check-translation build fmt clean
 
@@ -49,7 +49,7 @@ install-trainer:  ## Install the trainer's Python deps
 install-ts:  ## Install the TypeScript workspace deps
 	npm install
 
-check: check-provider-router check-router-erl check-trainer check-ts check-conformance check-translation  ## Run every area's gate (what CI runs)
+check: check-koine-pins check-provider-router check-router-erl check-trainer check-ts check-conformance check-translation  ## Run every area's gate (what CI runs)
 
 # --- provider-router (Python / uv) ---
 # Superseded by provider-router-erl (see below), and kept green: it is the executable
@@ -109,8 +109,21 @@ check-conformance: install-ts install-py  ## Gate: CLI-smoke every artifact thro
 	done
 
 # Per-area gates, for a story that touches exactly one package.
-check-schemas:  ## Gate: the shared schemas package only
+check-schemas: check-koine-pins  ## Gate: the shared schemas package only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/schemas
+
+# The koine pin drift gate (agora:70): agora's SPEC_VERSIONS vs koine's own `**Spec version:**`
+# headers. The three cross-language pin assertions compare agora to ITSELF and so cannot catch all
+# four constants agreeing on a version koine left behind — this catches exactly that. It needs no
+# npm install (node builtins only), and it is native-optional in the same spirit as
+# check-path-index / check-router-erl, except the missing piece is koine rather than a toolchain:
+# with no koine sibling it prints a loud SKIPPED notice and exits 0, never a silent pass. The
+# vitest beside the module (schemas/src/conformance/koine-pin-drift.test.ts) runs the same
+# comparison under check-ts, so `make check` enforces it whether or not this step is reached.
+.PHONY: check-koine-pins
+check-koine-pins:  ## Gate: agora's koine spec pins vs koine's own spec headers
+	@node schemas/src/conformance/koine-pin-drift.ts
+
 check-clients:  ## Gate: the client SDK only
 	@$(MAKE) --no-print-directory ts-area PKG=@agora/sdk
 # The examples (examples/) — consumers of the published SDK, so they are their own area: the

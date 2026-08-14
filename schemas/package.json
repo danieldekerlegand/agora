@@ -28,7 +28,8 @@
     "regen:koine-fixture": "node scripts/regen-koine-fixture.mjs",
     "regen:koine-fixture:check": "node scripts/regen-koine-fixture.mjs --check",
     "regen:koine-schemas": "node scripts/regen-koine-schemas.mjs",
-    "regen:koine-schemas:check": "node scripts/regen-koine-schemas.mjs --check"
+    "regen:koine-schemas:check": "node scripts/regen-koine-schemas.mjs --check",
+    "check:koine-pins": "node src/conformance/koine-pin-drift.ts"
   },
   "dependencies": {
     "ajv": "^8.17.1"

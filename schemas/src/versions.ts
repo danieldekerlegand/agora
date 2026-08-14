@@ -12,6 +12,12 @@
  * polyglot split honest, but only against ITSELF. Bump them all together, and take each value from
  * koine's header when you do.
  *
+ * What compares this table to KOINE is the drift gate, `conformance/koine-pin-drift.ts`: it reads
+ * the `**Spec version:**` header out of each spec named in the register below and fails the schemas
+ * gate when a row disagrees (loudly SKIPPED, never silently passed, where no koine sibling is
+ * checked out). So a row that lags koine has to be a deliberate entry in that register — it can no
+ * longer be an oversight nobody notices.
+ *
  * ## The policy — TRACK-CURRENT, ratified or candidate alike
  *
  * Every row below names the version in koine's spec header **today**, whatever that spec's status
